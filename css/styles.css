@@ -142,6 +142,7 @@ select#route-folder-select {
   }
   .side-panel.open { transform: translateX(0); }
   .menu-toggle { display: block; }
+  .leaflet-top.leaflet-left .leaflet-control-zoom { margin-top: 3.6rem; }
 }
 
 /* ---------------- Configuration page layout ---------------- */
