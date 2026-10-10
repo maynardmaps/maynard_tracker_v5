@@ -21,17 +21,69 @@
         });
       },
       onEachFeature(feature, layer) {
-        const props = feature.properties || {};
-        const name = props.name || "Marker";
-        const desc = props.description || "";
-        layer.bindPopup(
-          `<div class="kml-popup"><strong>${escapeHtml(name)}</strong>` +
-            (desc ? `<div class="kml-popup-desc">${escapeHtml(desc)}</div>` : "") +
-            "</div>"
-        );
+        layer.bindPopup(buildPopupHtml(feature.properties || {}), { maxWidth: 320 });
       }
     });
   }
+
+  // Fields shown first, in this order; any other non-empty KML field follows.
+  const POPUP_FIELDS = [
+    ["Time", "Time"],
+    ["Time UTC", "Time (UTC)"],
+    ["Text", "Message"],
+    ["Note", "Note"],
+    ["Event", "Event"],
+    ["Latitude", "Latitude"],
+    ["Longitude", "Longitude"],
+    ["Elevation", "Elevation"],
+    ["Velocity", "Speed"],
+    ["Course", "Course"],
+    ["Valid GPS Fix", "GPS fix"],
+    ["In Emergency", "Emergency"],
+    ["Name", "Device"],
+    ["Device Type", "Device type"]
+  ];
+  // Internal/duplicate fields not worth showing.
+  const POPUP_HIDDEN = new Set(["Map Display Name", "SpatialRefSystem", "Incident Id", "Device Identifier"]);
+
+  function buildPopupHtml(props) {
+    const has = (k) => props[k] != null && String(props[k]).trim() !== "";
+    const title = has("Map Display Name") ? props["Map Display Name"] : props.name || "Marker";
+    const rows = [];
+    const shown = new Set();
+    const add = (key, label) => {
+      shown.add(key);
+      if (has(key)) rows.push([label, String(props[key]).trim()]);
+    };
+    POPUP_FIELDS.forEach(([k, l]) => add(k, l));
+    Object.keys(props).forEach((k) => {
+      if (!shown.has(k) && !POPUP_HIDDEN.has(k) && !EXCLUDED_PROPS.has(k)) add(k, k);
+    });
+
+    const emergency = String(props["In Emergency"]).toLowerCase() === "true";
+    let html = `<div class="kml-popup"><strong>${escapeHtml(title)}</strong>`;
+    if (emergency) html += '<div class="kml-popup-emergency">EMERGENCY</div>';
+    if (has("description") && !has("Time")) {
+      html += `<div class="kml-popup-desc">${escapeHtml(props.description)}</div>`;
+    }
+    if (rows.length) {
+      html +=
+        '<table class="kml-popup-table">' +
+        rows
+          .map(([l, v]) => `<tr><th>${escapeHtml(l)}</th><td>${escapeHtml(v)}</td></tr>`)
+          .join("") +
+        "</table>";
+    }
+    return html + "</div>";
+  }
+
+  // Standard KML/GeoJSON properties that aren't Garmin ExtendedData fields.
+  const EXCLUDED_PROPS = new Set([
+    "name", "description", "visibility", "styleUrl", "styleHash", "styleMapHash",
+    "stroke", "stroke-opacity", "stroke-width", "fill", "fill-opacity", "icon",
+    "icon-scale", "icon-offset", "icon-offset-units", "marker-color", "marker-size",
+    "timestamp", "begin", "end", "when", "Id", "IMEI"
+  ]);
 
   function escapeHtml(str) {
     const div = document.createElement("div");
@@ -72,9 +124,14 @@
         else if (cs.length === 1) geometry = { type: "Point", coordinates: cs[0] };
       }
       if (!geometry) return;
+      const properties = { name: p.name || "", description: p.description || "" };
+      asArray(p.ExtendedData && p.ExtendedData.Data).forEach((d) => {
+        if (d && d.name != null) properties[d.name] = d.value == null ? "" : String(d.value);
+      });
+      if (p.TimeStamp && p.TimeStamp.when) properties.timestamp = p.TimeStamp.when;
       features.push({
         type: "Feature",
-        properties: { name: p.name || "", description: p.description || "" },
+        properties,
         geometry
       });
     });

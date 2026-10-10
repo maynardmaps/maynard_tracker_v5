@@ -14,7 +14,7 @@
   `https://maynardmaps.github.io/*` (the key is committed in `js/secrets.js`).
 - [ ] Change the config passphrase if it matters that it appeared in chat:
   `cd worker; wrangler.cmd secret put CONFIG_PASSPHRASE`.
-- [ ] Enhanced Garmin KML pin popouts: decide what extra information to show
+- [x] (done: popups now show time, message, lat/lon, elevation, speed, course etc.) Enhanced Garmin KML pin popouts: decide what extra information to show
   (e.g. time, elevation, speed, course, battery, message text, device name)
   and extend the popup in `js/kml-markers.js`. Check what fields the feed
   actually provides (including the `ExtendedData` in the KML).
