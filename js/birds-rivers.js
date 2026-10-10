@@ -36,16 +36,16 @@
           return L.circleMarker(latlng, {
             radius: 7,
             color: "#222",
-            weight: 1,
+            weight: 0.5,
             fillColor: POINT_COLOUR,
             fillOpacity: 0.9
           });
         },
         style(feature) {
           if (feature.geometry && feature.geometry.type.indexOf("Polygon") !== -1) {
-            return { color: POLYGON_COLOUR, weight: 2, fillColor: POLYGON_COLOUR, fillOpacity: 0.25 };
+            return { color: POLYGON_COLOUR, weight: 0.5, fillColor: POLYGON_COLOUR, fillOpacity: 0.25 };
           }
-          return { color: "#3388ff", weight: 3 };
+          return { color: "#3388ff", weight: 1 };
         },
         onEachFeature: bindPopup
       }));
