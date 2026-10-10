@@ -55,8 +55,8 @@
         startPoint: { lat: 51.5074, lng: -0.1278 },
         startZoom: 12,
         mapSources: [],
-        routeColours: {},
-        kmlMarkerColour: "#1565c0",
+        routeColours: global.MaynardUtils.DEFAULT_PALETTE.slice(),
+        markerColours: global.MaynardUtils.DEFAULT_PALETTE.slice(),
         weatherEnabledByDefault: false,
         birdsRiversEnabledByDefault: false
       };

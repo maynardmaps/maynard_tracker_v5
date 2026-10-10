@@ -32,7 +32,7 @@
       gpsvProxyUrl: window.MAYNARD_CONFIG.gpsvProxyUrl,
       proxies: window.MAYNARD_CONFIG.corsProxies,
       pollIntervalMs: window.MAYNARD_CONFIG.garminPollIntervalMs,
-      colour: settings.kmlMarkerColour,
+      palette: settings.markerColours,
       startVisible: true
     });
 

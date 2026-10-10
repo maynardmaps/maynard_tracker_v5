@@ -72,9 +72,7 @@ unreachable; update it by hand if you want the fallback to stay current:
 }
 ```
 
-Route colours are auto-assigned (alphabetically, from a fixed palette) the
-first time a new filename is seen, and can be overridden per-file on the
-config page.
+Colours come from two generic 8-colour palettes set on the config page (one for routes,`nbut one for Garmin markers). The Nth route/marker in alphanumerical order takes colour N;`nthe palette repeats when there are more than 8.
 
 ## Birds and rivers overlay
 
@@ -101,8 +99,8 @@ From there you can set:
 
 - Default route folder shown on load.
 - Map start point/zoom (type coordinates or click/drag the picker map).
-- Per-route colours (every file across every manifest folder is listed).
-- Garmin KML marker colour.
+- Route colours: a generic palette of 8 colours.
+- Garmin KML marker colours: a generic palette of 8 colours.
 - Whether the weather overlay is on by default.
 - Whether the birds and rivers overlay is on by default.
 - Which base map sources are offered, their display names/URLs, and you can

@@ -33,6 +33,9 @@ Data source requirements:
 16) The map should be able to load a static KML file (known as "birds and rivers")with points and polygons from the folder "data" and display them on the map.
 17) Birds and rivers KML file should be toggleable on and off individually. It should default to toggled off.
 18) Where a single KML or GPX file contains more than one route (KML line placemarks, GPX tracks/routes), each route should be listed, coloured and toggled as a separate route in the menu rather than aggregated under the file's single entry.
+19) Different "KML Markers" from the Garmin feed should be displayed in different colours.
+20) Route and KML marker colours are configured as two generic palettes (one for routes, one for KML markers) of 8 colours each, not as colours for specific entries in the files currently loaded. The 1st entry (in alphanumerical order) takes colour 1, the 2nd takes colour 2, and so on up to 8.
+21) Where a route file or KML marker feed has more than 8 entries, the palette colours should be repeated (the 9th entry takes colour 1, etc.).
 
 Configuration page requirements:
 1) The configuration page should allow the user to set the default route sub-folder.

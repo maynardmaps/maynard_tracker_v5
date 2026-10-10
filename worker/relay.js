@@ -127,7 +127,7 @@ const GH_PATH = "settings.json";
 const MAX_SETTINGS_BYTES = 50000;
 const ALLOWED_KEYS = new Set([
   "_comment", "github", "defaultRouteFolder", "startPoint", "startZoom",
-  "mapSources", "routeColours", "kmlMarkerColour", "weatherEnabledByDefault",
+  "mapSources", "routeColours", "markerColours", "weatherEnabledByDefault",
   "birdsRiversEnabledByDefault"
 ]);
 
@@ -170,6 +170,10 @@ function validSettings(s) {
   if (!p || !Number.isFinite(p.lat) || !Number.isFinite(p.lng)) return false;
   if (!Number.isFinite(s.startZoom)) return false;
   if (typeof s.defaultRouteFolder !== "string") return false;
+  for (const k of ["routeColours", "markerColours"]) {
+    if (s[k] !== undefined && !(Array.isArray(s[k]) && s[k].length <= 8 &&
+        s[k].every((c) => typeof c === "string" && /^#[0-9a-fA-F]{6}$/.test(c)))) return false;
+  }
   if (!Array.isArray(s.mapSources)) return false;
   return s.mapSources.every((m) => m && typeof m.id === "string" && typeof m.url === "string" &&
     /^https:\/\//.test(m.url));

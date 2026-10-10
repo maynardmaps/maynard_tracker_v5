@@ -5,18 +5,31 @@
 
   let layerGroup = null;
   let visible = true;
-  let markerColour = "#1565c0";
+  let markerPalette = MaynardUtils.sanitizePalette();
   let pollTimer = null;
   let lastRawKml = null;
 
+  function markerKey(feature) {
+    const p = (feature && feature.properties) || {};
+    return String(p["Map Display Name"] || p.name || "");
+  }
+
   function buildLayer(geojson) {
+    // Each point marker gets the next palette slot in alphanumerical order of
+    // its display name; slots repeat after the palette is exhausted.
+    const keys = [...new Set(
+      geojson.features
+        .filter((f) => f.geometry && f.geometry.type === "Point")
+        .map(markerKey)
+    )];
+    const colours = MaynardUtils.assignColours(keys, markerPalette);
     return L.geoJson(geojson, {
       pointToLayer(feature, latlng) {
         return L.circleMarker(latlng, {
           radius: 7,
           color: "#222",
           weight: 1,
-          fillColor: markerColour,
+          fillColor: colours.get(markerKey(feature)),
           fillOpacity: 0.9
         });
       },
@@ -200,9 +213,9 @@
     }
   }
 
-  function start(map, { feedUrl, proxies, relayUrl, gpsvProxyUrl, pollIntervalMs, colour, startVisible }) {
+  function start(map, { feedUrl, proxies, relayUrl, gpsvProxyUrl, pollIntervalMs, palette, startVisible }) {
     const sources = { relayUrl, gpsvProxyUrl };
-    markerColour = colour || markerColour;
+    markerPalette = MaynardUtils.sanitizePalette(palette);
     visible = startVisible !== false;
     refresh(map, feedUrl, proxies, sources);
     stop();
@@ -221,13 +234,6 @@
     else if (map.hasLayer(layerGroup)) map.removeLayer(layerGroup);
   }
 
-  function setColour(colour, map) {
-    markerColour = colour;
-    if (layerGroup) {
-      layerGroup.eachLayer((l) => l.setStyle && l.setStyle({ fillColor: colour }));
-    }
-  }
-
   function getBounds() {
     return layerGroup && layerGroup.getBounds().isValid() ? layerGroup.getBounds() : null;
   }
@@ -236,5 +242,5 @@
     if (layerGroup && visible) layerGroup.addTo(map);
   }
 
-  global.MaynardKmlMarkers = { start, stop, setVisible, setColour, getBounds, reattach };
+  global.MaynardKmlMarkers = { start, stop, setVisible, getBounds, reattach };
 })(window);

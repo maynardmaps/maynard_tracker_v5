@@ -66,9 +66,10 @@
   }
 
   // Loads every file in `folder`, splits multi-route files into separate
-  // entries, colours each per `routeColours` overrides, and returns a Map of
+  // entries, colours each from the generic route palette (cycling), and
+  // returns a Map of
   // route key -> { layer, colour, visible }.
-  async function loadFolder(folder, manifest, routeColourOverrides) {
+  async function loadFolder(folder, manifest, routePalette) {
     currentFolder = folder;
     routeLayers = new Map();
     const filenames = manifest.folders[folder] || [];
@@ -86,7 +87,7 @@
       entries.push(...splitFile(filenames[i], result.value));
     });
 
-    const colours = MaynardUtils.assignColours(entries.map(([k]) => k), routeColourOverrides);
+    const colours = MaynardUtils.assignColours(entries.map(([k]) => k), routePalette);
     entries.forEach(([key, layer]) => {
       const colour = colours.get(key);
       layer.setStyle({ color: colour, weight: 4, opacity: 0.85 });

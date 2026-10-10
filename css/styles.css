@@ -247,3 +247,5 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   text-align: center;
   padding: 2rem 1rem;
 }
+
+.palette-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.4rem 1rem; }

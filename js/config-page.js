@@ -8,12 +8,10 @@
 
   let settings, manifest;
   let pickerMap, pickerMarker;
-  let allRouteFilenames = [];
 
   async function main() {
     settings = await MaynardSettings.load();
     manifest = await MaynardUtils.loadRoutesManifest();
-    allRouteFilenames = Object.values(manifest.folders).flat();
 
     document.getElementById("github-link").href =
       `https://github.com/${(settings.github || window.MAYNARD_CONFIG.github).owner}/` +
@@ -72,10 +70,10 @@
     document.getElementById("gh-branch").value = gh.branch;
 
     // Route colours
-    buildRouteColourList();
+    buildPaletteInputs("route-colour-list", "route-colour", settings.routeColours);
 
     // KML marker colour
-    document.getElementById("kml-marker-colour").value = settings.kmlMarkerColour || "#1565c0";
+    buildPaletteInputs("marker-colour-list", "marker-colour", settings.markerColours);
 
     // Weather default
     document.getElementById("weather-default").checked = settings.weatherEnabledByDefault === true;
@@ -122,22 +120,17 @@
     }
   }
 
-  function buildRouteColourList() {
-    const container = document.getElementById("route-colour-list");
+  function buildPaletteInputs(containerId, prefix, palette) {
+    const container = document.getElementById(containerId);
     container.innerHTML = "";
-    const colours = MaynardUtils.assignColours(allRouteFilenames, settings.routeColours || {});
-    [...colours.keys()].forEach((filename) => {
+    MaynardUtils.sanitizePalette(palette).forEach((colour, i) => {
       const row = document.createElement("div");
       row.className = "field-row";
       row.innerHTML =
-        `<label class="field-label" for="route-colour-${cssId(filename)}">${filename}</label>` +
-        `<input type="color" id="route-colour-${cssId(filename)}" value="${colours.get(filename)}" />`;
+        `<label class="field-label" for="${prefix}-${i + 1}">Colour ${i + 1}</label>` +
+        `<input type="color" id="${prefix}-${i + 1}" value="${colour}" />`;
       container.appendChild(row);
     });
-  }
-
-  function cssId(str) {
-    return str.replace(/[^a-z0-9]/gi, "-");
   }
 
   function buildMapSourceList() {
@@ -178,13 +171,11 @@
     return String(str || "").replace(/"/g, "&quot;");
   }
 
-  function collectRouteColours() {
-    const out = {};
-    allRouteFilenames.forEach((filename) => {
-      const el = document.getElementById(`route-colour-${cssId(filename)}`);
-      if (el) out[filename] = el.value;
+  function collectPalette(prefix) {
+    return MaynardUtils.DEFAULT_PALETTE.map((d, i) => {
+      const el = document.getElementById(`${prefix}-${i + 1}`);
+      return el ? el.value : d;
     });
-    return out;
   }
 
   function collectMapSources() {
@@ -220,8 +211,8 @@
         repo: document.getElementById("gh-repo").value.trim(),
         branch: document.getElementById("gh-branch").value.trim() || "main"
       },
-      routeColours: collectRouteColours(),
-      kmlMarkerColour: document.getElementById("kml-marker-colour").value,
+      routeColours: collectPalette("route-colour"),
+      markerColours: collectPalette("marker-colour"),
       weatherEnabledByDefault: document.getElementById("weather-default").checked,
       birdsRiversEnabledByDefault: document.getElementById("birds-rivers-default").checked,
       mapSources: collectMapSources()

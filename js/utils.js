@@ -2,32 +2,33 @@
 (function (global) {
   "use strict";
 
-  // Deterministic colour palette, assigned in alphanumerical order of the
-  // item name (route file name, marker group, etc.) - requirement:
-  // "colour settings applied in the alphanumerical order in which routes and
-  // markers are listed".
-  const PALETTE = [
-    "#e6194b", "#3cb44b", "#4363d8", "#f58231", "#911eb4",
-    "#46f0f0", "#f032e6", "#bcf60c", "#fabebe", "#008080",
-    "#9a6324", "#800000", "#808000", "#000075", "#a9a9a9"
+  // Colours are generic slots, not tied to specific files: the Nth route (or
+  // marker), in alphanumerical order, gets slot N; beyond the palette length
+  // the slots repeat. Palettes are configured on the configuration page.
+  const PALETTE_SIZE = 8;
+  const DEFAULT_PALETTE = [
+    "#e6194b", "#3cb44b", "#4363d8", "#f58231",
+    "#911eb4", "#46f0f0", "#f032e6", "#9a6324"
   ];
 
-  function paletteColour(index) {
-    return PALETTE[index % PALETTE.length];
+  // Returns a valid 8-colour palette, filling gaps/invalid values (or legacy
+  // non-array settings) from the defaults.
+  function sanitizePalette(palette) {
+    const arr = Array.isArray(palette) ? palette : [];
+    return DEFAULT_PALETTE.map((d, i) =>
+      typeof arr[i] === "string" && /^#[0-9a-f]{6}$/i.test(arr[i]) ? arr[i] : d
+    );
   }
 
   // Sorts names alphanumerically (case-insensitive, natural number ordering)
-  // and returns a Map of name -> colour, using any explicit overrides first
-  // and falling back to the palette for anything unassigned.
-  function assignColours(names, overrides) {
-    overrides = overrides || {};
+  // and returns a Map of name -> palette colour (cycling through the palette).
+  function assignColours(names, palette) {
+    const colours = sanitizePalette(palette);
     const sorted = names.slice().sort((a, b) =>
       a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" })
     );
     const result = new Map();
-    sorted.forEach((name, i) => {
-      result.set(name, overrides[name] || paletteColour(i));
-    });
+    sorted.forEach((name, i) => result.set(name, colours[i % colours.length]));
     return result;
   }
 
@@ -102,7 +103,9 @@
 
   global.MaynardUtils = {
     loadRoutesManifest,
-    paletteColour,
+    sanitizePalette,
+    DEFAULT_PALETTE,
+    PALETTE_SIZE,
     assignColours,
     debounce,
     fetchJson,
