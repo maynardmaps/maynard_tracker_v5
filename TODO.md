@@ -18,6 +18,11 @@
   (e.g. time, elevation, speed, course, battery, message text, device name)
   and extend the popup in `js/kml-markers.js`. Check what fields the feed
   actually provides (including the `ExtendedData` in the KML).
+- [ ] Route upload from the configuration page: let the user pick a route
+  folder and upload GPX/KML files from `config.html`. Extend the Worker
+  (passphrase-gated, like `POST /settings`) to commit files to the fixed
+  routes path in the repo, with filename/extension whitelisting and a size
+  cap, then update the route manifest/settings so the map lists the new routes.
 
 Done: Worker pins the Met Office order and caches weather; `ALLOWED_ORIGIN`
 locked to `https://maynardmaps.github.io`; `secrets.js` now holds only the OS
