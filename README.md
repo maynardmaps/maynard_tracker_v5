@@ -76,7 +76,7 @@ Colours come from two generic 8-colour palettes set on the config page (one for 
 
 ## Birds and rivers overlay
 
-`data/birds-and-rivers.kml` is a single, static, version-controlled KML file
+`data/birdsrivers.kml` is a single, static, version-controlled KML file
 containing a mix of `Point` (e.g. bird sightings) and `Polygon` (e.g. rivers,
 wetlands) placemarks. It's loaded once per page load (not polled, unlike the
 Garmin feed) by `js/birds-rivers.js` and rendered as a togglable "Birds and
@@ -85,7 +85,7 @@ style (not per-file/per-colour-picker like routes), and clicking a feature
 shows its `<name>`/`<description>` in a popup, same as the other KML layers.
 
 The shipped file is a **placeholder with sample data near central London** -
-replace `data/birds-and-rivers.kml` with the real file (same filename, same
+replace `data/birdsrivers.kml` with the real file (same filename, same
 folder) and it will be picked up automatically; no manifest or code changes
 are needed since it's a single fixed file rather than a folder of routes.
 
@@ -206,7 +206,7 @@ routes/
   manifest.json           Hand-maintained list of route folders/files
   TT1/, TT2/              Sample route files
 data/
-  birds-and-rivers.kml    Static points+polygons overlay (sample placeholder - replace with real data)
+  birdsrivers.kml    Static points+polygons overlay (sample placeholder - replace with real data)
 worker/
   relay.js                Cloudflare Worker relay (Garmin feed + Met Office weather)
   wrangler.toml           Worker deploy config
