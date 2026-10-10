@@ -1,0 +1,10 @@
+# Secret API keys / tokens - never commit this file.
+js/secrets.js
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+
+# Wrangler local state
+worker/.wrangler/
+node_modules/

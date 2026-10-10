@@ -1,0 +1,244 @@
+/* styles.css - shared styles for the map page and configuration page. */
+
+:root {
+  --panel-bg: #ffffff;
+  --panel-border: #d9d9d9;
+  --accent: #1565c0;
+  --text: #1a1a1a;
+  --muted: #666;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  color: var(--text);
+}
+
+/* ---------------- Map page layout ---------------- */
+
+.app-shell {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+#map {
+  flex: 1 1 auto;
+  height: 100%;
+}
+
+.side-panel {
+  width: 300px;
+  max-width: 85vw;
+  flex: 0 0 auto;
+  background: var(--panel-bg);
+  border-right: 1px solid var(--panel-border);
+  overflow-y: auto;
+  padding: 0.75rem 1rem 1.5rem;
+  z-index: 1000;
+}
+
+.side-panel h1 {
+  font-size: 1.1rem;
+  margin: 0.25rem 0 1rem;
+}
+
+.side-panel section {
+  margin-bottom: 1.25rem;
+}
+
+.side-panel h2 {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  margin: 0 0 0.4rem;
+}
+
+.radio-row, .route-row, .switch-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.2rem 0;
+  font-size: 0.92rem;
+}
+
+.colour-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+  border: 1px solid rgba(0, 0, 0, 0.3);
+}
+
+.route-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+select#route-folder-select {
+  width: 100%;
+  padding: 0.35rem;
+}
+
+.config-link {
+  display: inline-block;
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--accent);
+  text-decoration: none;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  padding: 0.3rem 0.6rem;
+}
+
+.config-link:hover { background: #e8f0fe; }
+
+.menu-toggle {
+  display: none;
+  position: fixed;
+  top: 0.6rem;
+  left: 0.6rem;
+  z-index: 1100;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  padding: 0.4rem 0.6rem;
+  font-size: 1rem;
+}
+
+.kml-popup { max-width: 220px; }
+.kml-popup-desc { font-size: 0.85rem; margin-top: 0.25rem; color: var(--muted); }
+
+.user-location-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #1565c0;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 2px rgba(21, 101, 192, 0.5);
+}
+
+@media (max-width: 720px) {
+  .app-shell { position: relative; }
+  .side-panel {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    transform: translateX(-105%);
+    transition: transform 0.2s ease-in-out;
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.2);
+  }
+  .side-panel.open { transform: translateX(0); }
+  .menu-toggle { display: block; }
+}
+
+/* ---------------- Configuration page layout ---------------- */
+
+.config-page {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 1rem 1.25rem 3rem;
+}
+
+.config-page h1 { font-size: 1.4rem; }
+
+.config-section {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
+.config-section h2 {
+  font-size: 1rem;
+  margin-top: 0;
+}
+
+.field-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0.5rem 0;
+}
+
+.field-row label.field-label {
+  min-width: 150px;
+  font-weight: 500;
+}
+
+input[type="text"], input[type="number"], input[type="password"], select {
+  padding: 0.4rem 0.5rem;
+  border: 1px solid #bbb;
+  border-radius: 4px;
+  font-size: 0.95rem;
+}
+
+input[type="color"] {
+  width: 44px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid #bbb;
+  border-radius: 4px;
+}
+
+button {
+  font-size: 0.95rem;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+}
+
+button.secondary {
+  background: #fff;
+  color: var(--accent);
+}
+
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+#pick-start-map {
+  height: 260px;
+  border-radius: 6px;
+  margin-top: 0.5rem;
+}
+
+.map-source-row {
+  display: grid;
+  grid-template-columns: 24px 1fr 2fr auto;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.3rem 0;
+  border-bottom: 1px solid #eee;
+}
+
+.save-bar {
+  position: sticky;
+  bottom: 0;
+  background: #fafafa;
+  border-top: 1px solid var(--panel-border);
+  padding: 0.75rem 0;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.status-msg { font-size: 0.85rem; color: var(--muted); }
+.status-msg.ok { color: #2e7d32; }
+.status-msg.error { color: #c62828; }
+
+.lock-overlay {
+  text-align: center;
+  padding: 2rem 1rem;
+}

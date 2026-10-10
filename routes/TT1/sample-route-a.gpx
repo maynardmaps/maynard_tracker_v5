@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="maynard_tracker_v5 sample" xmlns="http://www.topografix.com/GPX/1/1">
+  <trk>
+    <name>TT1 Sample Route A</name>
+    <trkseg>
+      <trkpt lat="51.5074" lon="-0.1278"></trkpt>
+      <trkpt lat="51.5090" lon="-0.1310"></trkpt>
+      <trkpt lat="51.5110" lon="-0.1265"></trkpt>
+      <trkpt lat="51.5095" lon="-0.1200"></trkpt>
+      <trkpt lat="51.5074" lon="-0.1278"></trkpt>
+    </trkseg>
+  </trk>
+</gpx>

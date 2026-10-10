@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sample "birds and rivers" static KML file (requirement 16/17).
+  This is a PLACEHOLDER with a few sample bird-sighting points and river
+  polygons near central London, so the "birds and rivers" overlay has
+  something real to load and toggle. Replace this file with the real data
+  when available - the loader (js/birds-rivers.js) handles any mix of
+  Point and Polygon placemarks in this file automatically.
+-->
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>Birds and Rivers (sample)</name>
+
+    <Placemark>
+      <name>Heron sighting</name>
+      <description>Grey heron seen along the riverbank.</description>
+      <Point>
+        <coordinates>-0.1195,51.5033,0</coordinates>
+      </Point>
+    </Placemark>
+
+    <Placemark>
+      <name>Kingfisher sighting</name>
+      <description>Kingfisher observed near the weir.</description>
+      <Point>
+        <coordinates>-0.0865,51.5055,0</coordinates>
+      </Point>
+    </Placemark>
+
+    <Placemark>
+      <name>Swan nesting site</name>
+      <description>Mute swan nest, keep dogs on leads nearby.</description>
+      <Point>
+        <coordinates>-0.1278,51.5010,0</coordinates>
+      </Point>
+    </Placemark>
+
+    <Placemark>
+      <name>River Thames (sample reach)</name>
+      <description>Sample river polygon - replace with real watercourse extents.</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>
+              -0.1340,51.5070,0
+              -0.1060,51.5060,0
+              -0.0820,51.5045,0
+              -0.0830,51.5025,0
+              -0.1080,51.5035,0
+              -0.1350,51.5045,0
+              -0.1340,51.5070,0
+            </coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+
+    <Placemark>
+      <name>Wetland reserve</name>
+      <description>Sample wetland/nature reserve polygon.</description>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>
+              -0.1450,51.4980,0
+              -0.1400,51.4980,0
+              -0.1400,51.5010,0
+              -0.1450,51.5010,0
+              -0.1450,51.4980,0
+            </coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+  </Document>
+</kml>

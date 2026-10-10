@@ -1,0 +1,47 @@
+1) Be as lightweight to open as possible so as to work with limited connectivity.
+2) Be compatible with being hosted on github as a webpage.
+3) Display a map to the user. See "map requirements" section for details.
+4) Be responsive and work well on both desktop and mobile devices.
+
+
+
+Map requirements:
+1) The map should be interactive, allowing the user to zoom and pan.
+2) The map should display markers for relevant locations.
+3) The map should update in real-time as new data (see data source requirements) becomes available.
+4) The map should be responsive and work well on both desktop and mobile devices.
+5) The map should have selectable layers for different map types (see data source requirements).
+6) The map should be able to display the position of the user. This should be togglable from the map page.
+7) There should be a scale bar.
+
+Data source requirements:
+1) The map should be compatible with open street map, google maps and other common map providers.
+2) The map should also be compatible with Ordnance Survey "Leisure Style" map layer. End point with API key (should be treated as secret): https://api.os.uk/maps/raster/v1/zxy/Leisure_27700/{z}/{x}/{y}.png?key=s2Jm0v3DoInYiNuQDnt6kw7K1VpfuxGE
+3) The map should display KML markers from https://share.garmin.com/Feed/Share/9ZU7V - these should be updated in real time without having to refresh the webpage. These are known as "KML Markers"
+4) The map should display a series of routes from either KML files or GPX files. These will be stored in sub-folders with names like "TT1", "TT2", etc within a "routes" folder.
+5) The route sub-folder should be selectable, with a default set by the configuration page (see configuration page requirements).
+6) All the routes in the selected sub-folder should be displayed on the map.
+7) Routes should be displayed in different colours for clarity.
+8) Routes should be able to be toggled on and off individually. Routes should default to toggled on.
+9) The map should auto-center on the "start point" (see configuration page requirements).
+10) The map should auto-zoom to fit all displayed routes and KML markers within the viewport.
+11) "KML Markers" should be able to be toggled on and off individually. They should default to toggled on.
+12) "KML Markers" should be selectable and, when selected, display the details of the marker from the source KML feed in a bubble.
+13) "Weather data" is sourced from the UK Met office "weather data hub" api. The API key should be treated as secret and is eyJ4NXQjUzI1NiI6Ik5XVTVZakUxTkRjeVl6a3hZbUl4TkdSaFpqSmpOV1l6T1dGaE9XWXpNMk0yTWpRek5USm1OVEE0TXpOaU9EaG1NVFJqWVdNellXUm1ZalUyTTJJeVpBPT0iLCJraWQiOiJnYXRld2F5X2NlcnRpZmljYXRlX2FsaWFzIiwidHlwIjoiSldUIiwiYWxnIjoiUlMyNTYifQ==.eyJzdWIiOiJqb2huMHN3ZWV0QGhvdG1haWwuY29tQGNhcmJvbi5zdXBlciIsImFwcGxpY2F0aW9uIjp7Im93bmVyIjoiam9objBzd2VldEBob3RtYWlsLmNvbSIsInRpZXJRdW90YVR5cGUiOm51bGwsInRpZXIiOiJVbmxpbWl0ZWQiLCJuYW1lIjoibWFwX2ltYWdlcy1iOWFlZTU2OC00ODQ1LTRjNDctODE1MC1mYzMwZjk2OTU0OTkiLCJpZCI6NjY5MzIsInV1aWQiOiI1ZGExNDU4ZS01NjMyLTQ5NTktODQ1Zi0wMjNmZDQ1NzZmMzYifSwiaXNzIjoiaHR0cHM6XC9cL2FwaS1tYW5hZ2VyLmFwaS1tYW5hZ2VtZW50Lm1ldG9mZmljZS5jbG91ZDo0NDNcL29hdXRoMlwvdG9rZW4iLCJ0aWVySW5mbyI6eyJ3ZGhfbWFwX2ltYWdlc19mcmVlIjp7InRpZXJRdW90YVR5cGUiOiJyZXF1ZXN0Q291bnQiLCJncmFwaFFMTWF4Q29tcGxleGl0eSI6MCwiZ3JhcGhRTE1heERlcHRoIjowLCJzdG9wT25RdW90YVJlYWNoIjp0cnVlLCJzcGlrZUFycmVzdExpbWl0IjowLCJzcGlrZUFycmVzdFVuaXQiOiJzZWMifX0sImtleXR5cGUiOiJQUk9EVUNUSU9OIiwic3Vic2NyaWJlZEFQSXMiOlt7InN1YnNjcmliZXJUZW5hbnREb21haW4iOiJjYXJib24uc3VwZXIiLCJuYW1lIjoibWFwLWltYWdlcyIsImNvbnRleHQiOiJcL21hcC1pbWFnZXNcLzEuMC4wIiwicHVibGlzaGVyIjoiV0RIX0NJIiwidmVyc2lvbiI6IjEuMC4wIiwic3Vic2NyaXB0aW9uVGllciI6IndkaF9tYXBfaW1hZ2VzX2ZyZWUifV0sInRva2VuX3R5cGUiOiJhcGlLZXkiLCJpYXQiOjE3OTE2Mjc4MTQsImp0aSI6IjY0YmVhM2NiLWZiOGItNGUzOC1hZjg2LWRiMTBmYTk2OWY0NSJ9.WA2reSWQFxGZ-7ww3aVR0Ocdw4gXL1I8kdpNG1h3CCorue2kFpR7YaAMrLn82UMEOlRWxycPnItmkEc2m_YIXgbh-cOqcx5iZ85kGbYopp8ziCwyt--0Vkg3KUkrVItxdRa-tQUcaVVaF-uPIjRaQMitru8W2pVs6UsVcx-g9FIHIZqq79_jAE7fe0KPBqxX_lPCnDzcEY6DZYq_0RuXfdP6_fboNDcToxClgv0YQdfNUief0IYnaEEP0o7M4oY2S6pnDfY_yKo2KxqXCNQtPz_Qy9mbsgzRlCpZUxZ02aw5tpe3NZD-S4zhpMi4GchPm0nZIjX_9dFeqqlFiaM79Q== 
+14) The only type of weather data at this time is precipitation data sourced from the Map Images section of the weather data hub api. Precipitation data should be displayed on the map, sourced from the UK Met office "weather data hub" api. The order number on the API for this data is 	o102211703928
+15) "Weather data" should be toggleable on and off individually. It should default to toggled off.
+16) The map should be able to load a static KML file (known as "birds and rivers")with points and polygons from the folder "data" and display them on the map.
+17) Birds and rivers KML file should be toggleable on and off individually. It should default to toggled off.
+
+Configuration page requirements:
+1) The configuration page should allow the user to set the default route sub-folder.
+2) The configuration page should allow the user to set the "start point" for the map. This should be configurable by entering coordinates or selecting a location on a map.
+3) The configuration page should be accessible from the map page with a small button or link.
+4) The configuration page should be responsive and work well on both desktop and mobile devices.
+5) The configuration page should require a password to make changes to settings. This password should be "maynard".
+6) The configuration page should allow the user to set colours for routes and KML markers by selecting colours from a colour picker.
+7) The configuration page colour settings should be applied in the alphanumerical order in which routes and markers are listed.
+8) The configuration page should provide a link to the github folder in which the project is stored.
+9) The configuration page should provide toggles for which map sources are available for the map user to select.
+10) Map sources should be displayed as a list on the configuration page, with the user able to add extra map sources to the list as needed.
+11) The configuration page should have a clear "save settings" button that applies all changes made by the user.

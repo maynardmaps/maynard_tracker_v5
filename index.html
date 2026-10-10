@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>Maynard Tracker</title>
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <button class="menu-toggle" id="menu-toggle" aria-label="Toggle menu">&#9776;</button>
+
+  <div class="app-shell">
+    <aside class="side-panel" id="side-panel">
+      <h1>Maynard Tracker</h1>
+
+      <section>
+        <h2>Base map</h2>
+        <div id="base-layer-list"></div>
+      </section>
+
+      <section>
+        <h2>Route folder</h2>
+        <select id="route-folder-select"></select>
+      </section>
+
+      <section>
+        <h2>Routes</h2>
+        <div id="route-toggle-list"></div>
+      </section>
+
+      <section>
+        <h2>Overlays</h2>
+        <label class="switch-row">
+          <input type="checkbox" id="toggle-kml-markers" checked />
+          KML markers (Garmin feed)
+        </label>
+        <label class="switch-row">
+          <input type="checkbox" id="toggle-weather" />
+          Precipitation (Met Office)
+        </label>
+        <label class="switch-row">
+          <input type="checkbox" id="toggle-birds-rivers" />
+          Birds and rivers (static KML)
+        </label>
+        <label class="switch-row">
+          <input type="checkbox" id="toggle-my-location" />
+          Show my location
+        </label>
+      </section>
+
+      <a class="config-link" href="config.html">&#9881; Configuration</a>
+    </aside>
+
+    <div id="map"></div>
+  </div>
+
+  <!-- Leaflet core -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Proj4 + Proj4Leaflet: needed for the OS Leisure layer's British National Grid (EPSG:27700) CRS -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.2/proj4.js"></script>
+  <script src="https://unpkg.com/proj4leaflet@1.0.2/src/proj4leaflet.js"></script>
+  <!-- togeojson + omnivore: parse KML/GPX into Leaflet layers -->
+  <script src="https://unpkg.com/togeojson@0.16.0/togeojson.js"></script>
+  <script src="https://unpkg.com/leaflet-omnivore@0.3.4/leaflet-omnivore.min.js"></script>
+
+  <!-- Secrets must load before app config/logic. secrets.js is gitignored;
+       copy js/secrets.sample.js to js/secrets.js and fill in real keys. -->
+  <script src="js/secrets.js"></script>
+  <script src="js/app-config.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/settings-store.js"></script>
+  <script src="js/github-save.js"></script>
+  <script src="js/map-core.js"></script>
+  <script src="js/routes.js"></script>
+  <script src="js/kml-markers.js"></script>
+  <script src="js/birds-rivers.js"></script>
+  <script src="js/weather.js"></script>
+  <script src="js/geolocation.js"></script>
+  <script src="js/map-page.js"></script>
+
+  <script>
+    document.getElementById("menu-toggle").addEventListener("click", () => {
+      document.getElementById("side-panel").classList.toggle("open");
+    });
+  </script>
+</body>
+</html>

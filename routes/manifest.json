@@ -1,0 +1,12 @@
+{
+  "_comment": "GitHub Pages cannot list folder contents from client-side JS, so this manifest must be kept in sync with the routes/ folder by hand. Add a new entry whenever you add/remove a route sub-folder or file. See README.md for details.",
+  "folders": {
+    "TT1": [
+      "sample-route-a.gpx",
+      "sample-route-b.gpx"
+    ],
+    "TT2": [
+      "sample-route.kml"
+    ]
+  }
+}

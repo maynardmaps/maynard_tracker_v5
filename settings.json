@@ -1,0 +1,23 @@
+{
+  "_comment": "Shared default settings for all visitors. Edited via config.html and (if a GitHub token is configured) committed back here automatically by the Save button. See README.md.",
+  "github": {
+    "owner": "maynardmaps",
+    "repo": "maynard_tracker_v5",
+    "branch": "main"
+  },
+  "defaultRouteFolder": "TT1",
+  "startPoint": {
+    "lat": 51.5074,
+    "lng": -0.1278
+  },
+  "startZoom": 12,
+  "mapSources": [
+    { "id": "osm", "name": "OpenStreetMap", "type": "xyz", "url": "https://tile.openstreetmap.org/{z}/{x}/{y}.png", "attribution": "\u00a9 OpenStreetMap contributors", "enabled": true, "requiresKey": false },
+    { "id": "esri-satellite", "name": "Satellite (Esri World Imagery)", "type": "xyz", "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", "attribution": "Tiles \u00a9 Esri", "enabled": true, "requiresKey": false },
+    { "id": "os-leisure", "name": "OS Leisure (Ordnance Survey)", "type": "os-27700", "url": "https://api.os.uk/maps/raster/v1/zxy/Leisure_27700/{z}/{x}/{y}.png", "attribution": "Contains OS data \u00a9 Crown copyright and database rights", "enabled": true, "requiresKey": true }
+  ],
+  "routeColours": {},
+  "kmlMarkerColour": "#1565c0",
+  "weatherEnabledByDefault": false,
+  "birdsRiversEnabledByDefault": false
+}
