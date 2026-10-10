@@ -4,6 +4,8 @@
 //                                 -> Met Office Map Images for ONE pinned
 //                                    order (MET_ORDER_ID in wrangler.toml);
 //                                    API key from the METOFFICE_API_KEY secret.
+//   GET  /os/Leisure_27700/{z}/{x}/{y}.png
+//                                 -> OS Maps tiles; key from OS_API_KEY secret.
 //   POST /settings[/verify]       -> passphrase-protected settings.json commit.
 const GARMIN_FEED = "https://share.garmin.com/Feed/Share/9ZU7V";
 const MET_BASE = "https://data.hub.api.metoffice.gov.uk/map-images/1.0.0/orders";
@@ -22,6 +24,32 @@ const CORS = {
 const ID = "[A-Za-z0-9_+.\\-]+";
 const WEATHER_PATH = new RegExp(`^/weather/latest(?:/(${ID})/data)?$`);
 const WEATHER_CACHE_SECONDS = 300;
+
+// OS Maps raster tiles: one whitelisted layer, key held as the OS_API_KEY secret.
+const OS_TILE_PATH = /^\/os\/(Leisure_27700)\/(\d{1,2})\/(\d{1,6})\/(\d{1,6})\.png$/;
+const OS_TILE_BASE = "https://api.os.uk/maps/raster/v1/zxy";
+
+async function osTile(match, env, ctx, request) {
+  if (!env.OS_API_KEY) return new Response("OS tiles not configured", { status: 500, headers: CORS });
+  // Tile <img> requests send Referer rather than Origin; reject other sites.
+  const referer = request.headers.get("Referer");
+  if (referer && !referer.startsWith(ALLOWED_ORIGIN + "/")) {
+    return new Response("Forbidden", { status: 403, headers: CORS });
+  }
+  const [, layer, z, x, y] = match;
+  const cache = caches.default;
+  const cacheKey = new Request(`https://cache.invalid/os/${layer}/${z}/${x}/${y}`);
+  const hit = await cache.match(cacheKey);
+  if (hit) return new Response(hit.body, { status: 200, headers: { ...CORS, "Content-Type": "image/png", "Cache-Control": "public, max-age=86400" } });
+
+  const upstream = await fetch(`${OS_TILE_BASE}/${layer}/${z}/${x}/${y}.png?key=${encodeURIComponent(env.OS_API_KEY)}`);
+  if (!upstream.ok) return new Response(`Upstream HTTP ${upstream.status}`, { status: upstream.status === 404 ? 404 : 502, headers: CORS });
+  const body = await upstream.arrayBuffer();
+  ctx.waitUntil(cache.put(cacheKey, new Response(body, {
+    headers: { "Content-Type": "image/png", "Cache-Control": "public, max-age=86400" }
+  })));
+  return new Response(body, { status: 200, headers: { ...CORS, "Content-Type": "image/png", "Cache-Control": "public, max-age=86400" } });
+}
 
 async function garmin() {
   const upstream = await fetch(GARMIN_FEED, { cf: { cacheTtl: 0 } });
@@ -178,6 +206,8 @@ export default {
 
     try {
       if (pathname === "/") return await garmin();
+      const osMatch = OS_TILE_PATH.exec(pathname);
+      if (osMatch) return await osTile(osMatch, env, ctx, request);
       const match = WEATHER_PATH.exec(pathname);
       if (match) return await weather(match, env, ctx);
       return new Response("Not found", { status: 404, headers: CORS });

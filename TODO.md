@@ -10,8 +10,9 @@
   "Save settings" only saves locally.
 - [ ] Rotate the Met Office API key (it was printed in a chat session), then
   `cd worker; wrangler.cmd secret put METOFFICE_API_KEY`.
-- [ ] In the OS Data Hub project, restrict the OS Maps key by HTTP referrer to
-  `https://maynardmaps.github.io/*` (the key is committed in `js/secrets.js`).
+- [ ] The OS Maps key was public in git history: generate a NEW key in the OS Data
+  Hub, then `cd worker; wrangler.cmd secret put OS_API_KEY` (value at the prompt)
+  and revoke the old key. Tiles now go through the Worker.
 - [ ] Change the config passphrase if it matters that it appeared in chat:
   `cd worker; wrangler.cmd secret put CONFIG_PASSPHRASE`.
 - [x] (done: popups now show time, message, lat/lon, elevation, speed, course etc.) Enhanced Garmin KML pin popouts: decide what extra information to show

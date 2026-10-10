@@ -50,17 +50,21 @@
 
   function makeTileLayer(source, secrets) {
     let url = source.url;
+    let viaRelay = false;
     if (source.requiresKey) {
-      const key = source.id === "os-leisure" ? secrets.osMapsApiKey : "";
-      if (!key) {
-        console.warn(`Map source "${source.id}" requires an API key that is not set.`);
+      const relay = window.MAYNARD_CONFIG && window.MAYNARD_CONFIG.garminRelayUrl;
+      const osPrefix = "https://api.os.uk/maps/raster/v1/zxy/";
+      if (relay && url.startsWith(osPrefix)) {
+        url = relay.replace(/\/$/, "") + "/os/" + url.slice(osPrefix.length);
+        viaRelay = true;
+      } else {
+        console.warn(`Map source "${source.id}" requires a key but no relay is available.`);
       }
-      url += (url.includes("?") ? "&" : "?") + "key=" + encodeURIComponent(key);
     }
     return L.tileLayer(url, {
       attribution: source.attribution || "",
       maxZoom: source.type === "os-27700" ? BNG_MAX_ZOOM : 19,
-      crossOrigin: true
+      crossOrigin: !viaRelay
     });
   }
 

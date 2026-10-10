@@ -38,7 +38,7 @@ Nothing sensitive is in this repo:
 
 | Item | Where it lives |
 |---|---|
-| OS Maps key (`osMapsApiKey` in `js/secrets.js`, committed) | Browser-visible by design. Restrict it by HTTP referrer to `https://maynardmaps.github.io/*` in the OS Data Hub project. |
+| OS Maps key | Worker secret `OS_API_KEY`; tiles are fetched through the Worker (`/os/Leisure_27700/{z}/{x}/{y}.png`), which also rejects other sites by Referer and caches tiles. `cd worker; wrangler.cmd secret put OS_API_KEY`. |
 | Met Office API key | Worker secret `METOFFICE_API_KEY` |
 | Met Office order id | Worker var `MET_ORDER_ID` in `worker/wrangler.toml` |
 | GitHub token (fine-grained PAT, this repo only, Contents: read/write) | Worker secret `GITHUB_TOKEN` |
@@ -189,7 +189,7 @@ index.html              Map page
 config.html             Passphrase-gated configuration page
 css/styles.css          Shared responsive styles
 js/
-  secrets.js             Committed, browser-visible values only (OS Maps key)
+  secrets.js             Committed, browser-visible values only (currently empty)
   app-config.js          Non-secret config (proxies, URLs, GitHub defaults)
   utils.js               Shared helpers (fetch w/ timeout, CORS proxy fetch, colours)
   settings-store.js       Loads/merges/saves settings.json + localStorage override
