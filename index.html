@@ -37,10 +37,6 @@
           KML markers (Garmin feed)
         </label>
         <label class="switch-row">
-          <input type="checkbox" id="toggle-weather" />
-          Precipitation (Met Office)
-        </label>
-        <label class="switch-row">
           <input type="checkbox" id="toggle-birds-rivers" />
           Birds and rivers (static KML)
         </label>
@@ -48,6 +44,14 @@
           <input type="checkbox" id="toggle-my-location" />
           Show my location
         </label>
+        <label class="switch-row">
+          <input type="checkbox" id="toggle-weather" />
+          Precipitation (Met Office)
+        </label>
+        <div id="weather-timeline" class="timeline" hidden>
+          <input type="range" id="weather-slider" min="0" max="0" value="0" step="1" />
+          <div id="weather-time-label" class="status-msg"></div>
+        </div>
       </section>
 
       <a class="config-link" href="config.html">&#9881; Configuration</a>

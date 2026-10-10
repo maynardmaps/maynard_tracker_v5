@@ -249,3 +249,6 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 }
 
 .palette-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.4rem 1rem; }
+
+.timeline { padding: 0.2rem 0 0.4rem 1.6rem; }
+.timeline input[type=range] { width: 100%; }
