@@ -37,9 +37,6 @@
     });
 
     MaynardWeather.start(map, {
-      orderId: secrets.metOfficePrecipitationOrderId,
-      apikey: secrets.metOfficeApiKey,
-      proxies: window.MAYNARD_CONFIG.corsProxies,
       relayUrl: window.MAYNARD_CONFIG.garminRelayUrl,
       pollIntervalMs: window.MAYNARD_CONFIG.weatherPollIntervalMs,
       bounds: window.MAYNARD_CONFIG.metOfficeUkBounds,

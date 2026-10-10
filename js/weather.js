@@ -5,47 +5,17 @@
 (function (global) {
   "use strict";
 
-  const API_BASE = "https://data.hub.api.metoffice.gov.uk/map-images/1.0.0";
-
   let imageOverlay = null;
   let visible = false;
   let pollTimer = null;
   let lastFileId = null;
 
-  // Preferred route: the Cloudflare Worker relay, which holds the API key
-  // server-side. relayPath is e.g. "orders/<id>/latest[/<fileId>/data]".
-  // Falls back to direct/public-proxy requests with the key in the browser.
-  async function fetchWithApiKeyViaProxies(url, apikey, proxies, binary, relayBase, relayPath) {
-    let lastErr;
-    if (relayBase && relayPath) {
-      try {
-        const res = await fetch(`${relayBase}/weather/${relayPath}`, { cache: "no-store" });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return binary ? await res.blob() : await res.json();
-      } catch (e) {
-        lastErr = e;
-        console.warn("Weather relay failed, trying fallbacks", e);
-      }
-    }
-    if (!apikey) throw lastErr || new Error("No Met Office API key configured");
-    // Try a direct request in case the API ever allows CORS.
-    try {
-      const res = await fetch(url, { headers: { apikey } });
-      if (res.ok) return binary ? res.blob() : res.json();
-    } catch (e) {
-      lastErr = e;
-    }
-    for (const proxyPrefix of proxies) {
-      try {
-        const proxied = proxyPrefix + encodeURIComponent(url);
-        const res = await fetch(proxied, { headers: { apikey } });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return binary ? await res.blob() : await res.json();
-      } catch (e) {
-        lastErr = e;
-      }
-    }
-    throw lastErr || new Error("All request attempts failed");
+  // All requests go through the Cloudflare Worker, which holds the Met Office
+  // API key and order id server-side.
+  async function relayFetch(relayBase, path, binary) {
+    const res = await fetch(`${relayBase}/weather/${path}`, { cache: "no-store" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return binary ? res.blob() : res.json();
   }
 
   // fileIds look like "total_precipitation_rate_ts{N}_{+RR|yyyyMMddRR}" where
@@ -73,35 +43,21 @@
     return best || fileList[0];
   }
 
-  async function fetchLatestImageBlob(orderId, apikey, proxies, relayUrl) {
-    const latest = await fetchWithApiKeyViaProxies(
-      `${API_BASE}/orders/${orderId}/latest`,
-      apikey,
-      proxies,
-      false,
-      relayUrl,
-      `${orderId}/latest`
-    );
+  async function fetchLatestImageBlob(relayUrl) {
+    const latest = await relayFetch(relayUrl, "latest", false);
     const fileList = (latest.orderDetails && latest.orderDetails.files) || latest.files || [];
     if (!fileList.length) throw new Error("No Met Office image files returned");
     const chosen = pickMostCurrentFile(fileList);
     const fileId = chosen.fileId || chosen.id;
     if (fileId === lastFileId) return null; // unchanged
-    const blob = await fetchWithApiKeyViaProxies(
-      `${API_BASE}/orders/${orderId}/latest/${encodeURIComponent(fileId)}/data`,
-      apikey,
-      proxies,
-      true,
-      relayUrl,
-      `${orderId}/latest/${fileId}/data`
-    );
+    const blob = await relayFetch(relayUrl, `latest/${fileId}/data`, true);
     lastFileId = fileId;
     return blob;
   }
 
-  async function refresh(map, { orderId, apikey, proxies, relayUrl, bounds }) {
+  async function refresh(map, { relayUrl, bounds }) {
     try {
-      const blob = await fetchLatestImageBlob(orderId, apikey, proxies, relayUrl);
+      const blob = await fetchLatestImageBlob(relayUrl);
       if (!blob) return; // no new image
       const url = URL.createObjectURL(blob);
       const leafletBounds = [

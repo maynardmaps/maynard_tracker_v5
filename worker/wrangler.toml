@@ -1,3 +1,6 @@
 name = "maynard-garmin-relay"
 main = "relay.js"
 compatibility_date = "2024-09-01"
+
+[vars]
+MET_ORDER_ID = "o102211703928"

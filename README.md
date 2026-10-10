@@ -32,59 +32,29 @@ python -m http.server 8080
 
 Then open `http://localhost:8080/index.html`.
 
-## One-time setup: secrets
+## Secrets and keys
 
-API keys are **never committed**. Copy the sample file and fill in your own
-keys:
+Nothing sensitive is in this repo:
 
-```powershell
-Copy-Item js\secrets.sample.js js\secrets.js
-```
+| Item | Where it lives |
+|---|---|
+| OS Maps key (`osMapsApiKey` in `js/secrets.js`, committed) | Browser-visible by design. Restrict it by HTTP referrer to `https://maynardmaps.github.io/*` in the OS Data Hub project. |
+| Met Office API key | Worker secret `METOFFICE_API_KEY` |
+| Met Office order id | Worker var `MET_ORDER_ID` in `worker/wrangler.toml` |
+| GitHub token (fine-grained PAT, this repo only, Contents: read/write) | Worker secret `GITHUB_TOKEN` |
+| Config page passphrase | Worker secret `CONFIG_PASSPHRASE` |
 
-Edit `js/secrets.js`:
-
-| Field | Purpose | Required for |
-|---|---|---|
-| `osMapsApiKey` | OS Data Hub "OS Maps API" project key | OS Leisure base layer |
-| `metOfficeApiKey` | Met Office Weather DataHub API key (`apikey` header) | Precipitation overlay |
-| `metOfficeOrderId` | Your Map Images order ID (from the Weather DataHub "My Account" -> Orders) | Precipitation overlay |
-| `githubToken` | A GitHub **fine-grained personal access token** | "Save to GitHub" button on the config page |
-
-`js/secrets.js` is listed in `.gitignore` and must never be committed.
-**Important:** because this is a static site with no backend, anything in
-`secrets.js` is visible to anyone who opens the deployed page and inspects
-network requests or the JS source. Only put keys here that you're
-comfortable being effectively public, and scope the GitHub token as tightly
-as possible:
-
-- Fine-grained token, **not** classic.
-- Repository access: **only** this repository.
-- Permissions: **Contents: Read and write** only (nothing else).
-- Set a short expiry and rotate periodically.
-
-If you don't want to enable "Save to GitHub" at all, just leave
-`githubToken` as `""` - the config page will still save changes to the
-browser's `localStorage` and tell you it saved locally only.
+Set Worker secrets with `wrangler.cmd secret put <NAME>` and type the value at
+the prompt (never as a command argument).
 
 ## Deploying to GitHub Pages
 
-1. Push this repository to GitHub (e.g. `maynardmaps/maynard_tracker_v5`, or
-   update `js/app-config.js` / the config page's GitHub fields to point at
-   your own owner/repo/branch).
-2. In the repo settings, enable **GitHub Pages** for the branch you deploy
-   from (e.g. `main`, root folder).
-3. Remember `js/secrets.js` is gitignored - it will **not** be on GitHub.
-   Because there's no backend/build step, you need to get a real
-   `secrets.js` onto the published site some other way, for example:
-   - Commit a `secrets.js` to a **private** fork/branch only you deploy from
-     (accepting it's visible to anyone who views the deployed page), or
-   - Use GitHub Pages from a private repo (GitHub Pro/Team/Enterprise), or
-   - Accept that OS Maps / Met Office overlays won't work on a public page
-     unless you're comfortable publishing those specific keys.
-
-   There is no way around this without adding a server, which was explicitly
-   out of scope (the project must stay a lightweight static site).
-
+1. Push this repository to GitHub (`maynardmaps/maynard_tracker_v5`).
+2. In the repo settings, enable **GitHub Pages** for `main`, root folder.
+3. Deploy the Worker (see below) and set `ALLOWED_ORIGIN` in `worker/relay.js`
+   to the Pages origin (`https://maynardmaps.github.io`). Local testing from
+   `http://localhost:8080` is then blocked by CORS; temporarily set it to
+   `"*"` (or your localhost origin) and redeploy if you need to test.
 ## Adding/updating routes
 
 Routes live under `routes/<folder>/<file>.gpx|.kml`. GitHub Pages cannot list
@@ -158,7 +128,7 @@ browsers can't call either directly.
 fixed-purpose routes (it is not an open proxy):
 
 - `/` - the one hard-coded Garmin feed, with CORS headers added.
-- `/weather/<orderId>/latest[/<fileId>/data]` - the Met Office Map Images API,
+- `/weather/latest[/<fileId>/data]` - the Met Office Map Images API for the one order pinned in `MET_ORDER_ID`,
   with the API key added server-side from a Worker secret, so the key never
   needs to be shipped to the browser.
 
@@ -173,9 +143,8 @@ if scripts are blocked):
 4. Copy the printed `https://maynard-garmin-relay.<you>.workers.dev` URL into
    `garminRelayUrl` in `js/app-config.js` (used for both routes), commit and push.
 
-Once the relay works you can leave `metOfficeApiKey` blank in `secrets.js`
-(`metOfficeOrderId` is still needed; it is not secret). With a key present the
-site still falls back to direct/public-proxy requests, which usually fail.
+Also set the Met Office order id in `MET_ORDER_ID` in `worker/wrangler.toml`.
+Weather responses are cached in the Worker for 5 minutes.
 
 If the Garmin relay fails or returns no data, the site retries through GPS Visualizer's
 xml-to-JSON proxy (`gpsvProxyUrl` in `js/app-config.js`, converted back to map
@@ -217,11 +186,10 @@ If the Garmin share ID changes, update `GARMIN_FEED` in the worker and
 
 ```
 index.html              Map page
-config.html             Password-gated configuration page
+config.html             Passphrase-gated configuration page
 css/styles.css          Shared responsive styles
 js/
-  secrets.sample.js      Committed template - copy to secrets.js and fill in
-  secrets.js             Gitignored - your real API keys/token
+  secrets.js             Committed, browser-visible values only (OS Maps key)
   app-config.js          Non-secret config (proxies, URLs, GitHub defaults)
   utils.js               Shared helpers (fetch w/ timeout, CORS proxy fetch, colours)
   settings-store.js       Loads/merges/saves settings.json + localStorage override

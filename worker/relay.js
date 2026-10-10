@@ -1,24 +1,27 @@
-// Cloudflare Worker with two fixed-purpose relays (not an open proxy):
-//   GET /                      -> the Garmin MapShare KML feed
-//   GET /weather/<orderId>/latest[/<fileId>/data]
-//                              -> Met Office DataHub Map Images, with the
-//                                 API key added server-side from the
-//                                 METOFFICE_API_KEY secret.
+// Cloudflare Worker with fixed-purpose endpoints (not an open proxy):
+//   GET  /                        -> the Garmin MapShare KML feed
+//   GET  /weather/latest[/<fileId>/data]
+//                                 -> Met Office Map Images for ONE pinned
+//                                    order (MET_ORDER_ID in wrangler.toml);
+//                                    API key from the METOFFICE_API_KEY secret.
+//   POST /settings[/verify]       -> passphrase-protected settings.json commit.
 const GARMIN_FEED = "https://share.garmin.com/Feed/Share/9ZU7V";
 const MET_BASE = "https://data.hub.api.metoffice.gov.uk/map-images/1.0.0/orders";
 
-// "*" is fine for the public Garmin feed; the weather route spends your
-// Met Office quota, so you can set this to your site origin to restrict it.
-const ALLOWED_ORIGIN = "*";
+// Browsers on other sites can't read responses. (Direct non-browser calls are
+// still possible, which is why weather responses are cached below.)
+const ALLOWED_ORIGIN = "https://maynardmaps.github.io";
 
 const CORS = {
   "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
+  "Vary": "Origin",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
   "Access-Control-Allow-Headers": "*"
 };
 
 const ID = "[A-Za-z0-9_+.\\-]+";
-const WEATHER_PATH = new RegExp(`^/weather/(${ID})/latest(?:/(${ID})/data)?$`);
+const WEATHER_PATH = new RegExp(`^/weather/latest(?:/(${ID})/data)?$`);
+const WEATHER_CACHE_SECONDS = 300;
 
 async function garmin() {
   const upstream = await fetch(GARMIN_FEED, { cf: { cacheTtl: 0 } });
@@ -33,26 +36,29 @@ async function garmin() {
   });
 }
 
-async function weather(match, env) {
-  if (!env.METOFFICE_API_KEY) {
-    return new Response("METOFFICE_API_KEY secret not set", { status: 500, headers: CORS });
+async function weather(match, env, ctx) {
+  if (!env.METOFFICE_API_KEY || !env.MET_ORDER_ID) {
+    return new Response("Weather not configured", { status: 500, headers: CORS });
   }
-  const [, orderId, fileId] = match;
-  const target = fileId
-    ? `${MET_BASE}/${orderId}/latest/${encodeURIComponent(fileId)}/data`
-    : `${MET_BASE}/${orderId}/latest`;
+  const fileId = match[1];
+  const base = `${MET_BASE}/${env.MET_ORDER_ID}/latest`;
+  const target = fileId ? `${base}/${encodeURIComponent(fileId)}/data` : base;
+
+  const cache = caches.default;
+  const cacheKey = new Request(`https://cache.invalid/weather?u=${encodeURIComponent(target)}`);
+  const hit = await cache.match(cacheKey);
+  if (hit) return new Response(hit.body, { status: 200, headers: { ...CORS, "Content-Type": hit.headers.get("Content-Type") || "application/octet-stream", "Cache-Control": "no-store" } });
+
   const upstream = await fetch(target, { headers: { apikey: env.METOFFICE_API_KEY } });
   if (!upstream.ok) {
     return new Response(`Upstream HTTP ${upstream.status}`, { status: 502, headers: CORS });
   }
-  return new Response(upstream.body, {
-    status: 200,
-    headers: {
-      ...CORS,
-      "Content-Type": upstream.headers.get("Content-Type") || "application/octet-stream",
-      "Cache-Control": "no-store"
-    }
-  });
+  const type = upstream.headers.get("Content-Type") || "application/octet-stream";
+  const body = await upstream.arrayBuffer();
+  ctx.waitUntil(cache.put(cacheKey, new Response(body, {
+    headers: { "Content-Type": type, "Cache-Control": `public, max-age=${WEATHER_CACHE_SECONDS}` }
+  })));
+  return new Response(body, { status: 200, headers: { ...CORS, "Content-Type": type, "Cache-Control": "no-store" } });
 }
 
 // ---- Settings writer -------------------------------------------------
@@ -155,7 +161,7 @@ async function saveSettings(request, env) {
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
 
     const { pathname } = new URL(request.url);
@@ -173,7 +179,7 @@ export default {
     try {
       if (pathname === "/") return await garmin();
       const match = WEATHER_PATH.exec(pathname);
-      if (match) return await weather(match, env);
+      if (match) return await weather(match, env, ctx);
       return new Response("Not found", { status: 404, headers: CORS });
     } catch (e) {
       return new Response("Upstream fetch failed", { status: 502, headers: CORS });
