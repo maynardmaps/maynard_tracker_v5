@@ -25,6 +25,33 @@ const ID = "[A-Za-z0-9_+.\\-]+";
 const WEATHER_PATH = new RegExp(`^/weather/latest(?:/(${ID})/data)?$`);
 const WEATHER_CACHE_SECONDS = 300;
 
+// Lists routes/<folder>/<file>.(gpx|kml) from the repo so new uploads appear
+// without editing routes/manifest.json.
+async function routesManifest(env, ctx) {
+  const cache = caches.default;
+  const cacheKey = new Request("https://cache.invalid/routes-manifest");
+  const hit = await cache.match(cacheKey);
+  if (hit) return new Response(hit.body, { status: 200, headers: { ...CORS, "Content-Type": "application/json", "Cache-Control": "no-store" } });
+
+  const headers = { "User-Agent": "maynard-relay", Accept: "application/vnd.github+json" };
+  if (env.GITHUB_TOKEN) headers.Authorization = `Bearer ${env.GITHUB_TOKEN}`;
+  const upstream = await fetch(
+    `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/git/trees/${GH_BRANCH}?recursive=1`, { headers });
+  if (!upstream.ok) return new Response(`Upstream HTTP ${upstream.status}`, { status: 502, headers: CORS });
+  const tree = (await upstream.json()).tree || [];
+  const folders = {};
+  for (const item of tree) {
+    const m = /^routes\/([^/]+)\/([^/]+\.(?:gpx|kml))$/i.exec(item.path);
+    if (item.type === "blob" && m) (folders[m[1]] = folders[m[1]] || []).push(m[2]);
+  }
+  Object.values(folders).forEach((a) => a.sort());
+  const body = JSON.stringify({ folders });
+  ctx.waitUntil(cache.put(cacheKey, new Response(body, {
+    headers: { "Content-Type": "application/json", "Cache-Control": "public, max-age=60" }
+  })));
+  return new Response(body, { status: 200, headers: { ...CORS, "Content-Type": "application/json", "Cache-Control": "no-store" } });
+}
+
 // OS Maps raster tiles: one whitelisted layer, key held as the OS_API_KEY secret.
 const OS_TILE_PATH = /^\/os\/(Leisure_27700)\/(\d{1,2})\/(\d{1,6})\/(\d{1,6})\.png$/;
 const OS_TILE_BASE = "https://api.os.uk/maps/raster/v1/zxy";
@@ -206,6 +233,7 @@ export default {
 
     try {
       if (pathname === "/") return await garmin();
+      if (pathname === "/routes") return await routesManifest(env, ctx);
       const osMatch = OS_TILE_PATH.exec(pathname);
       if (osMatch) return await osTile(osMatch, env, ctx, request);
       const match = WEATHER_PATH.exec(pathname);

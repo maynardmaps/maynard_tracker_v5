@@ -85,7 +85,23 @@
     return btoa(unescape(encodeURIComponent(str)));
   }
 
+  // Live folder listing from the relay (auto-detects new route folders/files);
+  // falls back to the static routes/manifest.json if the relay is unreachable.
+  async function loadRoutesManifest() {
+    const cfg = window.MAYNARD_CONFIG;
+    if (cfg.garminRelayUrl) {
+      try {
+        const live = await fetchJson(cfg.garminRelayUrl.replace(/\/$/, "") + "/routes", { timeoutMs: 6000, cache: "no-store" });
+        if (live && live.folders && Object.keys(live.folders).length) return live;
+      } catch (e) {
+        console.warn("Live route listing failed, using manifest.json", e);
+      }
+    }
+    return fetchJson(cfg.routesManifestUrl, { timeoutMs: 8000 });
+  }
+
   global.MaynardUtils = {
+    loadRoutesManifest,
     paletteColour,
     assignColours,
     debounce,

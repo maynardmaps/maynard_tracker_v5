@@ -57,9 +57,11 @@ the prompt (never as a command argument).
    `"*"` (or your localhost origin) and redeploy if you need to test.
 ## Adding/updating routes
 
-Routes live under `routes/<folder>/<file>.gpx|.kml`. GitHub Pages cannot list
-directory contents, so **`routes/manifest.json` must be kept up to date by
-hand** whenever you add, rename, or remove a route folder/file:
+Routes live under `routes/<folder>/<file>.gpx|.kml`. On every page load the
+site asks the Worker (`GET /routes`, cached 60s) for a live listing of that
+folder from GitHub, so new folders/files appear in the dropdown automatically.
+`routes/manifest.json` is only an offline fallback used if the Worker is
+unreachable; update it by hand if you want the fallback to stay current:
 
 ```json
 {

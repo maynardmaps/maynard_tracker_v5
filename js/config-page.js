@@ -12,7 +12,7 @@
 
   async function main() {
     settings = await MaynardSettings.load();
-    manifest = await MaynardUtils.fetchJson(window.MAYNARD_CONFIG.routesManifestUrl, { timeoutMs: 8000 });
+    manifest = await MaynardUtils.loadRoutesManifest();
     allRouteFilenames = Object.values(manifest.folders).flat();
 
     document.getElementById("github-link").href =

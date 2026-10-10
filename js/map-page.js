@@ -9,7 +9,7 @@
   async function main() {
     secrets = window.MAYNARD_SECRETS || {};
     settings = await MaynardSettings.load();
-    manifest = await MaynardUtils.fetchJson(window.MAYNARD_CONFIG.routesManifestUrl, { timeoutMs: 8000 });
+    manifest = await MaynardUtils.loadRoutesManifest();
 
     map = MaynardMapCore.init(
       "map",
