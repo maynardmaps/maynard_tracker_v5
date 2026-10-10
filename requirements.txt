@@ -32,6 +32,7 @@ Data source requirements:
 15) "Weather data" should be toggleable on and off individually. It should default to toggled off.
 16) The map should be able to load a static KML file (known as "birds and rivers")with points and polygons from the folder "data" and display them on the map.
 17) Birds and rivers KML file should be toggleable on and off individually. It should default to toggled off.
+18) Where a single KML or GPX file contains more than one route (KML line placemarks, GPX tracks/routes), each route should be listed, coloured and toggled as a separate route in the menu rather than aggregated under the file's single entry.
 
 Configuration page requirements:
 1) The configuration page should allow the user to set the default route sub-folder.
