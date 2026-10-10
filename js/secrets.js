@@ -6,5 +6,5 @@
 // The Met Office key/order id and the GitHub token live only as Cloudflare
 // Worker secrets/vars (see worker/ and README.md).
 window.MAYNARD_SECRETS = {
-  osMapsApiKey: "s2Jm0v3DoInYiNuQDnt6kw7K1VpfuxGE"
+  osMapsApiKey: "45zdy0NMpo7ajZXUyoNTyWHlGn7L0kKH"
 };
