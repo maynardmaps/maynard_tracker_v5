@@ -14,7 +14,8 @@ Map requirements:
 6) The map should be able to display the position of the user. This should be togglable from the map page.
 7) There should be a scale bar.
 8) Markers belonging to route files should be shown as small circles in the same colour as their route (not map pins). Team position markers (Garmin KML feed) should use a distinct marker shape - a diamond for now - each in its own palette colour.
-9) The start point set on the configuration page should be marked on the map with a small "home" icon (not a plain circle).
+9) Team markers whose "In Emergency" metadata is true should be shown at three times the normal size with a red outline.
+10) The start point set on the configuration page should be marked on the map with a small "home" icon (not a plain circle).
 
 Data source requirements:
 1) The map should be compatible with open street map, google maps and other common map providers.

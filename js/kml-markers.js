@@ -26,10 +26,12 @@
     return L.geoJson(geojson, {
       pointToLayer(feature, latlng) {
         const c = colours.get(markerKey(feature));
+        const em = String((feature.properties || {})["In Emergency"]).toLowerCase() === "true";
+        const s = em ? 54 : 18;
         return L.marker(latlng, { icon: L.divIcon({
-          className: "team-diamond",
+          className: em ? "team-diamond team-emergency" : "team-diamond",
           html: `<span style="background:${c}"></span>`,
-          iconSize: [18, 18], iconAnchor: [9, 9]
+          iconSize: [s, s], iconAnchor: [s / 2, s / 2]
         }) });
       },
       onEachFeature(feature, layer) {
