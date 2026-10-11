@@ -25,13 +25,12 @@
     const colours = MaynardUtils.assignColours(keys, markerPalette);
     return L.geoJson(geojson, {
       pointToLayer(feature, latlng) {
-        return L.circleMarker(latlng, {
-          radius: 7,
-          color: "#222",
-          weight: 1,
-          fillColor: colours.get(markerKey(feature)),
-          fillOpacity: 0.9
-        });
+        const c = colours.get(markerKey(feature));
+        return L.marker(latlng, { icon: L.divIcon({
+          className: "team-diamond",
+          html: `<span style="background:${c}"></span>`,
+          iconSize: [18, 18], iconAnchor: [9, 9]
+        }) });
       },
       onEachFeature(feature, layer) {
         layer.bindPopup(buildPopupHtml(feature.properties || {}), { maxWidth: 320 });

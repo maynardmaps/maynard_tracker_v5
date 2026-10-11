@@ -17,10 +17,11 @@
     return new Promise((resolve, reject) => {
       const style = () => ({ color: "#3388ff", weight: 4, opacity: 0.85 });
       let layer;
+      const pointToLayer = (f, ll) => L.circleMarker(ll, { radius: 4, weight: 1, color: "#fff", fillColor: "#3388ff", fillOpacity: 1 });
       if (ext === "gpx") {
-        layer = omnivore.gpx(url, null, L.geoJson(null, { style }));
+        layer = omnivore.gpx(url, null, L.geoJson(null, { style, pointToLayer }));
       } else if (ext === "kml") {
-        layer = omnivore.kml(url, null, L.geoJson(null, { style }));
+        layer = omnivore.kml(url, null, L.geoJson(null, { style, pointToLayer }));
       } else {
         reject(new Error(`Unsupported route file type: ${filename}`));
         return;
@@ -90,7 +91,8 @@
     const colours = MaynardUtils.assignColours(entries.map(([k]) => k), routePalette);
     entries.forEach(([key, layer]) => {
       const colour = colours.get(key);
-      layer.setStyle({ color: colour, weight: 4, opacity: 0.85 });
+      layer.setStyle({ color: colour, weight: 4, opacity: 0.85, fillColor: colour });
+      layer.eachLayer((l) => { if (l instanceof L.CircleMarker) l.setStyle({ color: "#fff", weight: 1, fillColor: colour, fillOpacity: 1 }); });
       routeLayers.set(key, { layer, colour, visible: true });
     });
 
