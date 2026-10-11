@@ -178,7 +178,7 @@
     document.getElementById("toggle-weather").addEventListener("change", (e) => {
       MaynardWeather.setVisible(e.target.checked, map);
     });
-    document.getElementById("toggle-river-levels").addEventListener("change", (e) => {
+    document.getElementById("toggle-birds-rivers").addEventListener("change", (e) => {
       MaynardBirdsRivers.setVisible(e.target.checked, map);
     });
     document.getElementById("toggle-river-levels").addEventListener("change", (e) => {
