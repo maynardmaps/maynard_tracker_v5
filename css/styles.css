@@ -252,3 +252,10 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .timeline { padding: 0.2rem 0 0.4rem 1.6rem; }
 .timeline input[type=range] { width: 100%; }
+
+.timeline { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
+.timeline[hidden] { display: none; }
+.timeline-btn { padding: 0.25rem 0.6rem; cursor: pointer; }
+.timeline input[type=range] { flex: 1 1 8rem; width: auto; }
+.timeline .status-msg { flex-basis: 100%; }
+.weather-clock { background: rgba(255,255,255,0.9); padding: 0.3rem 0.6rem; border-radius: 4px; box-shadow: 0 1px 4px rgba(0,0,0,0.3); font-size: 0.85rem; font-weight: 600; }

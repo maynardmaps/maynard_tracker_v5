@@ -19,6 +19,11 @@
   let selected = 0;
   let loadToken = 0;
   const urlCache = new Map(); // fileId -> object URL
+  const PLAY_DELAY_MS = 1200;
+  let playing = false;
+  let playTimer = null;
+  let clock = null; // Leaflet control showing the displayed overlay time
+  let clockEl = null;
   let relayUrl = "";
   let bounds = null;
 
@@ -94,6 +99,46 @@
     }
     const l = label();
     if (l) l.textContent = steps[selected] ? formatLabel(steps[selected]) : "";
+    const b = document.getElementById("weather-play");
+    if (b) b.innerHTML = playing ? "&#10074;&#10074; Pause" : "&#9654; Play";
+    if (clockEl) {
+      clockEl.textContent = steps[selected] ? "Precipitation: " + formatLabel(steps[selected]) : "";
+      clockEl.parentNode.style.display = visible && steps[selected] ? "" : "none";
+    }
+  }
+
+  function createClock() {
+    clock = L.control({ position: "topright" });
+    clock.onAdd = function () {
+      const div = L.DomUtil.create("div", "weather-clock");
+      div.style.display = "none";
+      clockEl = L.DomUtil.create("span", "", div);
+      return div;
+    };
+    clock.addTo(map);
+  }
+
+  function stopPlaying() {
+    playing = false;
+    if (playTimer) clearTimeout(playTimer);
+    playTimer = null;
+    syncUi();
+  }
+
+  function playNext() {
+    if (!playing) return;
+    const next = (selected + 1) % steps.length;
+    showStep(next).then(() => {
+      if (playing) playTimer = setTimeout(playNext, PLAY_DELAY_MS);
+    });
+  }
+
+  function togglePlay() {
+    if (playing) return stopPlaying();
+    if (steps.length < 2) return;
+    playing = true;
+    syncUi();
+    playTimer = setTimeout(playNext, 0);
   }
 
   async function showStep(index) {
@@ -144,10 +189,17 @@
     relayUrl = opts.relayUrl;
     bounds = opts.bounds;
     visible = opts.startVisible === true;
+    if (!clock) createClock();
+    const pb = document.getElementById("weather-play");
+    if (pb && !pb.dataset.bound) {
+      pb.dataset.bound = "1";
+      pb.addEventListener("click", togglePlay);
+    }
     const s = slider();
     if (s && !s.dataset.bound) {
       s.dataset.bound = "1";
       s.addEventListener("input", () => {
+        if (playing) stopPlaying();
         const i = parseInt(s.value, 10);
         selected = i;
         const l = label();
@@ -167,6 +219,7 @@
 
   function setVisible(v, m) {
     visible = v;
+    if (!visible && playing) stopPlaying();
     syncUi();
     if (!visible) {
       if (imageOverlay && m.hasLayer(imageOverlay)) m.removeLayer(imageOverlay);

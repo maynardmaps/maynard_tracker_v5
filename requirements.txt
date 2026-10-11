@@ -36,6 +36,11 @@ Data source requirements:
 19) Different "KML Markers" from the Garmin feed should be displayed in different colours.
 20) Route and KML marker colours are configured as two generic palettes (one for routes, one for KML markers) of 8 colours each, not as colours for specific entries in the files currently loaded. The 1st entry (in alphanumerical order) takes colour 1, the 2nd takes colour 2, and so on up to 8.
 21) Where a route file or KML marker feed has more than 8 entries, the palette colours should be repeated (the 9th entry takes colour 1, etc.).
+22) The precipitation toggle should be the last entry in the overlays list on the map page.
+23) When precipitation is shown, a timeline slider should let the user step through forecast times: one step per hour for the next 12 hours, then one step every 6 hours up to 48 hours.
+24) Each timeline step should show the Met Office precipitation image valid closest to that time (preferring the most recent model run). Images should only be downloaded when selected, and cached for the session, to suit limited connectivity.
+25) The timeline should have a play/pause button that continuously cycles through the precipitation timeline steps (looping back to the start). Moving the slider manually or hiding precipitation should pause playback.
+26) The map should display an indication of the date/time (and offset from now) of the precipitation overlay currently shown, visible only while precipitation is displayed.
 
 Configuration page requirements:
 1) The configuration page should allow the user to set the default route sub-folder.
