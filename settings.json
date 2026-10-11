@@ -5,19 +5,61 @@
     "repo": "maynard_tracker_v5",
     "branch": "main"
   },
-  "defaultRouteFolder": "TT1",
+  "defaultRouteFolder": "TT4",
   "startPoint": {
     "lat": 51.5074,
     "lng": -0.1278
   },
   "startZoom": 12,
   "mapSources": [
-    { "id": "osm", "name": "OpenStreetMap", "type": "xyz", "url": "https://tile.openstreetmap.org/{z}/{x}/{y}.png", "attribution": "\u00a9 OpenStreetMap contributors", "enabled": true, "requiresKey": false },
-    { "id": "esri-satellite", "name": "Satellite (Esri World Imagery)", "type": "xyz", "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", "attribution": "Tiles \u00a9 Esri", "enabled": true, "requiresKey": false },
-    { "id": "os-leisure", "name": "OS Leisure (Ordnance Survey)", "type": "os-27700", "url": "https://api.os.uk/maps/raster/v1/zxy/Leisure_27700/{z}/{x}/{y}.png", "attribution": "Contains OS data \u00a9 Crown copyright and database rights", "enabled": true, "requiresKey": true }
+    {
+      "id": "osm",
+      "name": "OpenStreetMap",
+      "url": "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+      "attribution": "© OpenStreetMap contributors",
+      "type": "xyz",
+      "requiresKey": false,
+      "enabled": true
+    },
+    {
+      "id": "esri-satellite",
+      "name": "Satellite (Esri World Imagery)",
+      "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      "attribution": "Tiles © Esri",
+      "type": "xyz",
+      "requiresKey": false,
+      "enabled": true
+    },
+    {
+      "id": "os-leisure",
+      "name": "OS Leisure (Ordnance Survey)",
+      "url": "https://api.os.uk/maps/raster/v1/zxy/Leisure_27700/{z}/{x}/{y}.png",
+      "attribution": "Contains OS data © Crown copyright and database rights",
+      "type": "os-27700",
+      "requiresKey": true,
+      "enabled": true
+    }
   ],
-  "routeColours": ["#e6194b", "#3cb44b", "#4363d8", "#f58231", "#911eb4", "#46f0f0", "#f032e6", "#9a6324"],
-  "markerColours": ["#e6194b", "#3cb44b", "#4363d8", "#f58231", "#911eb4", "#46f0f0", "#f032e6", "#9a6324"],
+  "routeColours": [
+    "#e6194b",
+    "#3cb44b",
+    "#4363d8",
+    "#f58231",
+    "#911eb4",
+    "#46f0f0",
+    "#f032e6",
+    "#9a6324"
+  ],
+  "markerColours": [
+    "#e6194b",
+    "#3cb44b",
+    "#4363d8",
+    "#f58231",
+    "#911eb4",
+    "#46f0f0",
+    "#f032e6",
+    "#9a6324"
+  ],
   "weatherEnabledByDefault": false,
   "birdsRiversEnabledByDefault": false
 }
