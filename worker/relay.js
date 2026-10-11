@@ -18,7 +18,7 @@ const CORS = {
   "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
   "Vary": "Origin",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Control-Allow-Headers": "*"
+  "Access-Control-Allow-Headers": "Content-Type, X-Config-Passphrase"
 };
 
 const ID = "[A-Za-z0-9_+.\\-]+";
@@ -69,7 +69,7 @@ async function osTile(match, env, ctx, request) {
   if (!env.OS_API_KEY) return new Response("OS tiles not configured", { status: 500, headers: CORS });
   // Tile <img> requests send Referer rather than Origin; reject other sites.
   const referer = request.headers.get("Referer");
-  if (referer && !referer.startsWith(ALLOWED_ORIGIN + "/")) {
+  if (!referer || !referer.startsWith(ALLOWED_ORIGIN + "/")) {
     return new Response("Forbidden", { status: 403, headers: CORS });
   }
   const [, layer, z, x, y] = match;
@@ -140,6 +140,7 @@ const ALLOWED_KEYS = new Set([
   "birdsRiversEnabledByDefault", "riverLevels"
 ]);
 
+// Fallback used only if the RATE_LIMIT KV binding is missing.
 let failedAttempts = 0;
 let lockedUntil = 0;
 
@@ -150,9 +151,35 @@ async function digest(s) {
   return new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)));
 }
 
+// Durable brute-force protection (KV, shared across all Worker instances):
+// 5 wrong passphrases from one IP in 15 minutes locks that IP out for 15
+// minutes; 30 wrong passphrases from anywhere locks everyone out the same way.
+const RL_WINDOW_S = 900;
+const RL_IP_MAX = 5;
+const RL_GLOBAL_MAX = 30;
+
+async function rlRead(env, key) {
+  try { return (await env.RATE_LIMIT.get(key, "json")) || { n: 0, until: 0 }; } catch (e) { return { n: 0, until: 0 }; }
+}
+
+async function rlBump(env, key, max) {
+  const cur = await rlRead(env, key);
+  cur.n += 1;
+  if (cur.n >= max) { cur.until = Date.now() + RL_WINDOW_S * 1000; cur.n = 0; }
+  try { await env.RATE_LIMIT.put(key, JSON.stringify(cur), { expirationTtl: RL_WINDOW_S }); } catch (e) { /* best effort */ }
+}
+
 async function passphraseOk(request, env) {
   if (!env.CONFIG_PASSPHRASE) return false;
-  if (Date.now() < lockedUntil) return false;
+  const ip = request.headers.get("CF-Connecting-IP") || "unknown";
+  const ipKey = `fail:ip:${ip}`;
+  const globalKey = "fail:global";
+  if (env.RATE_LIMIT) {
+    const [i, g] = await Promise.all([rlRead(env, ipKey), rlRead(env, globalKey)]);
+    if (Date.now() < i.until || Date.now() < g.until) return false;
+  } else if (Date.now() < lockedUntil) {
+    return false;
+  }
   const [a, b] = await Promise.all([
     digest(request.headers.get("X-Config-Passphrase") || ""),
     digest(env.CONFIG_PASSPHRASE)
@@ -163,15 +190,15 @@ async function passphraseOk(request, env) {
     failedAttempts = 0;
     return true;
   }
-  // Best-effort brute-force slowdown (per isolate): lock out after 5 misses.
-  if (++failedAttempts >= 5) {
+  if (env.RATE_LIMIT) {
+    await Promise.all([rlBump(env, ipKey, RL_IP_MAX), rlBump(env, globalKey, RL_GLOBAL_MAX)]);
+  } else if (++failedAttempts >= 5) {
     lockedUntil = Date.now() + 60000;
     failedAttempts = 0;
   }
   await new Promise((r) => setTimeout(r, 1000));
   return false;
 }
-
 const MAP_SOURCE_KEYS = new Set(["id", "name", "url", "attribution", "type", "requiresKey", "enabled"]);
 const OS_PREFIX = "https://api.os.uk/maps/raster/v1/zxy/";
 const isBool = (v) => typeof v === "boolean";

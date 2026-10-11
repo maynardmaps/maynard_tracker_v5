@@ -35,10 +35,7 @@
     await loadRouteFolder(settings.defaultRouteFolder);
 
     MaynardKmlMarkers.start(map, {
-      feedUrl: window.MAYNARD_CONFIG.garminKmlFeedUrl,
       relayUrl: window.MAYNARD_CONFIG.garminRelayUrl,
-      gpsvProxyUrl: window.MAYNARD_CONFIG.gpsvProxyUrl,
-      proxies: window.MAYNARD_CONFIG.corsProxies,
       pollIntervalMs: window.MAYNARD_CONFIG.garminPollIntervalMs,
       palette: settings.markerColours,
       startVisible: true
@@ -96,7 +93,7 @@
       const gr = MaynardKmlMarkers.gridRef(e.latlng.lat, e.latlng.lng);
       const html = `<div class="kml-popup"><strong>${lat}, ${lng}</strong>` +
         (gr ? `<div class="kml-popup-grid">Grid ref: ${gr}</div>` : "") +
-        `<div class="kml-popup-map"><a href="${href}" title="Open in maps app" aria-label="Open in maps app" target="_blank" rel="noopener">&#128506; Map</a></div></div>`;
+        `<div class="kml-popup-map"><a href="${href.replace(/&/g, "&amp;").replace(/"/g, "&quot;")}" title="Open in maps app" aria-label="Open in maps app" target="_blank" rel="noopener">&#128506; Map</a></div></div>`;
       L.popup().setLatLng(e.latlng).setContent(html).openOn(map);
     });
   }

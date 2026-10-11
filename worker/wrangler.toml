@@ -4,3 +4,7 @@ compatibility_date = "2024-09-01"
 
 [vars]
 MET_ORDER_ID = "o102211703928"
+
+[[kv_namespaces]]
+binding = "RATE_LIMIT"
+id = "d6973115cd8642d282cc3b8a47cc5293"

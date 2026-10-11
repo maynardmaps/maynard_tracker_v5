@@ -134,7 +134,6 @@ fixed-purpose routes (it is not an open proxy):
   with the API key added server-side from a Worker secret, so the key never
   needs to be shipped to the browser.
 
-The site tries the relay first for both.
 
 Deploy (free tier, no card needed; on Windows PowerShell use `wrangler.cmd`
 if scripts are blocked):
@@ -148,23 +147,13 @@ if scripts are blocked):
 Also set the Met Office order id in `MET_ORDER_ID` in `worker/wrangler.toml`.
 Weather responses are cached in the Worker for 5 minutes.
 
-If the Garmin relay fails or returns no data, the site retries through GPS Visualizer's
-xml-to-JSON proxy (`gpsvProxyUrl` in `js/app-config.js`, converted back to map
-features in `js/kml-markers.js`), and finally the generic public proxies.
+The site depends on the relay for the Garmin feed; there are no third-party proxy fallbacks. If the Garmin share ID changes, update `GARMIN_FEED` in the worker.
 
-If the Garmin share ID changes, update `GARMIN_FEED` in the worker and
-`garminKmlFeedUrl` in `js/app-config.js`.
+Security notes: the Worker only allows CORS from the GitHub Pages origin, requires that Referer for OS tiles, validates every field of a saved `settings.json`, and rate-limits wrong passphrases durably using the `RATE_LIMIT` KV namespace (5 failures per IP or 30 overall in 15 minutes locks out for 15 minutes). CDN scripts carry Subresource Integrity hashes; regenerate them if you change a library version.
 
 ## Known limitations / operational notes
 
-- **Public CORS proxies.** The browser can't call the Garmin KML feed or the
-  Met Office API directly due to CORS, so both go through free, third-party
-  CORS proxies (currently `api.codetabs.com` and `api.allorigins.win`,
-  tried in order, see `js/app-config.js`). These have **no uptime
-  guarantee** and were observed to fail intermittently (503/522/408) during
-  testing. If markers/weather stop updating, this is the most likely cause -
-  try adding another proxy to the `corsProxies` list, or revisit whether a
-  small serverless proxy function is acceptable later.
+- **Single point of dependency.** The Garmin feed, Met Office weather and OS tiles all go through the Cloudflare Worker. If it is down or over its free quota, those layers stop updating.
 - **OS Leisure zoom range.** The OS Maps API `Leisure_27700` layer only
   serves zoom levels 0-9 (confirmed empirically - zoom 10+ returns HTTP
   400). The map correctly disables further zoom-in at that point; this is
@@ -192,8 +181,8 @@ config.html             Passphrase-gated configuration page
 css/styles.css          Shared responsive styles
 js/
   secrets.js             Committed, browser-visible values only (currently empty)
-  app-config.js          Non-secret config (proxies, URLs, GitHub defaults)
-  utils.js               Shared helpers (fetch w/ timeout, CORS proxy fetch, colours)
+  app-config.js          Non-secret config (relay URL, poll intervals, GitHub defaults)
+  utils.js               Shared helpers (fetch w/ timeout, colours)
   settings-store.js       Loads/merges/saves settings.json + localStorage override
   github-save.js          Commits settings.json via GitHub Contents API
   map-core.js             Leaflet map lifecycle + CRS switching

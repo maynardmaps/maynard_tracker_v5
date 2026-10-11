@@ -137,106 +137,23 @@
     return div.innerHTML;
   }
 
-  const asArray = (v) => (v == null ? [] : Array.isArray(v) ? v : [v]);
-
-  // Converts the GPS Visualizer xml-json proxy output (a JSON rendering of the
-  // KML) into the same GeoJSON shape toGeoJSON.kml produces.
-  function gpsvJsonToGeojson(json) {
-    const doc = json && json.kml && json.kml.Document;
-    if (!doc) throw new Error("Unexpected GPS Visualizer response");
-    const placemarks = [];
-    const collect = (node) => {
-      asArray(node.Placemark).forEach((p) => placemarks.push(p));
-      asArray(node.Folder).forEach(collect);
-    };
-    collect(doc);
-
-    const parseCoords = (str) =>
-      String(str || "")
-        .trim()
-        .split(/\s+/)
-        .map((c) => c.split(",").map(Number))
-        .filter((c) => c.length >= 2 && isFinite(c[0]) && isFinite(c[1]));
-
-    const features = [];
-    placemarks.forEach((p) => {
-      let geometry = null;
-      if (p.Point) {
-        const c = parseCoords(p.Point.coordinates)[0];
-        if (c) geometry = { type: "Point", coordinates: c };
-      } else if (p.LineString) {
-        const cs = parseCoords(p.LineString.coordinates);
-        if (cs.length > 1) geometry = { type: "LineString", coordinates: cs };
-        else if (cs.length === 1) geometry = { type: "Point", coordinates: cs[0] };
-      }
-      if (!geometry) return;
-      const properties = { name: p.name || "", description: p.description || "" };
-      asArray(p.ExtendedData && p.ExtendedData.Data).forEach((d) => {
-        if (d && d.name != null) properties[d.name] = d.value == null ? "" : String(d.value);
-      });
-      if (p.TimeStamp && p.TimeStamp.when) properties.timestamp = p.TimeStamp.when;
-      features.push({
-        type: "Feature",
-        properties,
-        geometry
-      });
-    });
-    return { type: "FeatureCollection", features };
-  }
-
   function kmlTextToGeojson(kmlText) {
     const xml = new DOMParser().parseFromString(kmlText, "text/xml");
     return toGeoJSON.kml(xml);
   }
 
-  // Source order: Cloudflare Worker relay -> GPS Visualizer proxy (JSON) ->
-  // generic public CORS proxies. A source that errors or yields no features
-  // falls through to the next. Returns { raw, geojson }.
-  async function fetchFeed(feedUrl, proxies, sources) {
-    const attempts = [];
-    if (sources.relayUrl) {
-      attempts.push(["Garmin relay", async () => {
-        const raw = await MaynardUtils.fetchText(sources.relayUrl, { timeoutMs: 15000, cache: "no-store" });
-        return { raw, geojson: kmlTextToGeojson(raw) };
-      }]);
-    }
-    if (sources.gpsvProxyUrl) {
-      attempts.push(["GPS Visualizer proxy", async () => {
-        const raw = await MaynardUtils.fetchText(sources.gpsvProxyUrl + encodeURIComponent(feedUrl), { timeoutMs: 20000 });
-        return { raw, geojson: gpsvJsonToGeojson(JSON.parse(raw)) };
-      }]);
-    }
-    attempts.push(["public CORS proxies", async () => {
-      const raw = await MaynardUtils.fetchViaCorsProxies(feedUrl, proxies, { timeoutMs: 15000 });
-      return { raw, geojson: kmlTextToGeojson(raw) };
-    }]);
-
-    let lastErr;
-    for (const [label, run] of attempts) {
-      try {
-        const result = await run();
-        if (!result.geojson || !result.geojson.features || !result.geojson.features.length) {
-          throw new Error("no features returned");
-        }
-        return result;
-      } catch (e) {
-        lastErr = e;
-        console.warn(`Garmin feed via ${label} failed, trying next source`, e);
-      }
-    }
-    throw lastErr;
-  }
-
-  async function fetchAndParse(feedUrl, proxies, sources) {
-    const { raw, geojson } = await fetchFeed(feedUrl, proxies, sources);
+  // The Garmin feed is only fetched via the Cloudflare Worker relay.
+  async function fetchAndParse(relayUrl) {
+    const raw = await MaynardUtils.fetchText(relayUrl, { timeoutMs: 15000, cache: "no-store" });
     if (raw === lastRawKml) return null; // no change since last poll
+    const geojson = kmlTextToGeojson(raw);
+    if (!geojson || !geojson.features || !geojson.features.length) throw new Error("no features returned");
     lastRawKml = raw;
     return geojson;
   }
-
-  async function refresh(map, feedUrl, proxies, sources) {
+  async function refresh(map, relayUrl) {
     try {
-      const geojson = await fetchAndParse(feedUrl, proxies, sources);
+      const geojson = await fetchAndParse(relayUrl);
       if (!geojson) return; // unchanged
       if (layerGroup && map.hasLayer(layerGroup)) map.removeLayer(layerGroup);
       layerGroup = buildLayer(geojson);
@@ -246,13 +163,12 @@
     }
   }
 
-  function start(map, { feedUrl, proxies, relayUrl, gpsvProxyUrl, pollIntervalMs, palette, startVisible }) {
-    const sources = { relayUrl, gpsvProxyUrl };
+  function start(map, { relayUrl, pollIntervalMs, palette, startVisible }) {
     markerPalette = MaynardUtils.sanitizePalette(palette);
     visible = startVisible !== false;
-    refresh(map, feedUrl, proxies, sources);
+    refresh(map, relayUrl);
     stop();
-    pollTimer = setInterval(() => refresh(map, feedUrl, proxies, sources), pollIntervalMs);
+    pollTimer = setInterval(() => refresh(map, relayUrl), pollIntervalMs);
   }
 
   function stop() {

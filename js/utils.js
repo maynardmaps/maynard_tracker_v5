@@ -66,22 +66,6 @@
     }
   }
 
-  // Tries each configured CORS proxy in turn until one succeeds. Used for
-  // third-party feeds (Garmin KML, Met Office images) that a static site has
-  // no backend to request on the page's behalf.
-  async function fetchViaCorsProxies(targetUrl, proxies, opts) {
-    let lastErr;
-    for (const proxyPrefix of proxies) {
-      try {
-        const proxied = proxyPrefix + encodeURIComponent(targetUrl);
-        return await fetchText(proxied, opts);
-      } catch (err) {
-        lastErr = err;
-      }
-    }
-    throw lastErr || new Error("All CORS proxies failed");
-  }
-
   function base64EncodeUtf8(str) {
     return btoa(unescape(encodeURIComponent(str)));
   }
@@ -110,7 +94,6 @@
     debounce,
     fetchJson,
     fetchText,
-    fetchViaCorsProxies,
     base64EncodeUtf8
   };
 })(window);
