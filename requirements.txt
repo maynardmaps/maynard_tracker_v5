@@ -59,6 +59,7 @@ Configuration page requirements:
 9) The configuration page should provide toggles for which map sources are available for the map user to select.
 10) Map sources should be displayed as a list on the configuration page, with the user able to add extra map sources to the list as needed.
 11) The configuration page should have a clear "save settings" button that applies all changes made by the user.
+12) Each configuration box should be collapsible and collapsed by default when the page opens.
 
 Route management requirements:
 1) The configuration page should have a "route management" section that lists all the route folders in the routes folder.

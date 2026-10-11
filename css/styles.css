@@ -165,10 +165,13 @@ select#route-folder-select {
   margin-bottom: 1.25rem;
 }
 
-.config-section h2 {
+.config-section > summary {
   font-size: 1rem;
-  margin-top: 0;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0.1rem 0;
 }
+.config-section[open] > summary { margin-bottom: 0.6rem; }
 
 .field-row {
   display: flex;

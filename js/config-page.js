@@ -234,6 +234,8 @@
       pickerMarker.setLatLng(e.latlng);
       syncLatLngInputsFromMarker();
     });
+    const pickerBox = document.getElementById("pick-start-map").closest("details");
+    if (pickerBox) pickerBox.addEventListener("toggle", () => pickerMap.invalidateSize());
     ["start-lat", "start-lng"].forEach((id) =>
       document.getElementById(id).addEventListener("change", syncMarkerFromInputs)
     );

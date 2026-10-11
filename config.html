@@ -23,8 +23,8 @@
 
     <div id="config-form" style="display:none;">
 
-            <section class="config-section">
-        <h2>Route management</h2>
+            <details class="config-section">
+        <summary>Route management</summary>
         <p class="status-msg">Changes here are committed straight to the GitHub repository and apply immediately (no Save needed).</p>
         <h3>Route folders</h3>
         <div id="rm-folders" class="rm-list" role="listbox" aria-label="Route folders"></div>
@@ -42,9 +42,9 @@
           <input type="file" id="rm-file-input" accept=".gpx,.kml" multiple hidden />
         </div>
         <p id="rm-status" class="status-msg"></p>
-      </section>
-      <section class="config-section">
-        <h2>Map start point</h2>
+      </details>
+      <details class="config-section">
+        <summary>Map start point</summary>
         <p class="section-desc">Set the location of the home icon on the map</p>
         <div class="field-row">
           <label class="field-label" for="start-lat">Latitude</label>
@@ -60,54 +60,54 @@
         </div>
         <p class="status-msg">Click the map, or drag the marker, to set the start point.</p>
         <div id="pick-start-map"></div>
-      </section>
+      </details>
 
-      <section class="config-section">
-        <h2>Default route folder</h2>
+      <details class="config-section">
+        <summary>Default route folder</summary>
         <div class="field-row">
           <label class="field-label" for="default-route-folder">Default folder</label>
           <select id="default-route-folder"></select>
         </div>
-      </section>
+      </details>
 
-      <section class="config-section">
-        <h2>Route colours</h2>
+      <details class="config-section">
+        <summary>Route colours</summary>
         <p class="status-msg">Generic palette: the 1st route listed gets colour 1, and so on. Colours repeat when a folder has more than 8 routes.</p>
         <div id="route-colour-list" class="palette-grid"></div>
-      </section>
+      </details>
 
-      <section class="config-section">
-        <h2>KML marker colours</h2>
+      <details class="config-section">
+        <summary>KML marker colours</summary>
         <p class="status-msg">Generic palette for Garmin feed markers, applied in order; repeats after 8 markers.</p>
         <div id="marker-colour-list" class="palette-grid"></div>
-      </section>
+      </details>
 
-      <section class="config-section">
-        <h2>Weather overlay</h2>
+      <details class="config-section">
+        <summary>Weather overlay</summary>
         <label class="switch-row">
           <input type="checkbox" id="weather-default" />
           Precipitation overlay enabled by default
         </label>
-      </section>
+      </details>
 
-      <section class="config-section">
-        <h2>Birds and rivers overlay</h2>
+      <details class="config-section">
+        <summary>Birds and rivers overlay</summary>
         <p class="status-msg">Static KML file (data/birdsrivers.kml) with bird-sighting points and river/wetland polygons.</p>
         <label class="switch-row">
           <input type="checkbox" id="birds-rivers-default" />
           Birds and rivers overlay enabled by default
         </label>
-      </section>
+      </details>
 
-      <section class="config-section">
-        <h2>Map sources</h2>
+      <details class="config-section">
+        <summary>Map sources</summary>
         <p class="status-msg">Toggle which base layers are offered to map users, or add your own XYZ tile source.</p>
         <div id="map-source-list"></div>
         <button type="button" class="secondary" id="add-map-source-btn" style="margin-top:0.6rem;">+ Add map source</button>
-      </section>
+      </details>
 
-      <section class="config-section">
-        <h2>GitHub integration</h2>
+      <details class="config-section">
+        <summary>GitHub integration</summary>
         <div class="field-row">
           <label class="field-label" for="gh-owner">Owner / org</label>
           <input type="text" id="gh-owner" readonly />
@@ -121,7 +121,7 @@
           <input type="text" id="gh-branch" readonly />
         </div>
         <p><a id="github-link" href="#" target="_blank" rel="noopener">View this project on GitHub &rarr;</a></p>
-      </section>
+      </details>
 
       <div class="save-bar">
         <button id="save-btn">Save settings</button>
