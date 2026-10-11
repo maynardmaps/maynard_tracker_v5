@@ -13,6 +13,7 @@ Map requirements:
 5) The map should have selectable layers for different map types (see data source requirements).
 6) The map should be able to display the position of the user. This should be togglable from the map page.
 7) There should be a scale bar.
+8) The start point set on the configuration page should be marked on the map with a small "home" icon (not a plain circle).
 
 Data source requirements:
 1) The map should be compatible with open street map, google maps and other common map providers.
@@ -41,6 +42,7 @@ Data source requirements:
 24) Each timeline step should show the Met Office precipitation image valid closest to that time (preferring the most recent model run). Images should only be downloaded when selected, and cached for the session, to suit limited connectivity.
 25) The timeline should have a play/pause button that continuously cycles through the precipitation timeline steps (looping back to the start). Moving the slider manually or hiding precipitation should pause playback.
 26) The map should display an indication of the date/time (and offset from now) of the precipitation overlay currently shown, visible only while precipitation is displayed.
+27) The "birds and rivers" overlay should load ALL the KML files in the "data" folder (not a single named file), and its single toggle should show/hide all of them. New KML files added to the folder should appear automatically without code changes.
 
 Configuration page requirements:
 1) The configuration page should allow the user to set the default route sub-folder.

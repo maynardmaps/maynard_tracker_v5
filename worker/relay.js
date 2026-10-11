@@ -43,14 +43,18 @@ async function routesManifest(env, ctx) {
   if (!upstream.ok) return new Response(`Upstream HTTP ${upstream.status}`, { status: 502, headers: CORS });
   const tree = (await upstream.json()).tree || [];
   const folders = {};
+  const data = [];
   for (const item of tree) {
+    const d = /^data\/([^/]+\.kml)$/i.exec(item.path);
+    if (item.type === "blob" && d) data.push(d[1]);
     const m = /^routes\/([^/]+)\/([^/]+)$/.exec(item.path);
     if (item.type !== "blob" || !m) continue;
     if (m[2] === KEEP_FILE) folders[m[1]] = folders[m[1]] || [];
     else if (/\.(?:gpx|kml)$/i.test(m[2])) (folders[m[1]] = folders[m[1]] || []).push(m[2]);
   }
   Object.values(folders).forEach((a) => a.sort());
-  const body = JSON.stringify({ folders });
+  data.sort();
+  const body = JSON.stringify({ folders, data });
   ctx.waitUntil(cache.put(cacheKey, new Response(body, {
     headers: { "Content-Type": "application/json", "Cache-Control": "public, max-age=60" }
   })));

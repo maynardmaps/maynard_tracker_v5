@@ -6,6 +6,8 @@
   let settings, manifest, map, secrets;
   let geoVisible = false;
 
+  let homeMarker = null;
+
   async function main() {
     secrets = window.MAYNARD_SECRETS || {};
     settings = await MaynardSettings.load();
@@ -46,12 +48,13 @@
     if (weatherToggle) weatherToggle.checked = settings.weatherEnabledByDefault === true;
 
     await MaynardBirdsRivers.init(map, {
-      url: window.MAYNARD_CONFIG.birdsRiversKmlUrl,
+      urls: (manifest.data && manifest.data.length ? manifest.data.map((f) => "data/" + encodeURIComponent(f)) : [window.MAYNARD_CONFIG.birdsRiversKmlUrl]),
       startVisible: settings.birdsRiversEnabledByDefault === true
     });
     const birdsRiversToggle = document.getElementById("toggle-birds-rivers");
     if (birdsRiversToggle) birdsRiversToggle.checked = settings.birdsRiversEnabledByDefault === true;
 
+    addHomeMarker();
     fitToEverything();
 
     // Overlay modules re-attach themselves whenever the map is rebuilt
@@ -62,8 +65,18 @@
       MaynardKmlMarkers.reattach(map);
       MaynardWeather.reattach(map);
       MaynardBirdsRivers.reattach(map);
+      addHomeMarker();
       if (geoVisible) MaynardGeolocation.reattach(map);
     });
+  }
+
+  function addHomeMarker() {
+    if (homeMarker) homeMarker.remove();
+    const p = settings.startPoint;
+    homeMarker = L.marker([p.lat, p.lng], {
+      title: "Start point",
+      icon: L.divIcon({ className: "home-icon", html: "&#127968;", iconSize: [24, 24], iconAnchor: [12, 12] })
+    }).addTo(map);
   }
 
   function buildBaseLayerControl() {

@@ -54,11 +54,19 @@
     });
   }
 
-  // Loads the KML file once (cached) and shows/hides it on `map`.
-  async function init(map, { url, startVisible }) {
+  // Loads every KML file; one failing file does not hide the others.
+  async function buildAll(urls) {
+    const group = L.featureGroup();
+    const results = await Promise.all(urls.map((u) => buildLayer(u).catch((e) => { console.error("Birds and rivers KML failed: " + u, e); return null; })));
+    results.forEach((l) => l && group.addLayer(l));
+    return group;
+  }
+
+  // Loads the KML files once (cached) and shows/hides it on `map`.
+  async function init(map, { urls, startVisible }) {
     visible = startVisible === true;
     if (!loadPromise) {
-      loadPromise = buildLayer(url).catch((e) => {
+      loadPromise = buildAll(urls).catch((e) => {
         console.error("Birds and rivers KML failed to load", e);
         loadPromise = null; // allow a retry on next init/reattach
         return null;

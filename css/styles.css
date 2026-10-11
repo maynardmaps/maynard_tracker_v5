@@ -285,3 +285,4 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .rm-actions button { padding: 0.35rem 0.7rem; cursor: pointer; }
 .rm-actions button:disabled { cursor: not-allowed; }
 .rm-actions .danger { color: #b71c1c; }
+.home-icon { font-size: 16px; line-height: 24px; text-align: center; background: #fff; border: 1px solid #555; border-radius: 50%; width: 24px; height: 24px; box-shadow: 0 1px 3px rgba(0,0,0,.4); }
