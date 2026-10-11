@@ -35,7 +35,7 @@
         }) });
       },
       onEachFeature(feature, layer) {
-        layer.bindPopup(buildPopupHtml(feature.properties || {}), { maxWidth: 320 });
+        layer.bindPopup(buildPopupHtml(feature.properties || {}, feature.geometry && feature.geometry.coordinates), { maxWidth: 320 });
       }
     });
   }
@@ -60,7 +60,17 @@
   // Internal/duplicate fields not worth showing.
   const POPUP_HIDDEN = new Set(["Map Display Name", "SpatialRefSystem", "Incident Id", "Device Identifier"]);
 
-  function buildPopupHtml(props) {
+  // Opens the phone's native map app: Apple Maps on iOS, geo: intent on Android,
+  // Google Maps web URL elsewhere.
+  function mapAppUrl(lat, lng, label) {
+    const ua = navigator.userAgent || "";
+    const q = encodeURIComponent(label);
+    if (/iPhone|iPad|iPod/.test(ua)) return `https://maps.apple.com/?ll=${lat},${lng}&q=${q}`;
+    if (/Android/.test(ua)) return `geo:${lat},${lng}?q=${lat},${lng}(${q})`;
+    return `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+  }
+
+  function buildPopupHtml(props, coords) {
     const has = (k) => props[k] != null && String(props[k]).trim() !== "";
     const title = has("Map Display Name") ? props["Map Display Name"] : props.name || "Marker";
     const rows = [];
@@ -87,6 +97,10 @@
           .map(([l, v]) => `<tr><th>${escapeHtml(l)}</th><td>${escapeHtml(v)}</td></tr>`)
           .join("") +
         "</table>";
+    }
+    if (coords && isFinite(coords[0]) && isFinite(coords[1])) {
+      const href = mapAppUrl(coords[1], coords[0], title);
+      html += `<div class="kml-popup-map"><a href="${escapeHtml(href)}" title="Open in maps app" aria-label="Open in maps app" target="_blank" rel="noopener">&#128506; Map</a></div>`;
     }
     return html + "</div>";
   }
