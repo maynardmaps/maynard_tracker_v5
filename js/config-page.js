@@ -25,6 +25,7 @@
     document.getElementById("add-map-source-btn").addEventListener("click", addMapSourceRow);
 
     populateForm();
+    initRouteManagement();
   }
 
   async function unlock() {
@@ -43,9 +44,138 @@
     }
   }
 
-  function populateForm() {
-    // Default route folder
+  // ---- Route management (folders and files under routes/) ----
+  let rmFolder = null;
+  let rmFile = null;
+
+  const rmEl = (id) => document.getElementById(id);
+  const sortNat = (arr) => arr.slice().sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+
+  function rmStatus(msg, isError) {
+    const el = rmEl("rm-status");
+    el.textContent = msg;
+    el.className = "status-msg" + (isError ? " error" : "");
+  }
+
+  function renderRmList(containerId, items, selected, onSelect) {
+    const box = rmEl(containerId);
+    box.innerHTML = "";
+    if (!items.length) {
+      const empty = document.createElement("div");
+      empty.className = "rm-empty";
+      empty.textContent = "(none)";
+      box.appendChild(empty);
+      return;
+    }
+    items.forEach((name) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "rm-item" + (name === selected ? " selected" : "");
+      btn.setAttribute("role", "option");
+      btn.setAttribute("aria-selected", String(name === selected));
+      btn.textContent = name;
+      btn.addEventListener("click", () => onSelect(name));
+      box.appendChild(btn);
+    });
+  }
+
+  function renderRouteManagement() {
+    const folders = sortNat(Object.keys(manifest.folders));
+    if (rmFolder && !manifest.folders[rmFolder]) rmFolder = null;
+    const files = rmFolder ? sortNat(manifest.folders[rmFolder]) : [];
+    if (rmFile && !files.includes(rmFile)) rmFile = null;
+
+    renderRmList("rm-folders", folders, rmFolder, (f) => { rmFolder = f; rmFile = null; renderRouteManagement(); });
+    renderRmList("rm-files", files, rmFile, (f) => { rmFile = f; renderRouteManagement(); });
+    rmEl("rm-folder-name").textContent = rmFolder || "(no folder selected)";
+    rmEl("rm-add-folder").disabled = false;
+    rmEl("rm-rename-folder").disabled = !rmFolder;
+    rmEl("rm-delete-folder").disabled = !rmFolder;
+    rmEl("rm-add-file").disabled = !rmFolder;
+    rmEl("rm-rename-file").disabled = !rmFile;
+    rmEl("rm-delete-file").disabled = !rmFile;
+  }
+
+  async function rmRun(op, successMsg) {
+    rmStatus("Working...");
+    document.querySelectorAll(".rm-actions button").forEach((b) => { b.disabled = true; });
+    try {
+      await MaynardGithubSave.manageRoutes(op, passphrase);
+      manifest = await MaynardUtils.loadRoutesManifest();
+      fillDefaultFolderSelect();
+      rmStatus(successMsg + " Committed to GitHub; the site updates after the next Pages deploy (about a minute).");
+    } catch (e) {
+      rmStatus(`Failed: ${e.message}`, true);
+    }
+    renderRouteManagement();
+  }
+
+  function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result).split(",")[1] || "");
+      reader.onerror = () => reject(new Error("Could not read file"));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function initRouteManagement() {
+    rmEl("rm-add-folder").addEventListener("click", () => {
+      const name = (prompt("New folder name:") || "").trim();
+      if (name) rmRun({ op: "addFolder", folder: name }, `Folder "${name}" added.`).then(() => { rmFolder = manifest.folders[name] ? name : rmFolder; renderRouteManagement(); });
+    });
+    rmEl("rm-rename-folder").addEventListener("click", () => {
+      const to = (prompt(`Rename folder "${rmFolder}" to:`, rmFolder) || "").trim();
+      if (!to || to === rmFolder) return;
+      const from = rmFolder;
+      rmRun({ op: "renameFolder", folder: from, to }, `Folder renamed to "${to}".`).then(() => {
+        if (manifest.folders[to]) rmFolder = to;
+        renderRouteManagement();
+        if (settings.defaultRouteFolder === from) rmStatus(`Note: "${from}" was the default folder - choose a new default and Save settings.`, true);
+      });
+    });
+    rmEl("rm-delete-folder").addEventListener("click", () => {
+      const n = manifest.folders[rmFolder].length;
+      if (!confirm(`Delete folder "${rmFolder}" and its ${n} file(s)? This cannot be undone from this page.`)) return;
+      const from = rmFolder;
+      rmFolder = null;
+      rmRun({ op: "deleteFolder", folder: from }, `Folder "${from}" deleted.`).then(() => {
+        if (settings.defaultRouteFolder === from) rmStatus(`Note: "${from}" was the default folder - choose a new default and Save settings.`, true);
+      });
+    });
+    rmEl("rm-add-file").addEventListener("click", () => rmEl("rm-file-input").click());
+    rmEl("rm-file-input").addEventListener("change", async (e) => {
+      const folder = rmFolder;
+      for (const file of Array.from(e.target.files)) {
+        try {
+          const contentBase64 = await fileToBase64(file);
+          await rmRun({ op: "addFile", folder, name: file.name, contentBase64 }, `"${file.name}" added to ${folder}.`);
+        } catch (err) {
+          rmStatus(`Failed: ${err.message}`, true);
+        }
+      }
+      e.target.value = "";
+    });
+    rmEl("rm-rename-file").addEventListener("click", () => {
+      const to = (prompt(`Rename "${rmFile}" to (keep .gpx or .kml):`, rmFile) || "").trim();
+      if (!to || to === rmFile) return;
+      const name = rmFile;
+      rmRun({ op: "renameFile", folder: rmFolder, name, to }, `File renamed to "${to}".`).then(() => {
+        if (manifest.folders[rmFolder] && manifest.folders[rmFolder].includes(to)) rmFile = to;
+        renderRouteManagement();
+      });
+    });
+    rmEl("rm-delete-file").addEventListener("click", () => {
+      if (!confirm(`Delete "${rmFile}" from "${rmFolder}"?`)) return;
+      const name = rmFile;
+      rmFile = null;
+      rmRun({ op: "deleteFile", folder: rmFolder, name }, `"${name}" deleted.`);
+    });
+    renderRouteManagement();
+  }
+  function fillDefaultFolderSelect() {
     const folderSelect = document.getElementById("default-route-folder");
+    const current = folderSelect.value || settings.defaultRouteFolder;
     folderSelect.innerHTML = "";
     Object.keys(manifest.folders)
       .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
@@ -53,9 +183,13 @@
         const opt = document.createElement("option");
         opt.value = folder;
         opt.textContent = folder;
-        if (folder === settings.defaultRouteFolder) opt.selected = true;
+        if (folder === current) opt.selected = true;
         folderSelect.appendChild(opt);
       });
+  }
+
+  function populateForm() {
+    fillDefaultFolderSelect();
 
     // Start point
     document.getElementById("start-lat").value = settings.startPoint.lat;

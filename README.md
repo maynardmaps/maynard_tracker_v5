@@ -91,6 +91,8 @@ are needed since it's a single fixed file rather than a folder of routes.
 
 ## Configuration page
 
+**Route management:** the config page lists the folders in `routes/` (scrollable) and lets you add/rename/delete folders and add/rename/delete GPX/KML files. Changes are committed to GitHub by the Worker (`POST /routes/manage`, passphrase-protected, needs the `GITHUB_TOKEN` secret). Empty folders are kept with a `.gitkeep`.
+
 Visit `config.html` and enter the config passphrase. It is checked by the
 Cloudflare Worker (stored there as the `CONFIG_PASSPHRASE` secret, never in
 this repo), so it is real authorisation, not a client-side gate.

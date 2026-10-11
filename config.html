@@ -23,6 +23,26 @@
 
     <div id="config-form" style="display:none;">
 
+            <section class="config-section">
+        <h2>Route management</h2>
+        <p class="status-msg">Changes here are committed straight to the GitHub repository and apply immediately (no Save needed).</p>
+        <h3>Route folders</h3>
+        <div id="rm-folders" class="rm-list" role="listbox" aria-label="Route folders"></div>
+        <div class="rm-actions">
+          <button type="button" id="rm-add-folder">Add folder</button>
+          <button type="button" id="rm-rename-folder" disabled>Rename folder</button>
+          <button type="button" id="rm-delete-folder" class="danger" disabled>Delete folder</button>
+        </div>
+        <h3>Files in <span id="rm-folder-name">(no folder selected)</span></h3>
+        <div id="rm-files" class="rm-list" role="listbox" aria-label="Files in selected folder"></div>
+        <div class="rm-actions">
+          <button type="button" id="rm-add-file" disabled>Add file</button>
+          <button type="button" id="rm-rename-file" disabled>Rename file</button>
+          <button type="button" id="rm-delete-file" class="danger" disabled>Delete file</button>
+          <input type="file" id="rm-file-input" accept=".gpx,.kml" multiple hidden />
+        </div>
+        <p id="rm-status" class="status-msg"></p>
+      </section>
       <section class="config-section">
         <h2>Default route folder</h2>
         <div class="field-row">

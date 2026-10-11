@@ -29,5 +29,7 @@
   const verifyPassphrase = (passphrase) => post("/settings/verify", passphrase);
   const commitSettingsJson = (settingsObj, passphrase) => post("/settings", passphrase, settingsObj);
 
-  global.MaynardGithubSave = { commitSettingsJson, verifyPassphrase };
+  const manageRoutes = (op, passphrase) => post("/routes/manage", passphrase, op);
+
+  global.MaynardGithubSave = { commitSettingsJson, verifyPassphrase, manageRoutes };
 })(window);

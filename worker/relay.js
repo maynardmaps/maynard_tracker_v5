@@ -25,11 +25,14 @@ const ID = "[A-Za-z0-9_+.\\-]+";
 const WEATHER_PATH = new RegExp(`^/weather/latest(?:/(${ID})/data)?$`);
 const WEATHER_CACHE_SECONDS = 300;
 
+const KEEP_FILE = ".gitkeep"; // placeholder so an empty folder exists in git
+const ROUTES_CACHE_KEY = "https://cache.invalid/routes-manifest";
+
 // Lists routes/<folder>/<file>.(gpx|kml) from the repo so new uploads appear
 // without editing routes/manifest.json.
 async function routesManifest(env, ctx) {
   const cache = caches.default;
-  const cacheKey = new Request("https://cache.invalid/routes-manifest");
+  const cacheKey = new Request(ROUTES_CACHE_KEY);
   const hit = await cache.match(cacheKey);
   if (hit) return new Response(hit.body, { status: 200, headers: { ...CORS, "Content-Type": "application/json", "Cache-Control": "no-store" } });
 
@@ -41,8 +44,10 @@ async function routesManifest(env, ctx) {
   const tree = (await upstream.json()).tree || [];
   const folders = {};
   for (const item of tree) {
-    const m = /^routes\/([^/]+)\/([^/]+\.(?:gpx|kml))$/i.exec(item.path);
-    if (item.type === "blob" && m) (folders[m[1]] = folders[m[1]] || []).push(m[2]);
+    const m = /^routes\/([^/]+)\/([^/]+)$/.exec(item.path);
+    if (item.type !== "blob" || !m) continue;
+    if (m[2] === KEEP_FILE) folders[m[1]] = folders[m[1]] || [];
+    else if (/\.(?:gpx|kml)$/i.test(m[2])) (folders[m[1]] = folders[m[1]] || []).push(m[2]);
   }
   Object.values(folders).forEach((a) => a.sort());
   const body = JSON.stringify({ folders });
@@ -219,15 +224,155 @@ async function saveSettings(request, env) {
   return json({ ok: true }, 200);
 }
 
+
+// ---- Route management ------------------------------------------------
+// Folder/file add, rename and delete under routes/, each applied as one
+// atomic commit via the git data API. Passphrase-protected like /settings.
+const FOLDER_RE = /^[A-Za-z0-9][A-Za-z0-9 _().\-]{0,79}$/;
+const FILE_RE = /^[A-Za-z0-9][A-Za-z0-9 _().\-]{0,79}\.(?:gpx|kml)$/i;
+const MAX_UPLOAD_B64 = 2000000; // ~1.5 MB of file data
+const GH_API = `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}`;
+
+class HttpError extends Error {
+  constructor(status, message) { super(message); this.status = status; }
+}
+
+async function gh(env, path, init) {
+  const res = await fetch(GH_API + path, {
+    ...init,
+    headers: {
+      Authorization: `Bearer ${env.GITHUB_TOKEN}`,
+      Accept: "application/vnd.github+json",
+      "User-Agent": "maynard-relay",
+      "Content-Type": "application/json"
+    }
+  });
+  if (!res.ok) throw new HttpError(502, `GitHub ${path.split("?")[0]} failed (${res.status})`);
+  return res.json();
+}
+
+async function manageRoutes(request, env, ctx) {
+  if (!env.GITHUB_TOKEN) return json({ error: "GITHUB_TOKEN secret not set" }, 500);
+  const raw = await request.text();
+  if (raw.length > MAX_UPLOAD_B64 + 2000) return json({ error: "Too large" }, 413);
+  let req;
+  try { req = JSON.parse(raw); } catch (e) { return json({ error: "Bad JSON" }, 400); }
+  try {
+    await applyRouteOp(req, env);
+    await caches.default.delete(new Request(ROUTES_CACHE_KEY));
+    return json({ ok: true }, 200);
+  } catch (e) {
+    if (e instanceof HttpError) return json({ error: e.message }, e.status);
+    throw e;
+  }
+}
+
+function checkName(re, value, what) {
+  if (typeof value !== "string" || !re.test(value)) throw new HttpError(400, `Invalid ${what} name`);
+  return value;
+}
+
+async function applyRouteOp(req, env) {
+  const ref = await gh(env, `/git/ref/heads/${GH_BRANCH}`);
+  const headSha = ref.object.sha;
+  const head = await gh(env, `/git/commits/${headSha}`);
+  const tree = (await gh(env, `/git/trees/${head.tree.sha}?recursive=1`)).tree;
+  const blobs = tree.filter((i) => i.type === "blob" && i.path.startsWith("routes/"));
+  const inFolder = (f) => blobs.filter((i) => i.path.startsWith(`routes/${f}/`));
+  const exists = (path) => blobs.some((i) => i.path === path);
+
+  const changes = []; // { path, sha | null, mode, content? }
+  const del = (item) => changes.push({ path: item.path, mode: item.mode, type: "blob", sha: null });
+  const move = (item, path) => { del(item); changes.push({ path, mode: item.mode, type: "blob", sha: item.sha }); };
+  const keepEntry = (folder) => ({ path: `routes/${folder}/${KEEP_FILE}`, mode: "100644", type: "blob", content: "\n" });
+  let message;
+
+  switch (req.op) {
+    case "addFolder": {
+      const f = checkName(FOLDER_RE, req.folder, "folder");
+      if (inFolder(f).length) throw new HttpError(409, "Folder already exists");
+      changes.push(keepEntry(f));
+      message = `Add route folder ${f}`;
+      break;
+    }
+    case "renameFolder": {
+      const f = checkName(FOLDER_RE, req.folder, "folder");
+      const to = checkName(FOLDER_RE, req.to, "new folder");
+      const items = inFolder(f);
+      if (!items.length) throw new HttpError(404, "Folder not found");
+      if (inFolder(to).length) throw new HttpError(409, "A folder with that name already exists");
+      items.forEach((i) => move(i, `routes/${to}/${i.path.slice(`routes/${f}/`.length)}`));
+      message = `Rename route folder ${f} to ${to}`;
+      break;
+    }
+    case "deleteFolder": {
+      const f = checkName(FOLDER_RE, req.folder, "folder");
+      const items = inFolder(f);
+      if (!items.length) throw new HttpError(404, "Folder not found");
+      items.forEach(del);
+      message = `Delete route folder ${f}`;
+      break;
+    }
+    case "addFile": {
+      const f = checkName(FOLDER_RE, req.folder, "folder");
+      const name = checkName(FILE_RE, req.name, "file");
+      if (!inFolder(f).length) throw new HttpError(404, "Folder not found");
+      if (exists(`routes/${f}/${name}`)) throw new HttpError(409, "A file with that name already exists");
+      if (typeof req.contentBase64 !== "string" || !req.contentBase64 || req.contentBase64.length > MAX_UPLOAD_B64 ||
+          !/^[A-Za-z0-9+/=\r\n]+$/.test(req.contentBase64)) throw new HttpError(400, "Invalid file content");
+      const blob = await gh(env, "/git/blobs", {
+        method: "POST", body: JSON.stringify({ content: req.contentBase64, encoding: "base64" })
+      });
+      changes.push({ path: `routes/${f}/${name}`, mode: "100644", type: "blob", sha: blob.sha });
+      message = `Add route file ${f}/${name}`;
+      break;
+    }
+    case "renameFile": {
+      const f = checkName(FOLDER_RE, req.folder, "folder");
+      const name = checkName(FILE_RE, req.name, "file");
+      const to = checkName(FILE_RE, req.to, "new file");
+      const item = blobs.find((i) => i.path === `routes/${f}/${name}`);
+      if (!item) throw new HttpError(404, "File not found");
+      if (exists(`routes/${f}/${to}`)) throw new HttpError(409, "A file with that name already exists");
+      move(item, `routes/${f}/${to}`);
+      message = `Rename route file ${f}/${name} to ${to}`;
+      break;
+    }
+    case "deleteFile": {
+      const f = checkName(FOLDER_RE, req.folder, "folder");
+      const name = checkName(FILE_RE, req.name, "file");
+      const item = blobs.find((i) => i.path === `routes/${f}/${name}`);
+      if (!item) throw new HttpError(404, "File not found");
+      del(item);
+      // Keep the folder in git if this was its last file.
+      const remaining = inFolder(f).filter((i) => i !== item);
+      if (!remaining.length) changes.push(keepEntry(f));
+      message = `Delete route file ${f}/${name}`;
+      break;
+    }
+    default:
+      throw new HttpError(400, "Unknown operation");
+  }
+
+  const newTree = await gh(env, "/git/trees", {
+    method: "POST", body: JSON.stringify({ base_tree: head.tree.sha, tree: changes })
+  });
+  const commit = await gh(env, "/git/commits", {
+    method: "POST",
+    body: JSON.stringify({ message: `${message} via config page`, tree: newTree.sha, parents: [headSha] })
+  });
+  await gh(env, `/git/refs/heads/${GH_BRANCH}`, { method: "PATCH", body: JSON.stringify({ sha: commit.sha }) });
+}
 export default {
   async fetch(request, env, ctx) {
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
 
     const { pathname } = new URL(request.url);
-    if (request.method === "POST" && (pathname === "/settings" || pathname === "/settings/verify")) {
+    if (request.method === "POST" && (pathname === "/settings" || pathname === "/settings/verify" || pathname === "/routes/manage")) {
       try {
         if (!(await passphraseOk(request, env))) return json({ error: "Unauthorized" }, 401);
         if (pathname === "/settings/verify") return json({ ok: true }, 200);
+        if (pathname === "/routes/manage") return await manageRoutes(request, env, ctx);
         return await saveSettings(request, env);
       } catch (e) {
         return json({ error: "Server error" }, 500);

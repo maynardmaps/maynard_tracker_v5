@@ -54,3 +54,15 @@ Configuration page requirements:
 9) The configuration page should provide toggles for which map sources are available for the map user to select.
 10) Map sources should be displayed as a list on the configuration page, with the user able to add extra map sources to the list as needed.
 11) The configuration page should have a clear "save settings" button that applies all changes made by the user.
+
+Route management requirements:
+1) The configuration page should have a "route management" section that lists all the route folders in the routes folder.
+2) The folder list should be a fixed height and scrollable, so that an unlimited number of folders can be listed.
+3) The user should be able to select a folder from the list.
+4) For the selected folder, the page should list the files in that folder (in a fixed-height, scrollable list).
+5) The user should be able to rename the selected folder.
+6) The user should be able to delete the selected folder (including its files), after a confirmation prompt.
+7) The user should be able to add a new folder.
+8) The user should be able to add a new file (GPX or KML) to the selected folder.
+9) The user should be able to select a file in the folder contents list, and rename or delete it (deletion after a confirmation prompt).
+10) Route management changes should be committed to the GitHub repository by the Cloudflare Worker (the GitHub token must never reach the browser), should require the configuration passphrase, and should apply immediately without needing "Save settings".

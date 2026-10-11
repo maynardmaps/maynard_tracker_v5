@@ -274,3 +274,14 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .menu-toggle.is-open .menu-bars { background: transparent; }
 .menu-toggle.is-open .menu-bars::before { top: 0; transform: rotate(45deg); }
 .menu-toggle.is-open .menu-bars::after { top: 0; transform: rotate(-45deg); }
+
+/* Route management (config page) */
+.rm-list { height: 9rem; overflow-y: auto; border: 1px solid var(--panel-border); border-radius: 4px; background: #fff; }
+.rm-item { display: block; width: 100%; text-align: left; padding: 0.4rem 0.6rem; border: 0; border-bottom: 1px solid #eee; background: transparent; cursor: pointer; font: inherit; }
+.rm-item:hover { background: #f1f5fb; }
+.rm-item.selected { background: #dbe8ff; font-weight: 600; }
+.rm-empty { padding: 0.5rem 0.6rem; color: #777; }
+.rm-actions { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.5rem 0 1rem; }
+.rm-actions button { padding: 0.35rem 0.7rem; cursor: pointer; }
+.rm-actions button:disabled { cursor: not-allowed; }
+.rm-actions .danger { color: #b71c1c; }
