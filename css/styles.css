@@ -296,3 +296,6 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .kml-popup-map a { display: inline-block; padding: 0.25rem 0.6rem; border: 1px solid #555; border-radius: 4px; background: #f4f4f4; color: #111; text-decoration: none; font-size: 0.9rem; }
 .section-desc { margin: 0 0 0.6rem; color: #333; }
 .kml-popup-grid { margin-top: 4px; }
+.river-arrow { background: none; border: 0; }
+.river-arrow svg { display: block; }
+.river-dot { display: block; width: 8px; height: 8px; margin: 5px; border-radius: 50%; border: 1px solid #fff; }

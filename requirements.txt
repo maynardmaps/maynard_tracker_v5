@@ -78,8 +78,10 @@ Route management requirements:
 River levels requirements:
 1) A "River levels" overlay should be available in the map menu overlays list (above Precipitation, which stays last), off by default unless enabled in configuration.
 2) Data comes from the Environment Agency Flood Monitoring API (open data, no API key, England only): station list (with typical low/high range) and the latest level readings.
-3) Each station is shown as a small dot (radius ~4px) to avoid clutter, coloured by level against the station's typical range: brown = below normal, green = normal, amber = above normal, red = at/above highest recent level, grey = no typical range available.
+3) Each station is shown as a small arrow icon about the same size as the team diamonds (18px), coloured by level against the station's typical range: brown = below normal, green = normal, amber = above normal, red = at/above highest recent level, grey = no typical range available.
 4) Selecting a dot opens a bubble with the station name, watercourse, level and unit, status text (e.g. "Within the usual range for this location"), time of the reading and a trend (rising / steady / falling, looked up when the bubble opens).
 5) Data should load only when the overlay is first switched on, and readings refresh every 15 minutes while it is on. Station details are cached in the browser for 7 days.
 6) Only stations inside a configurable box (north/south/west/east) are shown. The default box is a ~25 km radius around Dartmoor (50.345 to 50.795 N, 4.27 to 3.57 W); the box can cover the whole of England.
 7) The configuration page should have a collapsible "River levels overlay" box with an on-by-default tick box, the four box edges as numbers, a map on which clicking two opposite corners draws a new box, and buttons to reset to the Dartmoor area or select the whole of England.
+8) The arrow shows the level trend over roughly the last hour: rising = arrow pointing up, falling = arrow pointing down, steady (change under 1 cm) = arrow pointing right. Until the trend is known (or if unavailable) a small coloured dot is shown instead.
+9) Trends are fetched per station for small areas (up to 150 stations) and from one bulk request for larger areas, so the arrows fill in shortly after the dots appear.

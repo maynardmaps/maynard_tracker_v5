@@ -27,6 +27,8 @@
   let timer = null;
   let loadSeq = 0;
   let loading = null;
+  let trends = {};
+  const BULK_THRESHOLD = 150;
 
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;" })[c]);
   const idOf = (url) => String(url).split("/").pop();
@@ -126,33 +128,88 @@
     if (!slot) return;
     try {
       const data = await MaynardUtils.fetchJson(`${API}/id/measures/${encodeURIComponent(measure)}/readings?_sorted&_limit=6`, { timeoutMs: 10000 });
-      const items = data.items || [];
-      if (items.length < 2) { slot.textContent = ""; return; }
-      const diff = items[0].value - items[items.length - 1].value;
-      slot.textContent = Math.abs(diff) < 0.01 ? "\u2192 Steady" : diff > 0 ? "\u2191 Rising" : "\u2193 Falling";
+      const t = trendOf(data.items || []);
+      slot.textContent = t === "steady" ? "\u2192 Steady" : t === "rising" ? "\u2191 Rising" : t === "falling" ? "\u2193 Falling" : "";
     } catch (e) {
       slot.textContent = "";
     }
   }
 
-  function render() {
+  const ROTATE = { rising: 0, falling: 180, steady: 90 };
+
+  function trendOf(items) {
+    if (!items || items.length < 2) return null;
+    const diff = items[0].value - items[items.length - 1].value;
+    return Math.abs(diff) < 0.01 ? "steady" : diff > 0 ? "rising" : "falling";
+  }
+
+  // Arrow (up = rising, down = falling, right = steady) the size of the team
+  // diamonds; a small dot is shown until the trend is known.
+  function iconFor(band, trend) {
+    const colour = COLOURS[band];
+    const html = trend
+      ? `<svg viewBox="0 0 20 20" width="18" height="18" style="transform:rotate(${ROTATE[trend]}deg)">` +
+        `<path d="M10 1 L18 11 H13 V19 H7 V11 H2 Z" fill="${colour}" stroke="#fff" stroke-width="1.2" stroke-linejoin="round"/></svg>`
+      : `<span class="river-dot" style="background:${colour}"></span>`;
+    return L.divIcon({ className: "river-arrow", html, iconSize: [18, 18], iconAnchor: [9, 9] });
+  }
+
+  let markers = {};
+
+  function setTrend(id, trend) {
+    trends[id] = trend;
+    const e = markers[id];
+    if (e && trend) e.marker.setIcon(iconFor(e.band, trend));
+  }
+
+  async function loadTrendsPerStation(seq) {
+    const queue = Object.keys(markers);
+    const worker = async () => {
+      while (queue.length && seq === loadSeq) {
+        const id = queue.shift();
+        try {
+          const d = await MaynardUtils.fetchJson(`${API}/id/measures/${encodeURIComponent(markers[id].measureId)}/readings?_sorted&_limit=5`, { timeoutMs: 15000 });
+          setTrend(id, trendOf(d.items));
+        } catch (e) { /* leave as dot */ }
+      }
+    };
+    await Promise.all([worker(), worker(), worker(), worker(), worker(), worker()]);
+  }
+
+  // Large areas: one bulk request of the most recent readings instead of one per station.
+  async function loadTrendsBulk(seq) {
+    const d = await MaynardUtils.fetchJson(`${API}/data/readings?parameter=level&_sorted&_limit=10000&startdate=${new Date().toISOString().slice(0, 10)}`, { timeoutMs: 60000 });
+    const byMeasure = {};
+    (d.items || []).forEach((r) => { const k = idOf(r.measure); (byMeasure[k] = byMeasure[k] || []).push(r); });
+    if (seq !== loadSeq) return;
+    Object.keys(markers).forEach((id) => {
+      const list = byMeasure[markers[id].measureId];
+      if (list) setTrend(id, trendOf(list.slice(0, 5)));
+    });
+  }
+
+  function render(seq) {
     if (!layer) return;
     layer.clearLayers();
+    markers = {};
     stations.forEach((s) => {
       const m = pickMeasure(s);
       if (!m) return;
       const r = readings[m.id];
       if (typeof r.value !== "number") return;
       const band = bandOf(s, r.value);
-      L.circleMarker([s.lat, s.lng], {
-        radius: 4, weight: 1, color: "#fff", fillColor: COLOURS[band], fillOpacity: 0.95
-      }).bindPopup(popupHtml(s, m, r, band), { maxWidth: 260 })
+      const marker = L.marker([s.lat, s.lng], { icon: iconFor(band, trends[s.id]), keyboard: false })
+        .bindPopup(popupHtml(s, m, r, band), { maxWidth: 260 })
         .on("popupopen", (e) => {
           const el = e.popup.getElement() && e.popup.getElement().querySelector(".river-popup");
           if (el) fillTrend(el);
         })
         .addTo(layer);
+      markers[s.id] = { marker, band, measureId: m.id };
     });
+    const n = Object.keys(markers).length;
+    (n > BULK_THRESHOLD ? loadTrendsBulk(seq) : loadTrendsPerStation(seq))
+      .catch((e) => console.warn("River trends failed", e));
   }
 
   async function refresh() {
@@ -160,7 +217,7 @@
     try {
       if (!stations.length) stations = await loadStations(bounds);
       readings = await loadReadings();
-      if (seq === loadSeq) render();
+      if (seq === loadSeq) { trends = {}; render(seq); }
     } catch (e) {
       console.warn("River levels load failed", e);
     }
