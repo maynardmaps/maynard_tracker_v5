@@ -172,20 +172,76 @@ async function passphraseOk(request, env) {
   return false;
 }
 
-function validSettings(s) {
-  if (!s || typeof s !== "object" || Array.isArray(s)) return false;
-  if (!Object.keys(s).every((k) => ALLOWED_KEYS.has(k))) return false;
+const MAP_SOURCE_KEYS = new Set(["id", "name", "url", "attribution", "type", "requiresKey", "enabled"]);
+const OS_PREFIX = "https://api.os.uk/maps/raster/v1/zxy/";
+const isBool = (v) => typeof v === "boolean";
+const isStr = (v, max) => typeof v === "string" && v.length <= max;
+const inRange = (v, lo, hi) => Number.isFinite(v) && v >= lo && v <= hi;
+
+function mapSourceError(m, i, ids) {
+  const at = `mapSources[${i}]`;
+  if (!m || typeof m !== "object" || Array.isArray(m)) return `${at} invalid`;
+  if (!Object.keys(m).every((k) => MAP_SOURCE_KEYS.has(k))) return `${at} has unknown fields`;
+  if (typeof m.id !== "string" || !/^[a-z0-9-]{1,40}$/.test(m.id)) return `${at}.id invalid`;
+  if (ids.has(m.id)) return `${at}.id duplicated`;
+  ids.add(m.id);
+  if (m.name !== undefined && !isStr(m.name, 200)) return `${at}.name invalid`;
+  if (m.attribution !== undefined && !isStr(m.attribution, 200)) return `${at}.attribution invalid`;
+  if (m.type !== undefined && m.type !== "xyz" && m.type !== "os-27700") return `${at}.type invalid`;
+  if (m.enabled !== undefined && !isBool(m.enabled)) return `${at}.enabled invalid`;
+  if (m.requiresKey !== undefined && !isBool(m.requiresKey)) return `${at}.requiresKey invalid`;
+  if (!isStr(m.url, 300) || !/^https:\/\//.test(m.url)) return `${at}.url must be https (max 300 chars)`;
+  for (const ph of ["{z}", "{x}", "{y}"]) {
+    if (!m.url.includes(ph)) return `${at}.url must contain ${ph}`;
+  }
+  let u;
+  try { u = new URL(m.url.replace(/\{[xyzs]\}/g, "0")); } catch (e) { return `${at}.url is not a valid URL`; }
+  if (u.username || u.password) return `${at}.url must not contain credentials`;
+  const host = u.hostname;
+  if (host === "localhost" || host.endsWith(".localhost") || /^[\d.]+$/.test(host) || host.includes(":")) {
+    return `${at}.url must use a public host name`;
+  }
+  if (m.requiresKey && !m.url.startsWith(OS_PREFIX)) return `${at}.requiresKey is only allowed for Ordnance Survey URLs`;
+  return null;
+}
+
+// Returns a short reason string if the settings are invalid, otherwise null.
+function settingsError(s) {
+  if (!s || typeof s !== "object" || Array.isArray(s)) return "Settings must be an object";
+  const bad = Object.keys(s).find((k) => !ALLOWED_KEYS.has(k));
+  if (bad) return `Unknown setting "${bad}"`;
+  if (s._comment !== undefined && !isStr(s._comment, 500)) return "_comment invalid";
   const p = s.startPoint;
-  if (!p || !Number.isFinite(p.lat) || !Number.isFinite(p.lng)) return false;
-  if (!Number.isFinite(s.startZoom)) return false;
-  if (typeof s.defaultRouteFolder !== "string") return false;
+  if (!p || !inRange(p.lat, -90, 90) || !inRange(p.lng, -180, 180)) return "startPoint invalid";
+  if (!Number.isInteger(s.startZoom) || s.startZoom < 1 || s.startZoom > 19) return "startZoom must be 1-19";
+  if (typeof s.defaultRouteFolder !== "string" || (s.defaultRouteFolder && !FOLDER_RE.test(s.defaultRouteFolder))) {
+    return "defaultRouteFolder invalid";
+  }
+  for (const k of ["weatherEnabledByDefault", "birdsRiversEnabledByDefault"]) {
+    if (s[k] !== undefined && !isBool(s[k])) return `${k} must be true or false`;
+  }
   for (const k of ["routeColours", "markerColours"]) {
     if (s[k] !== undefined && !(Array.isArray(s[k]) && s[k].length <= 8 &&
-        s[k].every((c) => typeof c === "string" && /^#[0-9a-fA-F]{6}$/.test(c)))) return false;
+        s[k].every((c) => typeof c === "string" && /^#[0-9a-fA-F]{6}$/.test(c)))) return `${k} invalid`;
   }
-  if (!Array.isArray(s.mapSources)) return false;
-  return s.mapSources.every((m) => m && typeof m.id === "string" && typeof m.url === "string" &&
-    /^https:\/\//.test(m.url));
+  const rl = s.riverLevels;
+  if (rl !== undefined) {
+    if (!rl || typeof rl !== "object" || Array.isArray(rl)) return "riverLevels invalid";
+    if (!Object.keys(rl).every((k) => k === "enabledByDefault" || k === "bounds")) return "riverLevels has unknown fields";
+    if (rl.enabledByDefault !== undefined && !isBool(rl.enabledByDefault)) return "riverLevels.enabledByDefault invalid";
+    const b = rl.bounds;
+    if (b !== undefined) {
+      if (!b || !inRange(b.south, 49, 61) || !inRange(b.north, 49, 61) || !inRange(b.west, -9, 3) ||
+          !inRange(b.east, -9, 3) || b.south >= b.north || b.west >= b.east) return "riverLevels.bounds invalid";
+    }
+  }
+  if (!Array.isArray(s.mapSources) || s.mapSources.length > 12) return "mapSources must be a list of at most 12";
+  const ids = new Set();
+  for (let i = 0; i < s.mapSources.length; i++) {
+    const err = mapSourceError(s.mapSources[i], i, ids);
+    if (err) return err;
+  }
+  return null;
 }
 
 function toBase64Utf8(text) {
@@ -200,7 +256,8 @@ async function saveSettings(request, env) {
   if (raw.length > MAX_SETTINGS_BYTES) return json({ error: "Too large" }, 413);
   let settings;
   try { settings = JSON.parse(raw); } catch (e) { return json({ error: "Bad JSON" }, 400); }
-  if (!validSettings(settings)) return json({ error: "Invalid settings" }, 400);
+  const settingsProblem = settingsError(settings);
+  if (settingsProblem) return json({ error: `Invalid settings: ${settingsProblem}` }, 400);
   settings.github = { owner: GH_OWNER, repo: GH_REPO, branch: GH_BRANCH };
 
   const url = `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${GH_PATH}`;
