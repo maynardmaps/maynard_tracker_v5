@@ -257,5 +257,5 @@
     if (layerGroup && visible) layerGroup.addTo(map);
   }
 
-  global.MaynardKmlMarkers = { start, stop, setVisible, getBounds, reattach };
+  global.MaynardKmlMarkers = { start, stop, setVisible, getBounds, reattach, mapAppUrl };
 })(window);

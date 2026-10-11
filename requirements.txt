@@ -16,7 +16,8 @@ Map requirements:
 8) Markers belonging to route files should be shown as small circles in the same colour as their route (not map pins). Team position markers (Garmin KML feed) should use a distinct marker shape - a diamond for now - each in its own palette colour.
 9) Team markers whose "In Emergency" metadata is true should be shown at three times the normal size with a red outline.
 10) The popup bubble for a team marker should have a "map" button at its bottom right that opens the reported location in the phone's mapping app.
-11) The start point set on the configuration page should be marked on the map with a small "home" icon (not a plain circle).
+11) Right-clicking (desktop) or long-pressing (touch) the map should open a small menu showing the coordinates of that point, with a "map" button that opens the location in the phone's mapping app (as for team marker popups).
+12) The start point set on the configuration page should be marked on the map with a small "home" icon (not a plain circle).
 
 Data source requirements:
 1) The map should be compatible with open street map, google maps and other common map providers.

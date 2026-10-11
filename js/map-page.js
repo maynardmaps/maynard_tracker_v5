@@ -55,6 +55,7 @@
     if (birdsRiversToggle) birdsRiversToggle.checked = settings.birdsRiversEnabledByDefault === true;
 
     addHomeMarker();
+    enableLocationMenu();
     fitToEverything();
 
     // Overlay modules re-attach themselves whenever the map is rebuilt
@@ -66,7 +67,23 @@
       MaynardWeather.reattach(map);
       MaynardBirdsRivers.reattach(map);
       addHomeMarker();
+      enableLocationMenu();
       if (geoVisible) MaynardGeolocation.reattach(map);
+    });
+  }
+
+  // Right-click (desktop) or long-press (touch) opens a popup with the point's
+  // coordinates and a button to open it in the phone's maps app.
+  function enableLocationMenu() {
+    if (map._locMenu) return;
+    map._locMenu = true;
+    map.on("contextmenu", (e) => {
+      const lat = e.latlng.lat.toFixed(6);
+      const lng = e.latlng.lng.toFixed(6);
+      const href = MaynardKmlMarkers.mapAppUrl(lat, lng, "Dropped pin");
+      const html = `<div class="kml-popup"><strong>${lat}, ${lng}</strong>` +
+        `<div class="kml-popup-map"><a href="${href}" title="Open in maps app" aria-label="Open in maps app" target="_blank" rel="noopener">&#128506; Map</a></div></div>`;
+      L.popup().setLatLng(e.latlng).setContent(html).openOn(map);
     });
   }
 
