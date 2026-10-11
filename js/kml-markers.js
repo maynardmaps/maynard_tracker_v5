@@ -70,6 +70,22 @@
     return `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
   }
 
+  // OS grid reference (2 letters + 6 figures, 100 m) or null outside Great Britain.
+  function gridRef(lat, lng) {
+    if (!global.proj4 || !isFinite(lat) || !isFinite(lng)) return null;
+    const [e, n] = global.proj4("EPSG:4326",
+      "+proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 +x_0=400000 +y_0=-100000 +ellps=airy +datum=OSGB36 +units=m +no_defs",
+      [lng, lat]);
+    if (e < 0 || e >= 700000 || n < 0 || n >= 1300000) return null;
+    const e100 = Math.floor(e / 100000), n100 = Math.floor(n / 100000);
+    let l1 = 19 - n100 - (19 - n100) % 5 + Math.floor((e100 + 10) / 5);
+    let l2 = (19 - n100) * 5 % 25 + e100 % 5;
+    if (l1 > 7) l1++;
+    if (l2 > 7) l2++;
+    const A = (i) => String.fromCharCode(65 + i);
+    const pad = (v) => String(Math.floor((v % 100000) / 100)).padStart(3, "0");
+    return `${A(l1)}${A(l2)} ${pad(e)} ${pad(n)}`;
+  }
   function buildPopupHtml(props, coords) {
     const has = (k) => props[k] != null && String(props[k]).trim() !== "";
     const title = has("Map Display Name") ? props["Map Display Name"] : props.name || "Marker";
@@ -99,6 +115,8 @@
         "</table>";
     }
     if (coords && isFinite(coords[0]) && isFinite(coords[1])) {
+      const gr = gridRef(coords[1], coords[0]);
+      if (gr) html += `<div class="kml-popup-grid">Grid ref: ${gr}</div>`;
       const href = mapAppUrl(coords[1], coords[0], title);
       html += `<div class="kml-popup-map"><a href="${escapeHtml(href)}" title="Open in maps app" aria-label="Open in maps app" target="_blank" rel="noopener">&#128506; Map</a></div>`;
     }
@@ -257,5 +275,5 @@
     if (layerGroup && visible) layerGroup.addTo(map);
   }
 
-  global.MaynardKmlMarkers = { start, stop, setVisible, getBounds, reattach, mapAppUrl };
+  global.MaynardKmlMarkers = { start, stop, setVisible, getBounds, reattach, mapAppUrl, gridRef };
 })(window);

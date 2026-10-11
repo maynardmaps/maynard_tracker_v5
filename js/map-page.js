@@ -81,7 +81,9 @@
       const lat = e.latlng.lat.toFixed(6);
       const lng = e.latlng.lng.toFixed(6);
       const href = MaynardKmlMarkers.mapAppUrl(lat, lng, "Dropped pin");
+      const gr = MaynardKmlMarkers.gridRef(e.latlng.lat, e.latlng.lng);
       const html = `<div class="kml-popup"><strong>${lat}, ${lng}</strong>` +
+        (gr ? `<div class="kml-popup-grid">Grid ref: ${gr}</div>` : "") +
         `<div class="kml-popup-map"><a href="${href}" title="Open in maps app" aria-label="Open in maps app" target="_blank" rel="noopener">&#128506; Map</a></div></div>`;
       L.popup().setLatLng(e.latlng).setContent(html).openOn(map);
     });
