@@ -7,8 +7,8 @@
   },
   "defaultRouteFolder": "TT4",
   "startPoint": {
-    "lat": 51.5074,
-    "lng": -0.1278
+    "lat": 50.558626,
+    "lng": -3.964054
   },
   "startZoom": 12,
   "mapSources": [
