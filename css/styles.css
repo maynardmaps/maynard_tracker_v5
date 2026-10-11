@@ -142,6 +142,8 @@ select#route-folder-select {
   }
   .side-panel.open { transform: translateX(0); }
   .menu-toggle { display: block; }
+  .side-panel { padding-top: 3.6rem; z-index: 1050; }
+  .side-panel.open ~ #map .leaflet-top.leaflet-left { visibility: hidden; }
   .leaflet-top.leaflet-left .leaflet-control-zoom { margin-top: 3.6rem; }
 }
 
@@ -259,3 +261,16 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .timeline input[type=range] { flex: 1 1 8rem; width: auto; }
 .timeline .status-msg { flex-basis: 100%; }
 .weather-clock { background: rgba(255,255,255,0.9); padding: 0.3rem 0.6rem; border-radius: 4px; box-shadow: 0 1px 4px rgba(0,0,0,0.3); font-size: 0.85rem; font-weight: 600; }
+
+/* Three-line "hamburger" icon drawn in CSS (no font dependency); becomes an X when the menu is open. */
+.menu-toggle { width: 2.6rem; height: 2.6rem; padding: 0; cursor: pointer; box-shadow: 0 1px 4px rgba(0,0,0,0.35); }
+.menu-bars, .menu-bars::before, .menu-bars::after {
+  display: block; position: absolute; left: 50%; width: 1.3rem; height: 3px; margin-left: -0.65rem;
+  background: #222; border-radius: 2px; content: ""; transition: transform 0.2s, background 0.2s;
+}
+.menu-bars { top: 50%; margin-top: -1.5px; }
+.menu-bars::before { top: -0.4rem; }
+.menu-bars::after { top: 0.4rem; }
+.menu-toggle.is-open .menu-bars { background: transparent; }
+.menu-toggle.is-open .menu-bars::before { top: 0; transform: rotate(45deg); }
+.menu-toggle.is-open .menu-bars::after { top: 0; transform: rotate(-45deg); }

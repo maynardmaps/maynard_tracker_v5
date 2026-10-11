@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body>
-  <button class="menu-toggle" id="menu-toggle" aria-label="Toggle menu">&#9776;</button>
+  <button class="menu-toggle" id="menu-toggle" aria-label="Toggle menu" aria-expanded="false"><span class="menu-bars"></span></button>
 
   <div class="app-shell">
     <aside class="side-panel" id="side-panel">
@@ -87,7 +87,10 @@
 
   <script>
     document.getElementById("menu-toggle").addEventListener("click", () => {
-      document.getElementById("side-panel").classList.toggle("open");
+      const open = document.getElementById("side-panel").classList.toggle("open");
+      const btn = document.getElementById("menu-toggle");
+      btn.classList.toggle("is-open", open);
+      btn.setAttribute("aria-expanded", String(open));
     });
   </script>
 </body>
