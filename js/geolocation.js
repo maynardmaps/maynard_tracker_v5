@@ -35,7 +35,7 @@
           accuracyCircle.setLatLng(latlng).setRadius(pos.coords.accuracy);
         }
       },
-      (err) => console.warn("Geolocation error", err),
+      (err) => { console.warn("Geolocation error", err); MaynardUtils.diag("Location", false, err.message); },
       { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 }
     );
   }

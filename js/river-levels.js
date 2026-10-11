@@ -209,7 +209,7 @@
     });
     const n = Object.keys(markers).length;
     (n > BULK_THRESHOLD ? loadTrendsBulk(seq) : loadTrendsPerStation(seq))
-      .catch((e) => console.warn("River trends failed", e));
+      .catch((e) => { console.warn("River trends failed", e); MaynardUtils.diag("River trends", false, e.message); });
   }
 
   async function refresh() {
@@ -218,9 +218,10 @@
     try {
       if (!stations.length) stations = await loadStations(bounds);
       readings = await loadReadings();
-      if (seq === loadSeq) { trends = {}; render(seq); MaynardUtils.setStatus("river", null); }
+      if (seq === loadSeq) { trends = {}; render(seq); MaynardUtils.setStatus("river", null); MaynardUtils.diag("River levels", true, "Environment Agency API"); }
     } catch (e) {
       console.warn("River levels load failed", e);
+      MaynardUtils.diag("River levels", false, e.message);
       MaynardUtils.setStatus("river", Object.keys(markers).length ? "River levels could not be refreshed" : "River levels unavailable");
     }
   }

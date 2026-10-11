@@ -112,6 +112,7 @@ From there you can set:
 - Whether the weather overlay is on by default.
 - Whether the birds and rivers overlay is on by default.
 - River levels: on by default, and the area box to display.
+- Diagnostics: show a panel at the bottom of the map menu with the Garmin retrieval method and any data-source failures.
 - Which base map sources are offered, their display names/URLs, and you can
   add your own XYZ tile sources.
 - The GitHub owner/repo/branch (read-only; fixed in the Worker).

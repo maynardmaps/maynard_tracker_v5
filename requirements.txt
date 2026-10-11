@@ -91,3 +91,8 @@ Status message requirements:
 2) Garmin team positions: "Team positions could not be updated (showing last known)" if positions were previously shown, otherwise "Team positions unavailable". It clears on the next successful refresh.
 3) River levels: "Loading river levels..." while the first load is in progress, "River levels unavailable" if it fails with nothing shown, "River levels could not be refreshed" if a refresh fails while markers are shown. It clears on success or when the overlay is switched off.
 4) Several messages can show at once, separated by a dot. The message must not block interaction with the map and must be announced to screen readers (aria-live).
+
+Diagnostics requirements:
+1) The configuration page should have a collapsible "Diagnostics" box with a tick box (off by default) that enables a diagnostics panel.
+2) When enabled, a small panel is pinned to the bottom of the map menu showing the latest result for each data source: the Garmin retrieval method (Cloudflare Worker relay, no fallback) and its status, plus any failures retrieving other information (route list, weather, river levels and trends, birds and rivers KML, location), each with the time of the last result.
+3) When disabled the panel is hidden. The setting is saved with the other settings (diagnosticsEnabled).

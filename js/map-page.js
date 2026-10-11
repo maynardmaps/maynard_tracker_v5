@@ -16,6 +16,7 @@
 
   async function main() {
     settings = await MaynardSettings.load();
+    MaynardUtils.setDiagnosticsEnabled(settings.diagnosticsEnabled === true);
     manifest = await MaynardUtils.loadRoutesManifest();
 
     map = MaynardMapCore.init(

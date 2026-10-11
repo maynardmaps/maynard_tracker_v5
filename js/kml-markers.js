@@ -151,12 +151,14 @@
     try {
       const geojson = await fetchAndParse(relayUrl);
       MaynardUtils.setStatus("garmin", null);
+      MaynardUtils.diag("Garmin", true, "via Cloudflare Worker relay (no fallback)");
       if (!geojson) return; // unchanged
       if (layerGroup && map.hasLayer(layerGroup)) map.removeLayer(layerGroup);
       layerGroup = buildLayer(geojson);
       if (visible) layerGroup.addTo(map);
     } catch (e) {
       console.warn("KML marker refresh failed (will retry)", e);
+      MaynardUtils.diag("Garmin", false, "via Cloudflare Worker relay: " + e.message);
       MaynardUtils.setStatus("garmin", layerGroup ? "Team positions could not be updated (showing last known)" : "Team positions unavailable");
     }
   }

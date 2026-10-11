@@ -53,7 +53,7 @@
   // Loads every KML file; one failing file does not hide the others.
   async function buildAll(urls) {
     const group = L.featureGroup();
-    const results = await Promise.all(urls.map((u) => buildLayer(u).catch((e) => { console.error("Birds and rivers KML failed: " + u, e); return null; })));
+    const results = await Promise.all(urls.map((u) => buildLayer(u).catch((e) => { console.error("Birds and rivers KML failed: " + u, e); MaynardUtils.diag("Birds/rivers KML", false, u + ": " + e.message); return null; })));
     results.forEach((l) => l && group.addLayer(l));
     return group;
   }

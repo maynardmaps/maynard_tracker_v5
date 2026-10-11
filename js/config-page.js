@@ -214,6 +214,7 @@
 
     // Birds and rivers default
     document.getElementById("birds-rivers-default").checked = settings.birdsRiversEnabledByDefault === true;
+    document.getElementById("diagnostics-enabled").checked = settings.diagnosticsEnabled === true;
 
     initRiverBox();
 
@@ -418,6 +419,7 @@
       markerColours: collectPalette("marker-colour"),
       weatherEnabledByDefault: document.getElementById("weather-default").checked,
       birdsRiversEnabledByDefault: document.getElementById("birds-rivers-default").checked,
+      diagnosticsEnabled: document.getElementById("diagnostics-enabled").checked,
       riverLevels: collectRiverSettings(),
       mapSources: collectMapSources()
     };

@@ -162,6 +162,7 @@
       imageOverlay = next;
     } catch (e) {
       console.warn("Met Office weather overlay load failed", e);
+      MaynardUtils.diag("Weather image", false, e.message);
     }
   }
 
@@ -179,8 +180,10 @@
       selected = idx;
       syncUi();
       if (visible && (!imageOverlay || changed)) showStep(idx);
+      MaynardUtils.diag("Weather", true, "Met Office via Worker");
     } catch (e) {
       console.warn("Met Office weather overlay refresh failed", e);
+      MaynardUtils.diag("Weather", false, e.message);
     }
   }
 

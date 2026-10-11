@@ -75,6 +75,33 @@
     el.hidden = statusMessages.size === 0;
   }
 
+  // Diagnostics panel (optional, enabled in configuration). Modules report the
+  // outcome of each data source; the latest entry per source is shown.
+  const diagEntries = new Map();
+  let diagEnabled = false;
+  function renderDiag() {
+    const el = document.getElementById("diagnostics");
+    if (!el) return;
+    el.hidden = !diagEnabled;
+    if (!diagEnabled) return;
+    const list = el.querySelector(".diag-list");
+    list.textContent = "";
+    diagEntries.forEach((e, key) => {
+      const li = document.createElement("li");
+      li.className = e.ok ? "diag-ok" : "diag-fail";
+      li.textContent = `${e.ok ? "OK" : "FAILED"} ${key}: ${e.text} (${e.time})`;
+      list.appendChild(li);
+    });
+  }
+  function diag(source, ok, text) {
+    diagEntries.set(source, { ok, text, time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }) });
+    renderDiag();
+  }
+  function setDiagnosticsEnabled(on) {
+    diagEnabled = on === true;
+    renderDiag();
+  }
+
   // Live folder listing from the relay (auto-detects new route folders/files);
   // falls back to the static routes/manifest.json if the relay is unreachable.
   async function loadRoutesManifest() {
@@ -85,6 +112,7 @@
         if (live && live.folders && Object.keys(live.folders).length) return live;
       } catch (e) {
         console.warn("Live route listing failed, using manifest.json", e);
+        diag("Route list", false, "relay unreachable, using routes/manifest.json (" + e.message + ")");
       }
     }
     return fetchJson(cfg.routesManifestUrl, { timeoutMs: 8000 });
@@ -99,6 +127,8 @@
     fetchText,
     escapeHtml,
     setStatus,
+    diag,
+    setDiagnosticsEnabled,
     BNG_PROJ4
   };
 })(window);
