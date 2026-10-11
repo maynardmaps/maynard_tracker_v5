@@ -11,7 +11,11 @@ Pages with **no backend**. It shows:
 - Live Garmin MapShare markers (polled KML feed).
 - A Met Office precipitation radar/forecast overlay.
 - A static "birds and rivers" KML overlay (points and polygons) loaded once
-  from a version-controlled `data/` folder.
+  from every KML file in the version-controlled `data/` folder.
+- Environment Agency river level markers (arrows showing rising, falling or
+  steady) for a configurable area of England, with the Dartmoor area as the default.
+- A right-click / long-press menu giving the clicked coordinates, an OS grid
+  reference (inside Great Britain) and a link to open the spot in a maps app.
 - A password-gated `config.html` page for editing defaults (start point,
   route colours, map sources, GitHub link) which are saved to
   `settings.json` and committed straight back to the repo via the GitHub
@@ -72,22 +76,24 @@ unreachable; update it by hand if you want the fallback to stay current:
 }
 ```
 
-Colours come from two generic 8-colour palettes set on the config page (one for routes,`nbut one for Garmin markers). The Nth route/marker in alphanumerical order takes colour N;`nthe palette repeats when there are more than 8.
+Colours come from two generic 8-colour palettes set on the config page (one for routes, one for Garmin markers). The Nth route/marker in alphanumerical order takes colour N;
+the palette repeats when there are more than 8.
 
 ## Birds and rivers overlay
 
-`data/birdsrivers.kml` is a single, static, version-controlled KML file
-containing a mix of `Point` (e.g. bird sightings) and `Polygon` (e.g. rivers,
-wetlands) placemarks. It's loaded once per page load (not polled, unlike the
-Garmin feed) by `js/birds-rivers.js` and rendered as a togglable "Birds and
-rivers" overlay, off by default. Points and polygons each get a fixed default
-style (not per-file/per-colour-picker like routes), and clicking a feature
-shows its `<name>`/`<description>` in a popup, same as the other KML layers.
+Every `.kml` file in the `data/` folder is loaded (the Worker lists the folder, like routes) and
+shown together as one togglable "Birds and rivers" overlay, off by default. Files can contain
+`Point` (e.g. bird sightings) and `Polygon` (e.g. rivers, wetlands) placemarks. They are loaded once
+per page load (not polled) by `js/birds-rivers.js`. Points and polygons get a fixed style, and clicking
+a feature shows its name and description. The shipped `birdsrivers.kml` is placeholder sample data.
 
-The shipped file is a **placeholder with sample data near central London** -
-replace `data/birdsrivers.kml` with the real file (same filename, same
-folder) and it will be picked up automatically; no manifest or code changes
-are needed since it's a single fixed file rather than a folder of routes.
+## River levels overlay
+
+`js/river-levels.js` shows Environment Agency river level stations (free open data, no key) as small
+arrows: up for rising, down for falling, right for steady, coloured by how the level compares to the
+station's typical range. It is separate from the birds and rivers overlay, off by default, and refreshes
+every 15 minutes. The area is a box set on the config page (default: around Dartmoor; "Whole of England"
+is available).
 
 ## Configuration page
 
@@ -105,6 +111,7 @@ From there you can set:
 - Garmin KML marker colours: a generic palette of 8 colours.
 - Whether the weather overlay is on by default.
 - Whether the birds and rivers overlay is on by default.
+- River levels: on by default, and the area box to display.
 - Which base map sources are offered, their display names/URLs, and you can
   add your own XYZ tile sources.
 - The GitHub owner/repo/branch (read-only; fixed in the Worker).
@@ -180,7 +187,6 @@ index.html              Map page
 config.html             Passphrase-gated configuration page
 css/styles.css          Shared responsive styles
 js/
-  secrets.js             Committed, browser-visible values only (currently empty)
   app-config.js          Non-secret config (relay URL, poll intervals, GitHub defaults)
   utils.js               Shared helpers (fetch w/ timeout, colours)
   settings-store.js       Loads/merges/saves settings.json + localStorage override
@@ -189,6 +195,7 @@ js/
   routes.js               GPX/KML route loading, colouring, toggling
   kml-markers.js           Garmin KML feed polling/rendering
   birds-rivers.js          Static birds-and-rivers KML (points + polygons) loading/rendering
+  river-levels.js          Environment Agency river level arrows
   weather.js               Met Office precipitation overlay
   geolocation.js           "Show my location" toggle
   map-page.js              index.html bootstrap

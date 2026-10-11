@@ -5,7 +5,7 @@
   // Colours are generic slots, not tied to specific files: the Nth route (or
   // marker), in alphanumerical order, gets slot N; beyond the palette length
   // the slots repeat. Palettes are configured on the configuration page.
-  const PALETTE_SIZE = 8;
+  const PALETTE_SIZE = 8; // palettes always have this many colours
   const DEFAULT_PALETTE = [
     "#e6194b", "#3cb44b", "#4363d8", "#f58231",
     "#911eb4", "#46f0f0", "#f032e6", "#9a6324"
@@ -30,14 +30,6 @@
     const result = new Map();
     sorted.forEach((name, i) => result.set(name, colours[i % colours.length]));
     return result;
-  }
-
-  function debounce(fn, waitMs) {
-    let timer = null;
-    return function (...args) {
-      clearTimeout(timer);
-      timer = setTimeout(() => fn.apply(this, args), waitMs);
-    };
   }
 
   // Fetch JSON with a hard timeout so a slow/unreachable endpoint (relevant
@@ -66,8 +58,21 @@
     }
   }
 
-  function base64EncodeUtf8(str) {
-    return btoa(unescape(encodeURIComponent(str)));
+  const HTML_ESC = { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" };
+  const escapeHtml = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => HTML_ESC[c]);
+
+  // EPSG:27700 (British National Grid) definition, shared by the map and grid refs.
+  const BNG_PROJ4 = "+proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 +x_0=400000 +y_0=-100000 +ellps=airy +datum=OSGB36 +units=m +no_defs";
+
+  // Small status line over the map (e.g. "River levels unavailable"). Each
+  // feature owns a key; pass a falsy message to clear it.
+  const statusMessages = new Map();
+  function setStatus(key, message) {
+    if (message) statusMessages.set(key, message); else statusMessages.delete(key);
+    const el = document.getElementById("map-status");
+    if (!el) return;
+    el.textContent = [...statusMessages.values()].join(" \u00b7 ");
+    el.hidden = statusMessages.size === 0;
   }
 
   // Live folder listing from the relay (auto-detects new route folders/files);
@@ -89,11 +94,11 @@
     loadRoutesManifest,
     sanitizePalette,
     DEFAULT_PALETTE,
-    PALETTE_SIZE,
     assignColours,
-    debounce,
     fetchJson,
     fetchText,
-    base64EncodeUtf8
+    escapeHtml,
+    setStatus,
+    BNG_PROJ4
   };
 })(window);

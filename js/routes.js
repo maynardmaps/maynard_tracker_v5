@@ -3,9 +3,7 @@
 (function (global) {
   "use strict";
 
-  let currentFolder = null;
   let routeLayers = new Map(); // filename -> L.Layer (added to map when visible)
-  let onChangeCb = null;
 
   function fileExt(name) {
     return name.slice(name.lastIndexOf(".") + 1).toLowerCase();
@@ -71,7 +69,6 @@
   // returns a Map of
   // route key -> { layer, colour, visible }.
   async function loadFolder(folder, manifest, routePalette) {
-    currentFolder = folder;
     routeLayers = new Map();
     const filenames = manifest.folders[folder] || [];
 
@@ -138,11 +135,7 @@
     return routeLayers;
   }
 
-  function getCurrentFolder() {
-    return currentFolder;
-  }
-
   global.MaynardRoutes = {
-    loadFolder, attachToMap, detachFromMap, setVisible, getBounds, getLayers, getCurrentFolder
+    loadFolder, attachToMap, detachFromMap, setVisible, getBounds, getLayers
   };
 })(window);

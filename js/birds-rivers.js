@@ -12,11 +12,7 @@
   let visible = false;
   let loadPromise = null;
 
-  function escapeHtml(str) {
-    const div = document.createElement("div");
-    div.textContent = str;
-    return div.innerHTML;
-  }
+  const escapeHtml = MaynardUtils.escapeHtml;
 
   function bindPopup(feature, l) {
     const props = feature.properties || {};

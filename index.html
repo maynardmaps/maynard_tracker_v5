@@ -63,6 +63,7 @@
     </aside>
 
     <div id="map"></div>
+    <div id="map-status" class="map-status" role="status" aria-live="polite" hidden></div>
   </div>
 
   <!-- Leaflet core -->
@@ -74,10 +75,7 @@
   <script src="https://unpkg.com/togeojson@0.16.0/togeojson.js" integrity="sha384-dlcQC0RqbD5hkW9dIHtouEHEP0tHnSuyKco85aJB5jdtbDseEsx4T3Jaa0lHs5ae" crossorigin="anonymous"></script>
   <script src="https://unpkg.com/leaflet-omnivore@0.3.4/leaflet-omnivore.min.js" integrity="sha384-iSbZ0u+krSsBvNi0nBcb2hAdkZkoY5HVYY/bPow5MvY9yWGAmXSpZJ3rt2Run9rK" crossorigin="anonymous"></script>
 
-  <!-- Secrets must load before app config/logic. secrets.js is gitignored;
-       copy js/secrets.sample.js to js/secrets.js and fill in real keys. -->
-  <script src="js/secrets.js"></script>
-  <script src="js/app-config.js"></script>
+    <script src="js/app-config.js"></script>
   <script src="js/utils.js"></script>
   <script src="js/settings-store.js"></script>
   <script src="js/github-save.js"></script>

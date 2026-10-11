@@ -74,7 +74,7 @@
   function gridRef(lat, lng) {
     if (!global.proj4 || !isFinite(lat) || !isFinite(lng)) return null;
     const [e, n] = global.proj4("EPSG:4326",
-      "+proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 +x_0=400000 +y_0=-100000 +ellps=airy +datum=OSGB36 +units=m +no_defs",
+      MaynardUtils.BNG_PROJ4,
       [lng, lat]);
     if (e < 0 || e >= 700000 || n < 0 || n >= 1300000) return null;
     const e100 = Math.floor(e / 100000), n100 = Math.floor(n / 100000);
@@ -131,11 +131,7 @@
     "timestamp", "begin", "end", "when", "Id", "IMEI"
   ]);
 
-  function escapeHtml(str) {
-    const div = document.createElement("div");
-    div.textContent = str;
-    return div.innerHTML;
-  }
+  const escapeHtml = MaynardUtils.escapeHtml;
 
   function kmlTextToGeojson(kmlText) {
     const xml = new DOMParser().parseFromString(kmlText, "text/xml");
@@ -154,12 +150,14 @@
   async function refresh(map, relayUrl) {
     try {
       const geojson = await fetchAndParse(relayUrl);
+      MaynardUtils.setStatus("garmin", null);
       if (!geojson) return; // unchanged
       if (layerGroup && map.hasLayer(layerGroup)) map.removeLayer(layerGroup);
       layerGroup = buildLayer(geojson);
       if (visible) layerGroup.addTo(map);
     } catch (e) {
       console.warn("KML marker refresh failed (will retry)", e);
+      MaynardUtils.setStatus("garmin", layerGroup ? "Team positions could not be updated (showing last known)" : "Team positions unavailable");
     }
   }
 

@@ -3,7 +3,7 @@
 (function () {
   "use strict";
 
-  let settings, manifest, map, secrets;
+  let settings, manifest, map;
   let geoVisible = false;
 
   let homeMarker = null;
@@ -15,7 +15,6 @@
   }
 
   async function main() {
-    secrets = window.MAYNARD_SECRETS || {};
     settings = await MaynardSettings.load();
     manifest = await MaynardUtils.loadRoutesManifest();
 
@@ -23,8 +22,7 @@
       "map",
       settings.startPoint,
       settings.startZoom,
-      settings.mapSources,
-      secrets
+      settings.mapSources
     );
 
     buildBaseLayerControl();
@@ -51,7 +49,7 @@
     if (weatherToggle) weatherToggle.checked = settings.weatherEnabledByDefault === true;
 
     await MaynardBirdsRivers.init(map, {
-      urls: (manifest.data && manifest.data.length ? manifest.data.map((f) => "data/" + encodeURIComponent(f)) : [window.MAYNARD_CONFIG.birdsRiversKmlUrl]),
+      urls: (manifest.data || []).map((f) => "data/" + encodeURIComponent(f)),
       startVisible: settings.birdsRiversEnabledByDefault === true
     });
     const birdsRiversToggle = document.getElementById("toggle-birds-rivers");
@@ -93,7 +91,7 @@
       const gr = MaynardKmlMarkers.gridRef(e.latlng.lat, e.latlng.lng);
       const html = `<div class="kml-popup"><strong>${lat}, ${lng}</strong>` +
         (gr ? `<div class="kml-popup-grid">Grid ref: ${gr}</div>` : "") +
-        `<div class="kml-popup-map"><a href="${href.replace(/&/g, "&amp;").replace(/"/g, "&quot;")}" title="Open in maps app" aria-label="Open in maps app" target="_blank" rel="noopener">&#128506; Map</a></div></div>`;
+        `<div class="kml-popup-map"><a href="${MaynardUtils.escapeHtml(href)}" title="Open in maps app" aria-label="Open in maps app" target="_blank" rel="noopener">&#128506; Map</a></div></div>`;
       L.popup().setLatLng(e.latlng).setContent(html).openOn(map);
     });
   }
@@ -123,7 +121,7 @@
         radio.checked = i === 0;
         wrapper.append(radio, " " + source.name);
         radio.addEventListener("change", () => {
-          MaynardMapCore.setBaseLayer(source, secrets);
+          MaynardMapCore.setBaseLayer(source);
         });
         container.appendChild(wrapper);
       });

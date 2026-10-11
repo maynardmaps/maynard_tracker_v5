@@ -29,10 +29,6 @@ window.MAYNARD_CONFIG = {
   // see routes/manifest.json and the README for how to update it).
   routesManifestUrl: "routes/manifest.json",
 
-  // Static "birds and rivers" KML file (points + polygons) - loaded once,
-  // not polled, since it's a version-controlled static file.
-  birdsRiversKmlUrl: "data/birdsrivers.kml",
-
   // Default settings shipped with the repo (overridden by settings.json if
   // present, and then by the config page / localStorage).
   defaultSettingsUrl: "settings.json",

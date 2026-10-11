@@ -263,6 +263,8 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .timeline-btn { padding: 0.25rem 0.6rem; cursor: pointer; }
 .timeline input[type=range] { flex: 1 1 8rem; width: auto; }
 .timeline .status-msg { flex-basis: 100%; }
+.map-status { position: fixed; left: 50%; bottom: 1.8rem; transform: translateX(-50%); z-index: 1000; max-width: 90vw; background: rgba(40,40,40,0.9); color: #fff; padding: 0.35rem 0.8rem; border-radius: 4px; font-size: 0.85rem; pointer-events: none; }
+.map-status[hidden] { display: none; }
 .weather-clock { background: rgba(255,255,255,0.9); padding: 0.3rem 0.6rem; border-radius: 4px; box-shadow: 0 1px 4px rgba(0,0,0,0.3); font-size: 0.85rem; font-weight: 600; }
 
 /* Three-line "hamburger" icon drawn in CSS (no font dependency); becomes an X when the menu is open. */

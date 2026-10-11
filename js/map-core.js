@@ -10,10 +10,7 @@
 (function (global) {
   "use strict";
 
-  // EPSG:27700 (British National Grid) definition for Proj4Leaflet.
-  const BNG_PROJ4 =
-    "+proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 +x_0=400000 +y_0=-100000 " +
-    "+ellps=airy +datum=OSGB36 +units=m +no_defs";
+  const BNG_PROJ4 = MaynardUtils.BNG_PROJ4;
   const BNG_RESOLUTIONS = [896.0, 448.0, 224.0, 112.0, 56.0, 28.0, 14.0, 7.0, 3.5, 1.75, 0.875, 0.4375];
   // The OS Maps API "Leisure_27700" tile endpoint only serves zoom levels 0-9
   // (confirmed empirically: z>=10 returns HTTP 400), even though the tile
@@ -48,7 +45,7 @@
     });
   }
 
-  function makeTileLayer(source, secrets) {
+  function makeTileLayer(source) {
     let url = source.url;
     let viaRelay = false;
     if (source.requiresKey) {
@@ -82,17 +79,17 @@
     return map;
   }
 
-  function init(containerId, center, zoom, sources, secrets) {
+  function init(containerId, center, zoom, sources) {
     const firstSource = sources.find((s) => s.enabled) || sources[0];
     const crsName = firstSource && firstSource.type === "os-27700" ? "27700" : "3857";
     createMap(containerId, center, zoom, crsName);
-    setBaseLayer(firstSource, secrets);
+    setBaseLayer(firstSource);
     return map;
   }
 
   // Switches the visible base layer, recreating the map if the new layer
   // needs a different CRS than the one currently in use.
-  function setBaseLayer(source, secrets) {
+  function setBaseLayer(source) {
     const neededCrs = source.type === "os-27700" ? "27700" : "3857";
     if (neededCrs !== currentCrsName) {
       const center = map.getCenter();
@@ -104,17 +101,9 @@
     if (baseLayer) {
       map.removeLayer(baseLayer);
     }
-    baseLayer = makeTileLayer(source, secrets);
+    baseLayer = makeTileLayer(source);
     baseLayer.addTo(map);
   }
 
-  function getMap() {
-    return map;
-  }
-
-  function getCrsName() {
-    return currentCrsName;
-  }
-
-  global.MaynardMapCore = { init, setBaseLayer, getMap, getCrsName, onMapReady };
+  global.MaynardMapCore = { init, setBaseLayer, onMapReady };
 })(window);

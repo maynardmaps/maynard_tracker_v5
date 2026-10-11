@@ -30,7 +30,7 @@
   let trends = {};
   const BULK_THRESHOLD = 150;
 
-  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;" })[c]);
+  const esc = MaynardUtils.escapeHtml;
   const idOf = (url) => String(url).split("/").pop();
 
   function haversineKm(lat1, lng1, lat2, lng2) {
@@ -214,12 +214,14 @@
 
   async function refresh() {
     const seq = ++loadSeq;
+    if (!Object.keys(markers).length) MaynardUtils.setStatus("river", "Loading river levels\u2026");
     try {
       if (!stations.length) stations = await loadStations(bounds);
       readings = await loadReadings();
-      if (seq === loadSeq) { trends = {}; render(seq); }
+      if (seq === loadSeq) { trends = {}; render(seq); MaynardUtils.setStatus("river", null); }
     } catch (e) {
       console.warn("River levels load failed", e);
+      MaynardUtils.setStatus("river", Object.keys(markers).length ? "River levels could not be refreshed" : "River levels unavailable");
     }
   }
 
@@ -239,7 +241,10 @@
     visible = v;
     if (!layer) return;
     if (visible) { layer.addTo(map); if (!stations.length) start(); }
-    else if (map.hasLayer(layer)) map.removeLayer(layer);
+    else {
+      if (map.hasLayer(layer)) map.removeLayer(layer);
+      MaynardUtils.setStatus("river", null);
+    }
   }
 
   function reattach(map) {
