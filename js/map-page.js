@@ -119,8 +119,13 @@
         const id = `base-${source.id}`;
         const wrapper = document.createElement("label");
         wrapper.className = "radio-row";
-        wrapper.innerHTML = `<input type="radio" name="base-layer" id="${id}" ${i === 0 ? "checked" : ""}/> ${source.name}`;
-        wrapper.querySelector("input").addEventListener("change", () => {
+        const radio = document.createElement("input");
+        radio.type = "radio";
+        radio.name = "base-layer";
+        radio.id = id;
+        radio.checked = i === 0;
+        wrapper.append(radio, " " + source.name);
+        radio.addEventListener("change", () => {
           MaynardMapCore.setBaseLayer(source, secrets);
         });
         container.appendChild(wrapper);
@@ -160,11 +165,17 @@
         const entry = layers.get(filename);
         const row = document.createElement("label");
         row.className = "route-row";
-        row.innerHTML =
-          `<input type="checkbox" checked/>` +
-          `<span class="colour-swatch" style="background:${entry.colour}"></span>` +
-          `<span class="route-name">${filename}</span>`;
-        row.querySelector("input").addEventListener("change", (e) => {
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.checked = true;
+        const swatch = document.createElement("span");
+        swatch.className = "colour-swatch";
+        swatch.style.background = entry.colour;
+        const name = document.createElement("span");
+        name.className = "route-name";
+        name.textContent = filename;
+        row.append(cb, swatch, name);
+        cb.addEventListener("change", (e) => {
           MaynardRoutes.setVisible(filename, e.target.checked, map);
         });
         container.appendChild(row);
