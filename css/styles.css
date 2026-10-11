@@ -218,7 +218,7 @@ button.secondary {
 
 button:disabled { opacity: 0.5; cursor: not-allowed; }
 
-#pick-start-map {
+#pick-start-map, #pick-river-map {
   height: 260px;
   border-radius: 6px;
   margin-top: 0.5rem;

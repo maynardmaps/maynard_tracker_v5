@@ -137,7 +137,7 @@ const MAX_SETTINGS_BYTES = 50000;
 const ALLOWED_KEYS = new Set([
   "_comment", "github", "defaultRouteFolder", "startPoint", "startZoom",
   "mapSources", "routeColours", "markerColours", "weatherEnabledByDefault",
-  "birdsRiversEnabledByDefault"
+  "birdsRiversEnabledByDefault", "riverLevels"
 ]);
 
 let failedAttempts = 0;

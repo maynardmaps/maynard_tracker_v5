@@ -215,8 +215,75 @@
     // Birds and rivers default
     document.getElementById("birds-rivers-default").checked = settings.birdsRiversEnabledByDefault === true;
 
+    initRiverBox();
+
     // Map sources
     buildMapSourceList();
+  }
+
+  const DARTMOOR_BOX = { south: 50.345, west: -4.27, north: 50.795, east: -3.57 };
+  const ENGLAND_BOX = { south: 49.9, west: -6.5, north: 55.85, east: 1.8 };
+  let riverMap = null;
+  let riverRect = null;
+  let riverCorner = null;
+
+  function readRiverInputs() {
+    const v = (id) => parseFloat(document.getElementById(id).value);
+    const b = { south: v("river-south"), west: v("river-west"), north: v("river-north"), east: v("river-east") };
+    return Object.values(b).every(Number.isFinite) && b.south < b.north && b.west < b.east ? b : null;
+  }
+
+  function setRiverBox(b, fit) {
+    document.getElementById("river-south").value = b.south;
+    document.getElementById("river-west").value = b.west;
+    document.getElementById("river-north").value = b.north;
+    document.getElementById("river-east").value = b.east;
+    const bounds = [[b.south, b.west], [b.north, b.east]];
+    if (riverRect) riverRect.setBounds(bounds);
+    else riverRect = L.rectangle(bounds, { color: "#0b6bcb", weight: 2 }).addTo(riverMap);
+    if (fit) riverMap.fitBounds(bounds, { padding: [10, 10] });
+  }
+
+  function collectRiverSettings() {
+    return {
+      enabledByDefault: document.getElementById("river-default").checked,
+      bounds: readRiverInputs() || (settings.riverLevels && settings.riverLevels.bounds) || DARTMOOR_BOX
+    };
+  }
+
+  function initRiverBox() {
+    const cfg = settings.riverLevels || {};
+    document.getElementById("river-default").checked = cfg.enabledByDefault === true;
+    if (riverMap) riverMap.remove();
+    riverRect = null;
+    riverCorner = null;
+    riverMap = L.map("pick-river-map");
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "\u00a9 OpenStreetMap contributors"
+    }).addTo(riverMap);
+    setRiverBox(cfg.bounds || DARTMOOR_BOX, true);
+    riverMap.on("click", (e) => {
+      if (!riverCorner) {
+        riverCorner = e.latlng;
+        return;
+      }
+      const a = riverCorner, c = e.latlng;
+      riverCorner = null;
+      setRiverBox({
+        south: +Math.min(a.lat, c.lat).toFixed(3), north: +Math.max(a.lat, c.lat).toFixed(3),
+        west: +Math.min(a.lng, c.lng).toFixed(3), east: +Math.max(a.lng, c.lng).toFixed(3)
+      }, false);
+    });
+    ["river-north", "river-south", "river-west", "river-east"].forEach((id) =>
+      document.getElementById(id).addEventListener("change", () => {
+        const b = readRiverInputs();
+        if (b) setRiverBox(b, false);
+      })
+    );
+    document.getElementById("river-reset").onclick = () => setRiverBox(DARTMOOR_BOX, true);
+    document.getElementById("river-england").onclick = () => setRiverBox(ENGLAND_BOX, true);
+    const box = document.getElementById("pick-river-map").closest("details");
+    if (box) box.addEventListener("toggle", () => riverMap.invalidateSize());
   }
 
   function initPickerMap() {
@@ -351,6 +418,7 @@
       markerColours: collectPalette("marker-colour"),
       weatherEnabledByDefault: document.getElementById("weather-default").checked,
       birdsRiversEnabledByDefault: document.getElementById("birds-rivers-default").checked,
+      riverLevels: collectRiverSettings(),
       mapSources: collectMapSources()
     };
 

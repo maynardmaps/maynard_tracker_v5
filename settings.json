@@ -61,5 +61,9 @@
     "#9a6324"
   ],
   "weatherEnabledByDefault": false,
-  "birdsRiversEnabledByDefault": false
+  "birdsRiversEnabledByDefault": false,
+  "riverLevels": {
+    "enabledByDefault": false,
+    "bounds": { "south": 50.345, "west": -4.27, "north": 50.795, "east": -3.57 }
+  }
 }

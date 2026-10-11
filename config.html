@@ -100,6 +100,23 @@
       </details>
 
       <details class="config-section">
+        <summary>River levels overlay</summary>
+        <p class="status-msg">Environment Agency river level stations (England). Only stations inside the box below are shown. Click the map twice to draw a new box (two opposite corners).</p>
+        <label class="switch-row">
+          <input type="checkbox" id="river-default" />
+          River levels overlay enabled by default
+        </label>
+        <div class="field-row"><label class="field-label" for="river-north">North</label><input type="number" step="0.001" id="river-north" /></div>
+        <div class="field-row"><label class="field-label" for="river-south">South</label><input type="number" step="0.001" id="river-south" /></div>
+        <div class="field-row"><label class="field-label" for="river-west">West</label><input type="number" step="0.001" id="river-west" /></div>
+        <div class="field-row"><label class="field-label" for="river-east">East</label><input type="number" step="0.001" id="river-east" /></div>
+        <div class="field-row">
+          <button type="button" class="secondary" id="river-reset">Dartmoor area</button>
+          <button type="button" class="secondary" id="river-england">Whole of England</button>
+        </div>
+        <div id="pick-river-map"></div>
+      </details>
+      <details class="config-section">
         <summary>Map sources</summary>
         <p class="status-msg">Toggle which base layers are offered to map users, or add your own XYZ tile source.</p>
         <div id="map-source-list"></div>

@@ -8,6 +8,12 @@
 
   let homeMarker = null;
 
+  const DEFAULT_RIVER_BOUNDS = { south: 50.345, west: -4.27, north: 50.795, east: -3.57 };
+  function riverLevelSettings() {
+    const r = settings.riverLevels || {};
+    return { enabledByDefault: r.enabledByDefault === true, bounds: r.bounds || DEFAULT_RIVER_BOUNDS };
+  }
+
   async function main() {
     secrets = window.MAYNARD_SECRETS || {};
     settings = await MaynardSettings.load();
@@ -54,6 +60,11 @@
     const birdsRiversToggle = document.getElementById("toggle-birds-rivers");
     if (birdsRiversToggle) birdsRiversToggle.checked = settings.birdsRiversEnabledByDefault === true;
 
+    const rl = riverLevelSettings();
+    MaynardRiverLevels.init(map, { bounds: rl.bounds, startVisible: rl.enabledByDefault });
+    const riverToggle = document.getElementById("toggle-river-levels");
+    if (riverToggle) riverToggle.checked = rl.enabledByDefault;
+
     addHomeMarker();
     enableLocationMenu();
     fitToEverything();
@@ -66,6 +77,7 @@
       MaynardKmlMarkers.reattach(map);
       MaynardWeather.reattach(map);
       MaynardBirdsRivers.reattach(map);
+      MaynardRiverLevels.reattach(map);
       addHomeMarker();
       enableLocationMenu();
       if (geoVisible) MaynardGeolocation.reattach(map);
@@ -166,8 +178,11 @@
     document.getElementById("toggle-weather").addEventListener("change", (e) => {
       MaynardWeather.setVisible(e.target.checked, map);
     });
-    document.getElementById("toggle-birds-rivers").addEventListener("change", (e) => {
+    document.getElementById("toggle-river-levels").addEventListener("change", (e) => {
       MaynardBirdsRivers.setVisible(e.target.checked, map);
+    });
+    document.getElementById("toggle-river-levels").addEventListener("change", (e) => {
+      MaynardRiverLevels.setVisible(e.target.checked, map);
     });
   }
 
