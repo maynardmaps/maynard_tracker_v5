@@ -85,3 +85,9 @@ River levels requirements:
 7) The configuration page should have a collapsible "River levels overlay" box with an on-by-default tick box, the four box edges as numbers, a map on which clicking two opposite corners draws a new box, and buttons to reset to the Dartmoor area or select the whole of England.
 8) The arrow shows the level trend over roughly the last hour: rising = arrow pointing up, falling = arrow pointing down, steady (change under 1 cm) = arrow pointing right. Until the trend is known (or if unavailable) a small coloured dot is shown instead.
 9) Trends are fetched per station for small areas (up to 150 stations) and from one bulk request for larger areas, so the arrows fill in shortly after the dots appear.
+
+Status message requirements:
+1) A small message should appear at the bottom centre of the map when a live data source fails, so the user knows the displayed data may be stale or missing.
+2) Garmin team positions: "Team positions could not be updated (showing last known)" if positions were previously shown, otherwise "Team positions unavailable". It clears on the next successful refresh.
+3) River levels: "Loading river levels..." while the first load is in progress, "River levels unavailable" if it fails with nothing shown, "River levels could not be refreshed" if a refresh fails while markers are shown. It clears on success or when the overlay is switched off.
+4) Several messages can show at once, separated by a dot. The message must not block interaction with the map and must be announced to screen readers (aria-live).
