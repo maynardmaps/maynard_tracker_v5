@@ -233,6 +233,7 @@
   }
 
   function reattach(m) {
+    map = m;
     if (imageOverlay && visible) imageOverlay.addTo(m);
   }
 

@@ -65,13 +65,38 @@
     });
   }
 
+  // Metres per pixel at a latitude for a Web Mercator zoom.
+  function mercatorRes(zoom, lat) {
+    return (156543.03392 * Math.cos((lat * Math.PI) / 180)) / Math.pow(2, zoom);
+  }
+
+  // Picks the zoom in the target CRS whose ground scale best matches the
+  // current one, so the view looks the same after a CRS switch.
+  function convertZoom(zoom, lat, fromCrs, toCrs) {
+    if (fromCrs === toCrs) return zoom;
+    if (fromCrs === "3857") {
+      const res = mercatorRes(zoom, lat);
+      let best = 0;
+      BNG_RESOLUTIONS.forEach((r, i) => {
+        if (Math.abs(Math.log(r / res)) < Math.abs(Math.log(BNG_RESOLUTIONS[best] / res))) best = i;
+      });
+      return Math.min(best, BNG_MAX_ZOOM);
+    }
+    const res = BNG_RESOLUTIONS[Math.min(zoom, BNG_RESOLUTIONS.length - 1)];
+    return Math.max(0, Math.round(Math.log2((156543.03392 * Math.cos((lat * Math.PI) / 180)) / res)));
+  }
+
   function createMap(containerId, center, zoom, crsName) {
-    const crs = crsName === "27700" ? buildBngCrs() : L.CRS.EPSG3857;
+    const bng = crsName === "27700";
+    const crs = bng ? buildBngCrs() : L.CRS.EPSG3857;
     map = L.map(containerId, {
       center: [center.lat, center.lng],
-      zoom: crsName === "27700" ? Math.min(zoom, BNG_MAX_ZOOM) : zoom,
+      zoom: bng ? Math.min(zoom, BNG_MAX_ZOOM) : zoom,
       crs,
-      zoomControl: true
+      zoomControl: true,
+      maxZoom: bng ? BNG_MAX_ZOOM : 19,
+      zoomAnimation: !bng,
+      markerZoomAnimation: !bng
     });
     currentCrsName = crsName;
     scaleControl = L.control.scale({ imperial: true, metric: true }).addTo(map);
@@ -93,7 +118,7 @@
     const neededCrs = source.type === "os-27700" ? "27700" : "3857";
     if (neededCrs !== currentCrsName) {
       const center = map.getCenter();
-      const zoom = map.getZoom();
+      const zoom = convertZoom(map.getZoom(), center.lat, currentCrsName, neededCrs);
       const containerId = map._container ? map._container.id : "map";
       map.remove();
       createMap(containerId, center, zoom, neededCrs);

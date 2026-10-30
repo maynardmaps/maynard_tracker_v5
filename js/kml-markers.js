@@ -302,7 +302,8 @@
   // The push feed (a cheap read of the Worker's stored state) is refreshed
   // often so every position report shows; the MapShare KML is fetched on the
   // slower garminPollIntervalMs and its last result reused in between.
-  async function refresh(map, relayUrl, devices, kmlEveryMs) {
+  let curMap = null;
+  async function refresh(m0, relayUrl, devices, kmlEveryMs) {
     let ipc = { registered: [], unregistered: [] };
     let ipcError = null;
     const kmlDue = Date.now() - kmlFetchedAt >= (kmlEveryMs || 0) - 500;
@@ -341,6 +342,7 @@
     const sig = JSON.stringify(features);
     if (sig === lastRawKml) return; // unchanged
     lastRawKml = sig;
+    const map = curMap;
     rebuilding = true;
     if (layerGroup && map.hasLayer(layerGroup)) map.removeLayer(layerGroup);
     layerGroup = buildLayer({ type: "FeatureCollection", features });
@@ -357,6 +359,7 @@
 
   function start(map, { relayUrl, pollIntervalMs, pushPollIntervalMs, palette, startVisible, devices }) {
     markerPalette = MaynardUtils.sanitizePalette(palette);
+    curMap = map;
     visible = startVisible !== false;
     kmlFetchedAt = 0;
     refresh(map, relayUrl, devices, pollIntervalMs);
@@ -381,6 +384,7 @@
   }
 
   function reattach(map) {
+    curMap = map;
     if (layerGroup && visible) layerGroup.addTo(map);
   }
 
