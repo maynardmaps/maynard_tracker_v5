@@ -146,13 +146,13 @@ async function ipcConfig(env) {
 }
 
 // Normal mode: only authenticated Garmin traffic for registered IMEIs is accepted.
-// Test mode: unregistered IMEIs are accepted too (token optional if not configured).
+// Test mode: unregistered IMEIs are accepted too (token always required).
 async function ipcReceive(request, env) {
   if (!env.RATE_LIMIT) return json({ error: "IPC not configured" }, 503);
   const cfg = await ipcConfig(env);
   const testMode = cfg.mode === "test";
-  if (!env.IPC_OUTBOUND_TOKEN && !testMode) return json({ error: "IPC token not configured" }, 503);
-  if (env.IPC_OUTBOUND_TOKEN) {
+  if (!env.IPC_OUTBOUND_TOKEN) return json({ error: "IPC token not configured" }, 503);
+  {
     const given = (request.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
     if (!given || !(await safeEqual(given, env.IPC_OUTBOUND_TOKEN.replace(/^Bearer\s+/i, "")))) {
       return json({ error: "Unauthorized" }, 401);
