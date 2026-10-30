@@ -8,7 +8,7 @@ Pages with **no backend**. It shows:
   Survey Leisure (via the OS Maps API).
 - GPX/KML routes, loaded from subfolders under `routes/`, auto-coloured and
   individually toggleable.
-- Live Garmin MapShare markers (polled KML feed).
+- Live team positions and messages from two sources used together: Garmin IPC Outbound pushes (received by the Worker) and the MapShare KML feed. The newest timestamp per team wins, so either source covers for the other. Position and message are separate markers; a message marker stays where the message was received (envelope, or a red pulsing SOS badge).
 - A Met Office precipitation radar/forecast overlay.
 - A static "birds and rivers" KML overlay (points and polygons) loaded once
   from every KML file in the version-controlled `data/` folder.
@@ -21,9 +21,11 @@ Pages with **no backend**. It shows:
   `settings.json` and committed straight back to the repo via the GitHub
   Contents API, so every visitor picks up new defaults on next load.
 
-Everything runs from static files - there is no server-side code, no build
-step, and no required write access except the optional "Save to GitHub"
-button on the config page.
+The site is static files with no build step. A small Cloudflare Worker
+(`worker/relay.js`) holds all secrets and does the server-side work: relaying
+the Garmin KML and Met Office data, receiving Garmin IPC Outbound pushes,
+sending Garmin IPC Inbound commands (messages, tracking start/stop), and
+committing config changes to GitHub.
 
 ## Quick start (local)
 
@@ -47,6 +49,8 @@ Nothing sensitive is in this repo:
 | Met Office order id | Worker var `MET_ORDER_ID` in `worker/wrangler.toml` |
 | GitHub token (fine-grained PAT, this repo only, Contents: read/write) | Worker secret `GITHUB_TOKEN` |
 | Config page passphrase | Worker secret `CONFIG_PASSPHRASE` |
+| Garmin IPC Outbound token | Worker secret `IPC_OUTBOUND_TOKEN` (required in every mode; must match the Authorization token set in Garmin Portal Connect) |
+| Garmin IPC Inbound credentials (V1, HTTP Basic) | Worker secrets `IPC_INBOUND_USER` and `IPC_INBOUND_PASSWORD` (optional `IPC_SENDER` sets the message sender name) |
 
 Set Worker secrets with `wrangler.cmd secret put <NAME>` and type the value at
 the prompt (never as a command argument).
@@ -112,6 +116,9 @@ From there you can set:
 - Whether the weather overlay is on by default.
 - Whether the birds and rivers overlay is on by default.
 - River levels: on by default, and the area box to display.
+- Operating mode: Normal or Test (see below).
+- Device management: team names and 15-digit inReach IMEIs.
+- Messaging: last 3 messages per team, send text messages, force start/stop tracking (see below).
 - Diagnostics: show a panel at the bottom of the map menu with the Garmin retrieval method and any data-source failures.
 - Which base map sources are offered, their display names/URLs, and you can
   add your own XYZ tile sources.
@@ -129,13 +136,39 @@ wrangler.cmd secret put CONFIG_PASSPHRASE   # the config page passphrase
 wrangler.cmd deploy
 ```
 
+## Garmin direct API, operating modes and messaging
+
+**Outbound (receiving).** In Garmin Portal Connect set the Outbound URL to
+`https://<your-worker>.workers.dev/ipc/outbound` (HTTP POST JSON, event schema V2+) with a static
+authorisation token equal to the Worker secret `IPC_OUTBOUND_TOKEN`. The Worker stores the latest
+position, last 3 messages (free text, puck 1-3, SOS, SOS cancel) with their location, emergency state and
+tracking state per registered IMEI in KV. The map reads `/ipc/locations` every 10 seconds
+(`garminPushPollIntervalMs`) and the MapShare KML every minute (`garminPollIntervalMs`); for each team the newest
+timestamp wins, per position and per message. Full Garmin settings are in the Note in `requirements.txt`.
+
+**Modes** (config page, "Operating mode"). *Normal*: only authenticated Garmin traffic for registered
+IMEIs is accepted. *Test*: unregistered IMEIs are also accepted, the test tool can inject false data, Inbound
+commands are simulated (nothing is sent to Garmin or billed), and the map shows a red "TEST MODE" banner.
+The token is required in both modes.
+
+**Messaging tab** (config page, after unlocking). Shows each team's last 3 messages and tracking status, with
+Clear history, send text message, and force start / force stop / query tracking. Commands go through the
+passphrase-protected `POST /ipc/command`, which calls Garmin IPC Inbound **V1**
+(`https://explore.garmin.com/ipcinbound/V1`: `Messaging.svc/Message`, `Tracking.svc/Tracking`). Real
+messages and tracking changes travel over Iridium and are billed to the device plan.
+
+**Test tool** (`test.html`, passphrase-protected, Test mode only for injection): inject any event type
+with an age offset, a 20-step walk, route simulation (60 mph, a report every 10 s, messages at turns, SOS at the
+end), clear stored positions to test KML fallback, a messaging and tracking panel with failure simulation and
+command log, and the Garmin delivery log (last 30 requests to `/ipc/outbound`).
+
 ## Cloudflare Worker relay (Garmin feed + Met Office weather)
 
 Garmin's feed and the Met Office API send no CORS headers, and the Met Office
 API needs an `apikey` header that free public proxies don't forward, so
 browsers can't call either directly.
 [worker/relay.js](worker/relay.js) is a tiny Cloudflare Worker with two
-fixed-purpose routes (it is not an open proxy):
+fixed-purpose routes (it is not an open proxy; the Garmin IPC and settings routes are described above):
 
 - `/` - the one hard-coded Garmin feed, with CORS headers added.
 - `/weather/latest[/<fileId>/data]` - the Met Office Map Images API for the one order pinned in `MET_ORDER_ID`,
@@ -157,7 +190,7 @@ Weather responses are cached in the Worker for 5 minutes.
 
 The site depends on the relay for the Garmin feed; there are no third-party proxy fallbacks. If the Garmin share ID changes, update `GARMIN_FEED` in the worker.
 
-Security notes: the Worker only allows CORS from the GitHub Pages origin, requires that Referer for OS tiles, validates every field of a saved `settings.json`, and rate-limits wrong passphrases durably using the `RATE_LIMIT` KV namespace (5 failures per IP or 30 overall in 15 minutes locks out for 15 minutes). CDN scripts carry Subresource Integrity hashes; regenerate them if you change a library version.
+Security notes: the Worker only allows CORS from the GitHub Pages origin, requires that Referer for OS tiles, validates every field of a saved `settings.json`, and requires the outbound token for all Garmin pushes, rate-limits wrong passphrases durably using the `RATE_LIMIT` KV namespace (5 failures per IP or 30 overall in 15 minutes locks out for 15 minutes). CDN scripts carry Subresource Integrity hashes; regenerate them if you change a library version.
 
 ## Known limitations / operational notes
 
@@ -185,7 +218,8 @@ Security notes: the Worker only allows CORS from the GitHub Pages origin, requir
 
 ```
 index.html              Map page
-config.html             Passphrase-gated configuration page
+config.html             Passphrase-gated configuration page (incl. Messaging)
+test.html               Passphrase-gated test tool
 css/styles.css          Shared responsive styles
 js/
   app-config.js          Non-secret config (relay URL, poll intervals, GitHub defaults)
@@ -194,7 +228,9 @@ js/
   github-save.js          Commits settings.json via GitHub Contents API
   map-core.js             Leaflet map lifecycle + CRS switching
   routes.js               GPX/KML route loading, colouring, toggling
-  kml-markers.js           Garmin KML feed polling/rendering
+  kml-markers.js           Team position/message markers: push + KML merge, polling
+  messaging-panel.js       Messaging and tracking panel (config page and test tool)
+  test-page.js             test.html bootstrap (injection, route simulation, logs)
   birds-rivers.js          Static birds-and-rivers KML (points + polygons) loading/rendering
   river-levels.js          Environment Agency river level arrows
   weather.js               Met Office precipitation overlay
@@ -207,7 +243,7 @@ routes/
 data/
   birdsrivers.kml    Static points+polygons overlay (sample placeholder - replace with real data)
 worker/
-  relay.js                Cloudflare Worker relay (Garmin feed + Met Office weather)
+  relay.js                Cloudflare Worker (Garmin KML + IPC Outbound/Inbound, Met Office, OS tiles, settings/routes writer)
   wrangler.toml           Worker deploy config
 settings.json            Committed shared defaults (editable via config.html)
 ```
