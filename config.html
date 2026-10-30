@@ -117,6 +117,23 @@
         <div id="pick-river-map"></div>
       </details>
       <details class="config-section">
+        <summary>Operating mode</summary>
+        <p class="status-msg"><strong>Normal</strong>: the server accepts only authenticated Garmin IPC Outbound traffic for registered devices; the MapShare feed, river levels, rainfall radar and other data are polled as usual. <strong>Test</strong>: also accepts unregistered IMEIs and allows the test tool to inject false team tracks. Applies when settings are saved.</p>
+        <label class="switch-row">
+          <input type="checkbox" id="test-mode" />
+          Test mode (off = normal mode)
+        </label>
+        <p class="status-msg"><a href="test.html">Open the test tool</a> (also shows the Garmin delivery log).</p>
+      </details>
+
+      <details class="config-section">
+        <summary>Device management</summary>
+        <p class="status-msg">inReach devices (IMEI and display name) used for the direct Garmin API source. IMEIs are 15 digits.</p>
+        <div id="device-list"></div>
+        <button type="button" class="secondary" id="add-device-btn" style="margin-top:0.6rem;">+ Add device</button>
+      </details>
+
+      <details class="config-section">
         <summary>Diagnostics</summary>
         <p class="status-msg">Shows a small panel at the bottom of the map menu with the Garmin retrieval method and any data-source failures.</p>
         <label class="switch-row">

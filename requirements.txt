@@ -62,6 +62,7 @@ Configuration page requirements:
 10) Map sources should be displayed as a list on the configuration page, with the user able to add extra map sources to the list as needed.
 11) The configuration page should have a clear "save settings" button that applies all changes made by the user.
 12) Each configuration box should be collapsible and collapsed by default when the page opens.
+13) A "Device management" section should list the registered inReach devices (IMEI + short name, e.g. "TT1", without the "inReach Mini" prefix). The user can edit names, add devices (15-digit unique IMEI required) and delete devices (after confirmation); changes apply on "Save settings". Initial devices: 300434031477230=TT1, 300434031379170=TT2, 300434031470000=TT3, 300434031375980=TT4.
 
 Route management requirements:
 1) The configuration page should have a "route management" section that lists all the route folders in the routes folder.
@@ -94,5 +95,32 @@ Status message requirements:
 
 Diagnostics requirements:
 1) The configuration page should have a collapsible "Diagnostics" box with a tick box (off by default) that enables a diagnostics panel.
-2) When enabled, a small panel is pinned to the bottom of the map menu showing the latest result for each data source: the Garmin retrieval method (Cloudflare Worker relay, no fallback) and its status, plus any failures retrieving other information (route list, weather, river levels and trends, birds and rivers KML, location), each with the time of the last result.
+2) When enabled, a small panel is pinned to the bottom of the map menu showing the latest result for each data source: the Garmin retrieval method (IPC Outbound push or MapShare relay), the operating mode and their status, plus any failures retrieving other information (route list, weather, river levels and trends, birds and rivers KML, location), each with the time of the last result.
 3) When disabled the panel is hidden. The setting is saved with the other settings (diagnosticsEnabled).
+
+Garmin direct API requirements:
+1) Team positions are retrieved primarily from Garmin IPC Outbound (push, no per-call cost). Garmin POSTs events DIRECTLY to the Worker route /ipc/outbound; no intermediate website or forwarding service (e.g. Anvil) is used. The Worker stores the latest position, battery, emergency state and last message per IMEI in KV and serves them to the map from /ipc/locations.
+2) No secret ever reaches the browser. The map only reads /ipc/locations.
+3) If the push feed has no data for registered devices, fails or is unconfigured, the map uses the Cloudflare/MapShare KML feed instead. The KML feed, river levels, rainfall radar and other sources continue to be polled at their regular intervals.
+4) Marker names come from Device management (falling back to the IMEI). SOS (codes 4/6) marks a team as in emergency until cancelled (code 7); low battery and the last free-text message are shown in the popup.
+5) The diagnostics panel states which source is in use, the operating mode, and any push-feed failure.
+6) Normal mode: /ipc/outbound accepts only requests carrying the static authorisation token (Worker secret IPC_OUTBOUND_TOKEN, compared with the Authorization header), with Content-Type application/json and a valid IPC Outbound body ("Events" array). Events for IMEIs not registered in Device management are ignored (still answered 200 so Garmin does not retry). If the token secret is not set the endpoint refuses traffic (503). /ipc/locations returns registered devices only. Incoming values are validated (IMEI format, coordinate ranges, body size, device count cap).
+7) Test mode: unregistered IMEIs are also accepted and returned, shown using a grey dashed circle marked '?' (named 'Unregistered <IMEI>') instead of the team diamond; the token is still enforced if the secret is set. Unregistered devices never trigger or suppress the MapShare fallback. Test mode also enables the test tool that injects false team track information.
+8) The mode ("normal" or "test", setting "mode", default normal) is chosen with a tick box in an "Operating mode" box on the configuration page, saved with "Save settings", and stored by the Worker (KV) when settings are saved; until then the Worker reads it from the committed settings.json.
+
+Note - Garmin Portal Connect (IPC Outbound) settings:
+- Outbound URL: https://maynard-garmin-relay.maynardmaps.workers.dev/ipc/outbound (HTTPS, trusted certificate - provided by Cloudflare).
+- Method / format: HTTP POST, JSON body (Content-Type: application/json), event schema V2 or later (V3/V4 are accepted).
+- Authorisation: static authorisation token (not OAuth). The token value must equal the Worker secret IPC_OUTBOUND_TOKEN (set with: npx wrangler secret put IPC_OUTBOUND_TOKEN). It is sent in the Authorization header; a "Bearer " prefix is accepted.
+- Events to send: tracking/position reports, locate responses, free-text messages, SOS (declare/confirm/cancel) and reference points for the devices listed in Device management.
+- The Worker replies 200 for accepted traffic (including ignored unregistered IMEIs); 401 for a wrong token, 415/400 for malformed requests. Garmin retries failures after 2, 4, 8, 16, 32, 64 and 128 seconds, then pauses; after 5 days of failures delivery is suspended and Garmin support must resume it.
+- The Garmin Portal Connect account must have only this URL configured as the Outbound destination.
+Test harness requirements:
+1) The test harness should simulate Garmin IPC Outbound events, including team positions, battery status, emergency codes, and free-text messages.
+2) It should allow toggling between successful and failed push events to test the map's fallback to the Cloudflare/MapShare KML feed.
+3) The harness should provide a way to register and unregister IMEIs to test the handling of unregistered devices.
+4) It should support simulating river levels, weather updates, and other data sources to test the corresponding messages and diagnostics panel updates.
+5) The harness should log all simulated events and their handling by the map for verification purposes.
+6) The harness is the page test.html (linked from the Operating mode box), unlocked with the config password. It injects events through the Worker route /ipc/test, which refuses injection unless the saved mode is "test". It provides single-event injection (position, message, SOS declared/cancelled, low battery, registered or arbitrary IMEI), a 20-step simulated walk, and "Clear stored positions" to force the KML fallback.
+7) The Worker keeps a rolling log of the last 30 requests to /ipc/outbound (time, HTTP status, reason, content type, header NAMES only, never values), shown on the test page to diagnose Garmin delivery problems in any mode.
+

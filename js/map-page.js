@@ -33,10 +33,12 @@
 
     await loadRouteFolder(settings.defaultRouteFolder);
 
+    MaynardUtils.diag("Mode", true, settings.mode === "test" ? "TEST mode (unregistered devices and test injection allowed)" : "normal mode");
     MaynardKmlMarkers.start(map, {
       relayUrl: window.MAYNARD_CONFIG.garminRelayUrl,
       pollIntervalMs: window.MAYNARD_CONFIG.garminPollIntervalMs,
       palette: settings.markerColours,
+      devices: settings.devices || [],
       startVisible: true
     });
 

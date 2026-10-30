@@ -14,12 +14,14 @@
     return String(p["Map Display Name"] || p.name || "");
   }
 
+  const isUnregistered = (f) => !!(f.properties && f.properties.Unregistered === "true");
+
   function buildLayer(geojson) {
     // Each point marker gets the next palette slot in alphanumerical order of
     // its display name; slots repeat after the palette is exhausted.
     const keys = [...new Set(
       geojson.features
-        .filter((f) => f.geometry && f.geometry.type === "Point")
+        .filter((f) => f.geometry && f.geometry.type === "Point" && !isUnregistered(f))
         .map(markerKey)
     )];
     const colours = MaynardUtils.assignColours(keys, markerPalette);
@@ -58,7 +60,7 @@
     ["Device Type", "Device type"]
   ];
   // Internal/duplicate fields not worth showing.
-  const POPUP_HIDDEN = new Set(["Map Display Name", "SpatialRefSystem", "Incident Id", "Device Identifier"]);
+  const POPUP_HIDDEN = new Set(["Map Display Name", "Unregistered", "SpatialRefSystem", "Incident Id", "Device Identifier"]);
 
   // Opens the phone's native map app: Apple Maps on iOS, geo: intent on Android,
   // Google Maps web URL elsewhere.
@@ -138,37 +140,83 @@
     return toGeoJSON.kml(xml);
   }
 
-  // The Garmin feed is only fetched via the Cloudflare Worker relay.
-  async function fetchAndParse(relayUrl) {
-    const raw = await MaynardUtils.fetchText(relayUrl, { timeoutMs: 15000, cache: "no-store" });
-    if (raw === lastRawKml) return null; // no change since last poll
-    const geojson = kmlTextToGeojson(raw);
-    if (!geojson || !geojson.features || !geojson.features.length) throw new Error("no features returned");
-    lastRawKml = raw;
-    return geojson;
-  }
-  async function refresh(map, relayUrl) {
-    try {
-      const geojson = await fetchAndParse(relayUrl);
-      MaynardUtils.setStatus("garmin", null);
-      MaynardUtils.diag("Garmin", true, "via Cloudflare Worker relay (no fallback)");
-      if (!geojson) return; // unchanged
-      if (layerGroup && map.hasLayer(layerGroup)) map.removeLayer(layerGroup);
-      layerGroup = buildLayer(geojson);
-      if (visible) layerGroup.addTo(map);
-    } catch (e) {
-      console.warn("KML marker refresh failed (will retry)", e);
-      MaynardUtils.diag("Garmin", false, "via Cloudflare Worker relay: " + e.message);
-      MaynardUtils.setStatus("garmin", layerGroup ? "Team positions could not be updated (showing last known)" : "Team positions unavailable");
-    }
+  // Latest positions pushed by Garmin IPC Outbound, stored by the Worker.
+  // Devices not in Device management are returned flagged as unregistered.
+  async function fetchIpc(relayUrl, devices) {
+    const names = new Map(devices.map((d) => [d.imei, d.name]));
+    const url = relayUrl.replace(/\/$/, "") + "/ipc/locations";
+    const raw = await MaynardUtils.fetchText(url, { timeoutMs: 15000, cache: "no-store" });
+    const locs = (JSON.parse(raw).locations || []).filter((l) => l.coordinate && isFinite(l.coordinate.latitude) && isFinite(l.coordinate.longitude));
+    const registered = [], unregistered = [];
+    locs.forEach((l) => {
+      const imei = String(l.imei);
+      const known = names.has(imei);
+      const when = l.timestamp ? new Date(l.timestamp.endsWith("Z") || /[+-]\d\d:\d\d$/.test(l.timestamp) ? l.timestamp : l.timestamp + "Z") : null;
+      const props = {
+        "Map Display Name": known ? names.get(imei) : "Unregistered " + imei,
+        "Time": when && !isNaN(when) ? when.toLocaleString() : "",
+        "Time UTC": when && !isNaN(when) ? when.toUTCString() : "",
+        "Latitude": l.coordinate.latitude,
+        "Longitude": l.coordinate.longitude,
+        "Elevation": l.altitude != null ? l.altitude + " m" : "",
+        "Velocity": l.speed != null ? l.speed + " km/h" : "",
+        "Course": l.course != null ? l.course + " ° True" : "",
+        "In Emergency": l.inEmergency === true ? "True" : "False",
+        "Text": l.text || "",
+        "Note": known ? "" : "Unregistered device (IMEI " + imei + ")",
+        "Battery": l.lowBattery ? "Low" : "",
+        "Unregistered": known ? "false" : "true"
+      };
+      (known ? registered : unregistered).push({
+        type: "Feature", properties: props,
+        geometry: { type: "Point", coordinates: [l.coordinate.longitude, l.coordinate.latitude] }
+      });
+    });
+    return { registered, unregistered };
   }
 
-  function start(map, { relayUrl, pollIntervalMs, palette, startVisible }) {
+  async function refresh(map, relayUrl, devices) {
+    let ipc = { registered: [], unregistered: [] };
+    let ipcError = null;
+    let relayError = null;
+    try { ipc = await fetchIpc(relayUrl, devices || []); } catch (e) { ipcError = e.message; }
+
+    let features = ipc.registered;
+    let source = "Garmin IPC Outbound push (via Worker)";
+    if (!features.length) {
+      try {
+        const raw = await MaynardUtils.fetchText(relayUrl, { timeoutMs: 15000, cache: "no-store" });
+        const gj = kmlTextToGeojson(raw);
+        if (!gj || !gj.features || !gj.features.length) throw new Error("no features returned");
+        features = gj.features;
+        source = "Cloudflare Worker relay (MapShare)" + (ipcError ? " - push feed failed: " + ipcError : " - no push data yet");
+      } catch (e) {
+        relayError = e.message;
+      }
+    }
+    features = features.concat(ipc.unregistered);
+
+    if (relayError && !features.length) {
+      console.warn("KML marker refresh failed (will retry)", relayError);
+      MaynardUtils.diag("Garmin", false, "all sources failed: " + (ipcError ? "push feed: " + ipcError + "; " : "") + "relay: " + relayError);
+      MaynardUtils.setStatus("garmin", layerGroup ? "Team positions could not be updated (showing last known)" : "Team positions unavailable");
+      return;
+    }
+    MaynardUtils.setStatus("garmin", null);
+    MaynardUtils.diag("Garmin", !ipcError && !relayError, "via " + source + (ipc.unregistered.length ? "; " + ipc.unregistered.length + " unregistered device(s)" : ""));
+    const sig = JSON.stringify(features);
+    if (sig === lastRawKml) return; // unchanged
+    lastRawKml = sig;
+    if (layerGroup && map.hasLayer(layerGroup)) map.removeLayer(layerGroup);
+    layerGroup = buildLayer({ type: "FeatureCollection", features });
+    if (visible) layerGroup.addTo(map);
+  }
+  function start(map, { relayUrl, pollIntervalMs, palette, startVisible, devices }) {
     markerPalette = MaynardUtils.sanitizePalette(palette);
     visible = startVisible !== false;
-    refresh(map, relayUrl);
+    refresh(map, relayUrl, devices);
     stop();
-    pollTimer = setInterval(() => refresh(map, relayUrl), pollIntervalMs);
+    pollTimer = setInterval(() => refresh(map, relayUrl, devices), pollIntervalMs);
   }
 
   function stop() {

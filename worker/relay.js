@@ -6,6 +6,11 @@
 //                                    API key from the METOFFICE_API_KEY secret.
 //   GET  /os/Leisure_27700/{z}/{x}/{y}.png
 //                                 -> OS Maps tiles; key from OS_API_KEY secret.
+//   POST /ipc/outbound            -> Garmin IPC Outbound receiver. Normal mode needs the
+//                                    IPC_OUTBOUND_TOKEN secret (Authorization header)
+//                                    and registered IMEIs only; test mode (settings
+//                                    "mode") also accepts unregistered IMEIs.
+//   GET  /ipc/locations?imeis=a,b -> latest stored position per device.
 //   POST /settings[/verify]       -> passphrase-protected settings.json commit.
 const GARMIN_FEED = "https://share.garmin.com/Feed/Share/9ZU7V";
 const MET_BASE = "https://data.hub.api.metoffice.gov.uk/map-images/1.0.0/orders";
@@ -100,6 +105,175 @@ async function garmin() {
   });
 }
 
+// Garmin IPC Outbound receiver: Garmin POSTs events here; the latest state per
+// device is kept in a single KV entry and served by GET /ipc/locations.
+const IPC_STATE_KEY = "ipc:state";
+const IPC_MAX_BODY = 2000000;
+const IPC_MAX_DEVICES = 50;
+const IPC_EMERGENCY_ON = new Set([4, 6]);
+
+async function safeEqual(a, b) {
+  const [da, db] = await Promise.all([digest(a), digest(b)]);
+  let diff = 0;
+  for (let i = 0; i < da.length; i++) diff |= da[i] ^ db[i];
+  return diff === 0;
+}
+
+// Operating mode and registered IMEIs. Written to KV whenever settings are saved;
+// until then they are read from the committed settings.json.
+const CFG_KEY = "cfg:ipc";
+
+function ipcConfigFrom(s) {
+  return {
+    mode: s && s.mode === "test" ? "test" : "normal",
+    imeis: ((s && s.devices) || []).map((d) => d.imei).filter((i) => /^\d{15}$/.test(i))
+  };
+}
+
+async function ipcConfig(env) {
+  try {
+    const kv = await env.RATE_LIMIT.get(CFG_KEY, "json");
+    if (kv && Array.isArray(kv.imeis)) return kv;
+  } catch (e) { /* fall through */ }
+  try {
+    const res = await fetch(`https://raw.githubusercontent.com/${GH_OWNER}/${GH_REPO}/${GH_BRANCH}/${GH_PATH}`, { cf: { cacheTtl: 60 } });
+    if (res.ok) return ipcConfigFrom(await res.json());
+  } catch (e) { /* fall through */ }
+  return { mode: "normal", imeis: [] };
+}
+
+// Normal mode: only authenticated Garmin traffic for registered IMEIs is accepted.
+// Test mode: unregistered IMEIs are accepted too (token optional if not configured).
+async function ipcReceive(request, env) {
+  if (!env.RATE_LIMIT) return json({ error: "IPC not configured" }, 503);
+  const cfg = await ipcConfig(env);
+  const testMode = cfg.mode === "test";
+  if (!env.IPC_OUTBOUND_TOKEN && !testMode) return json({ error: "IPC token not configured" }, 503);
+  if (env.IPC_OUTBOUND_TOKEN) {
+    const given = (request.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
+    if (!given || !(await safeEqual(given, env.IPC_OUTBOUND_TOKEN.replace(/^Bearer\s+/i, "")))) {
+      return json({ error: "Unauthorized" }, 401);
+    }
+  }
+  if (!/^application\/json/i.test(request.headers.get("Content-Type") || "")) {
+    return json({ error: "Content-Type must be application/json" }, 415);
+  }
+  const text = await request.text();
+  if (text.length > IPC_MAX_BODY) return json({ error: "Too large" }, 413);
+  let payload;
+  try { payload = JSON.parse(text); } catch (e) { return json({ error: "Invalid JSON" }, 400); }
+  if (!payload || typeof payload !== "object" || !Array.isArray(payload.Events)) {
+    return json({ error: "Not a Garmin IPC Outbound payload" }, 400);
+  }
+  await ipcApply(payload.Events, env, cfg, testMode);
+  return json({ ok: true }, 200);
+}
+
+async function ipcApply(events, env, cfg, testMode) {
+  const registered = new Set(cfg.imeis);
+  let state = (await env.RATE_LIMIT.get(IPC_STATE_KEY, "json")) || {};
+  let changed = false;
+  for (const ev of events) {
+    if (!ev || typeof ev !== "object") continue;
+    const code = Number(ev.messageCode);
+    const ts = Number(ev.timeStamp);
+    const p = ev.point || {};
+    const st = ev.status || {};
+    for (const imei of String(ev.imei || "").split(",").map((s) => s.trim())) {
+      if (!/^\d{15}$/.test(imei)) continue;
+      if (!testMode && !registered.has(imei)) continue;
+      if (!state[imei] && Object.keys(state).length >= IPC_MAX_DEVICES) continue;
+      const rec = state[imei] || {};
+      const hasFix = Number.isFinite(p.latitude) && Number.isFinite(p.longitude) && (p.latitude !== 0 || p.longitude !== 0) &&
+        inRange(p.latitude, -90, 90) && inRange(p.longitude, -180, 180);
+      if (hasFix && Number.isFinite(ts) && ts >= (rec.timestamp || 0)) {
+        rec.timestamp = ts;
+        rec.latitude = p.latitude;
+        rec.longitude = p.longitude;
+        rec.altitude = Number.isFinite(p.altitude) ? p.altitude : null;
+        rec.speed = Number.isFinite(p.speed) ? p.speed : null;
+        rec.course = Number.isFinite(p.course) ? p.course : null;
+        rec.gpsFix = Number.isFinite(p.gpsFix) ? p.gpsFix : null;
+      }
+      if (st.lowBattery === 0 || st.lowBattery === 1) rec.lowBattery = st.lowBattery === 1;
+      if (IPC_EMERGENCY_ON.has(code)) rec.inEmergency = true;
+      else if (code === 7) rec.inEmergency = false;
+      if (code === 3 && typeof ev.freeText === "string" && ev.freeText) {
+        rec.text = ev.freeText.slice(0, 500);
+        rec.textTime = Number.isFinite(ts) ? ts : null;
+      }
+      rec.updated = Date.now();
+      state[imei] = rec;
+      changed = true;
+    }
+  }
+  if (changed) await env.RATE_LIMIT.put(IPC_STATE_KEY, JSON.stringify(state));
+  return changed;
+}
+
+// Rolling log of the last requests to /ipc/outbound (no secrets: header names only),
+// readable from the test page to diagnose Garmin delivery problems.
+const IPC_LOG_KEY = "ipc:log";
+const IPC_LOG_MAX = 30;
+
+async function ipcLog(env, request, res) {
+  if (!env.RATE_LIMIT) return;
+  let reason = "";
+  if (res.status !== 200) { try { reason = (await res.clone().json()).error || ""; } catch (e) { /* none */ } }
+  const log = (await env.RATE_LIMIT.get(IPC_LOG_KEY, "json")) || [];
+  log.unshift({
+    time: new Date().toISOString(), status: res.status, reason,
+    contentType: request.headers.get("Content-Type") || "",
+    headers: [...request.headers.keys()].filter((h) => !h.startsWith("cf-") && !h.startsWith("x-forwarded")).slice(0, 20)
+  });
+  await env.RATE_LIMIT.put(IPC_LOG_KEY, JSON.stringify(log.slice(0, IPC_LOG_MAX)));
+}
+
+// Passphrase-protected test tool; injection only works while mode is "test".
+async function ipcTest(request, env) {
+  if (!env.RATE_LIMIT) return json({ error: "IPC not configured" }, 503);
+  let body;
+  try { body = await request.json(); } catch (e) { return json({ error: "Invalid JSON" }, 400); }
+  const action = body && body.action;
+  if (action === "log") return json({ log: (await env.RATE_LIMIT.get(IPC_LOG_KEY, "json")) || [] }, 200);
+  if (action === "clearLog") { await env.RATE_LIMIT.delete(IPC_LOG_KEY); return json({ ok: true }, 200); }
+  const cfg = await ipcConfig(env);
+  if (cfg.mode !== "test") return json({ error: "Server is in normal mode. Set Test mode on the config page and save." }, 403);
+  if (action === "clear") { await env.RATE_LIMIT.delete(IPC_STATE_KEY); return json({ ok: true }, 200); }
+  if (action === "inject") {
+    if (!Array.isArray(body.events) || body.events.length > 100) return json({ error: "events must be an array (max 100)" }, 400);
+    const changed = await ipcApply(body.events, env, cfg, true);
+    return json({ ok: true, stored: changed }, 200);
+  }
+  return json({ error: "Unknown action" }, 400);
+}
+
+async function ipcLocations(url, env) {
+  if (!env.RATE_LIMIT) return json({ error: "IPC not configured" }, 503);
+  const cfg = await ipcConfig(env);
+  const state = (await env.RATE_LIMIT.get(IPC_STATE_KEY, "json")) || {};
+  const param = url.searchParams.get("imeis");
+  let imeis = param ? param.split(",").map((s) => s.trim()).filter(Boolean) : Object.keys(state);
+  if (cfg.mode !== "test") imeis = imeis.filter((i) => cfg.imeis.includes(i));
+  if (!imeis.length || imeis.length > IPC_MAX_DEVICES || !imeis.every((i) => /^\d{15}$/.test(i))) {
+    return json(param ? { error: "imeis must be comma-separated 15-digit IMEIs" } : { locations: [] }, param ? 400 : 200);
+  }
+  const locations = imeis.filter((i) => state[i] && state[i].timestamp).map((i) => {
+    const r = state[i];
+    return {
+      imei: i,
+      timestamp: new Date(r.timestamp).toISOString(),
+      coordinate: { latitude: r.latitude, longitude: r.longitude },
+      altitude: r.altitude, speed: r.speed, course: r.course, gpsFixStatus: r.gpsFix,
+      lowBattery: r.lowBattery === true, inEmergency: r.inEmergency === true,
+      text: r.text || null
+    };
+  });
+  return new Response(JSON.stringify({ locations }), {
+    status: 200, headers: { ...CORS, "Content-Type": "application/json", "Cache-Control": "no-store" }
+  });
+}
+
 async function weather(match, env, ctx) {
   if (!env.METOFFICE_API_KEY || !env.MET_ORDER_ID) {
     return new Response("Weather not configured", { status: 500, headers: CORS });
@@ -137,7 +311,7 @@ const MAX_SETTINGS_BYTES = 50000;
 const ALLOWED_KEYS = new Set([
   "_comment", "github", "defaultRouteFolder", "startPoint", "startZoom",
   "mapSources", "routeColours", "markerColours", "weatherEnabledByDefault",
-  "birdsRiversEnabledByDefault", "diagnosticsEnabled", "riverLevels"
+  "birdsRiversEnabledByDefault",   "diagnosticsEnabled", "riverLevels", "devices", "mode"
 ]);
 
 // Fallback used only if the RATE_LIMIT KV binding is missing.
@@ -244,6 +418,7 @@ function settingsError(s) {
   if (typeof s.defaultRouteFolder !== "string" || (s.defaultRouteFolder && !FOLDER_RE.test(s.defaultRouteFolder))) {
     return "defaultRouteFolder invalid";
   }
+  if (s.mode !== undefined && s.mode !== "normal" && s.mode !== "test") return "mode must be normal or test";
   for (const k of ["weatherEnabledByDefault", "birdsRiversEnabledByDefault", "diagnosticsEnabled"]) {
     if (s[k] !== undefined && !isBool(s[k])) return `${k} must be true or false`;
   }
@@ -260,6 +435,16 @@ function settingsError(s) {
     if (b !== undefined) {
       if (!b || !inRange(b.south, 49, 61) || !inRange(b.north, 49, 61) || !inRange(b.west, -9, 3) ||
           !inRange(b.east, -9, 3) || b.south >= b.north || b.west >= b.east) return "riverLevels.bounds invalid";
+    }
+  }
+  if (s.devices !== undefined) {
+    if (!Array.isArray(s.devices) || s.devices.length > 50) return "devices must be a list of at most 50";
+    const seen = new Set();
+    for (const d of s.devices) {
+      if (!d || typeof d !== "object" || !Object.keys(d).every((k) => k === "imei" || k === "name") ||
+          typeof d.imei !== "string" || !/^\d{15}$/.test(d.imei) || !isStr(d.name, 40) || !d.name.trim() ||
+          seen.has(d.imei)) return "devices invalid";
+      seen.add(d.imei);
     }
   }
   if (!Array.isArray(s.mapSources) || s.mapSources.length > 12) return "mapSources must be a list of at most 12";
@@ -286,6 +471,7 @@ async function saveSettings(request, env) {
   const settingsProblem = settingsError(settings);
   if (settingsProblem) return json({ error: `Invalid settings: ${settingsProblem}` }, 400);
   settings.github = { owner: GH_OWNER, repo: GH_REPO, branch: GH_BRANCH };
+  if (env.RATE_LIMIT) await env.RATE_LIMIT.put(CFG_KEY, JSON.stringify(ipcConfigFrom(settings)));
 
   const url = `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${GH_PATH}`;
   const headers = {
@@ -456,6 +642,18 @@ export default {
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
 
     const { pathname } = new URL(request.url);
+    if (request.method === "POST" && pathname === "/ipc/outbound") {
+      let res;
+      try { res = await ipcReceive(request, env); } catch (e) { res = json({ error: "Server error" }, 500); }
+      try { await ipcLog(env, request, res); } catch (e) { /* logging is best effort */ }
+      return res;
+    }
+    if (request.method === "POST" && pathname === "/ipc/test") {
+      try {
+        if (!(await passphraseOk(request, env))) return json({ error: "Unauthorized" }, 401);
+        return await ipcTest(request, env);
+      } catch (e) { return json({ error: "Server error" }, 500); }
+    }
     if (request.method === "POST" && (pathname === "/settings" || pathname === "/settings/verify" || pathname === "/routes/manage")) {
       try {
         if (!(await passphraseOk(request, env))) return json({ error: "Unauthorized" }, 401);
@@ -471,6 +669,7 @@ export default {
     try {
       if (pathname === "/") return await garmin();
       if (pathname === "/routes") return await routesManifest(env, ctx);
+      if (pathname === "/ipc/locations") return await ipcLocations(new URL(request.url), env);
       const osMatch = OS_TILE_PATH.exec(pathname);
       if (osMatch) return await osTile(osMatch, env, ctx, request);
       const match = WEATHER_PATH.exec(pathname);

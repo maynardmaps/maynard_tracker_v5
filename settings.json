@@ -60,7 +60,14 @@
     "#f032e6",
     "#9a6324"
   ],
+  "devices": [
+    { "imei": "300434031477230", "name": "TT1" },
+    { "imei": "300434031379170", "name": "TT2" },
+    { "imei": "300434031470000", "name": "TT3" },
+    { "imei": "300434031375980", "name": "TT4" }
+  ],
   "weatherEnabledByDefault": false,
+  "mode": "normal",
   "birdsRiversEnabledByDefault": false,
   "riverLevels": {
     "enabledByDefault": false,

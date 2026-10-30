@@ -23,6 +23,9 @@
     });
     document.getElementById("save-btn").addEventListener("click", onSave);
     document.getElementById("add-map-source-btn").addEventListener("click", addMapSourceRow);
+    document.getElementById("add-device-btn").addEventListener("click", () => {
+      document.getElementById("device-list").appendChild(deviceRow({ imei: "", name: "" }));
+    });
 
     populateForm();
     initRouteManagement();
@@ -215,11 +218,48 @@
     // Birds and rivers default
     document.getElementById("birds-rivers-default").checked = settings.birdsRiversEnabledByDefault === true;
     document.getElementById("diagnostics-enabled").checked = settings.diagnosticsEnabled === true;
+    document.getElementById("test-mode").checked = settings.mode === "test";
 
     initRiverBox();
 
     // Map sources
     buildMapSourceList();
+
+    // Devices
+    const deviceList = document.getElementById("device-list");
+    deviceList.innerHTML = "";
+    (settings.devices || []).forEach((d) => deviceList.appendChild(deviceRow(d)));
+  }
+
+  function deviceRow(device) {
+    const row = document.createElement("div");
+    row.className = "map-source-row device-row";
+    row.innerHTML =
+      `<input type="text" class="dev-imei" inputmode="numeric" maxlength="15" value="${escapeAttr(device.imei)}" placeholder="IMEI (15 digits)" />` +
+      `<input type="text" class="dev-name" value="${escapeAttr(device.name)}" placeholder="Device name, e.g. TT1" />` +
+      `<button type="button" class="secondary dev-remove">Delete</button>`;
+    row.querySelector(".dev-remove").addEventListener("click", () => {
+      if (confirm("Delete this device?")) row.remove();
+    });
+    return row;
+  }
+
+  // Returns the device list, or null (after flagging the error) if invalid.
+  function collectDevices() {
+    const devices = [];
+    const seen = new Set();
+    for (const row of document.querySelectorAll("#device-list .device-row")) {
+      const imei = row.querySelector(".dev-imei").value.trim();
+      const name = row.querySelector(".dev-name").value.trim();
+      if (!imei && !name) continue;
+      if (!/^\d{15}$/.test(imei) || !name || seen.has(imei)) {
+        row.querySelector(".dev-imei").focus();
+        return null;
+      }
+      seen.add(imei);
+      devices.push({ imei, name });
+    }
+    return devices;
   }
 
   const DARTMOOR_BOX = { south: 50.345, west: -4.27, north: 50.795, east: -3.57 };
@@ -402,8 +442,16 @@
     statusEl.textContent = "Saving...";
     statusEl.className = "status-msg";
 
+    const devices = collectDevices();
+    if (!devices) {
+      statusEl.textContent = "Device list invalid: each device needs a unique 15-digit IMEI and a name.";
+      statusEl.className = "status-msg error";
+      return;
+    }
+
     const newSettings = {
       ...settings,
+      devices,
       defaultRouteFolder: document.getElementById("default-route-folder").value,
       startPoint: {
         lat: parseFloat(document.getElementById("start-lat").value),
@@ -420,6 +468,7 @@
       weatherEnabledByDefault: document.getElementById("weather-default").checked,
       birdsRiversEnabledByDefault: document.getElementById("birds-rivers-default").checked,
       diagnosticsEnabled: document.getElementById("diagnostics-enabled").checked,
+      mode: document.getElementById("test-mode").checked ? "test" : "normal",
       riverLevels: collectRiverSettings(),
       mapSources: collectMapSources()
     };
