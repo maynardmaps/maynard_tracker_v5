@@ -44,6 +44,7 @@
     MaynardKmlMarkers.start(map, {
       relayUrl: window.MAYNARD_CONFIG.garminRelayUrl,
       pollIntervalMs: window.MAYNARD_CONFIG.garminPollIntervalMs,
+      pushPollIntervalMs: window.MAYNARD_CONFIG.garminPushPollIntervalMs,
       palette: settings.markerColours,
       devices: settings.devices || [],
       startVisible: true

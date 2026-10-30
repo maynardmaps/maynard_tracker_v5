@@ -218,10 +218,13 @@ async function ipcApply(events, env, cfg, testMode) {
       if (IPC_EMERGENCY_ON.has(code)) rec.inEmergency = true;
       else if (code === 7) rec.inEmergency = false;
       const msg = ipcMessage(code, ev.freeText);
+      const msgPos = hasFix
+        ? { latitude: p.latitude, longitude: p.longitude, altitude: Number.isFinite(p.altitude) ? p.altitude : null, speed: Number.isFinite(p.speed) ? p.speed : null, course: Number.isFinite(p.course) ? p.course : null }
+        : (Number.isFinite(rec.latitude) ? { latitude: rec.latitude, longitude: rec.longitude, altitude: rec.altitude, speed: rec.speed, course: rec.course } : null);
       if (msg) {
         const at = Number.isFinite(ts) ? ts : Date.now();
         rec.history = (rec.history || []).filter((h) => !(h.time === at && h.type === msg.type && h.text === msg.text));
-        rec.history.push({ type: msg.type, text: msg.text, time: at });
+        rec.history.push({ type: msg.type, text: msg.text, time: at, pos: msgPos });
         rec.history.sort((a, b) => b.time - a.time);
         rec.history = rec.history.slice(0, IPC_HISTORY_MAX);
       }
@@ -232,6 +235,7 @@ async function ipcApply(events, env, cfg, testMode) {
         rec.text = msg.text;
         rec.textTime = Number.isFinite(ts) ? ts : Date.now();
         rec.msgTime = rec.textTime;
+        rec.msgPos = msgPos;
       }
       rec.updated = Date.now();
       state[imei] = rec;
@@ -405,6 +409,7 @@ async function ipcLocations(url, env) {
       lowBattery: r.lowBattery === true, inEmergency: r.inEmergency === true,
       text: r.text && (r.textTime || 0) > (r.clearedAt || 0) ? r.text : null,
       textTime: r.textTime || null,
+      messagePosition: r.text && (r.textTime || 0) > (r.clearedAt || 0) ? (r.msgPos || null) : null,
       messageType: r.text && (r.textTime || 0) > (r.clearedAt || 0) ? (r.msgType || "text") : null,
       clearedAt: r.clearedAt || 0,
       history: (r.history || []).filter((h) => h.time > (r.clearedAt || 0)),

@@ -25,7 +25,9 @@
         .map(markerKey)
     )];
     const colours = MaynardUtils.assignColours(keys, markerPalette);
+    const keyed = {};
     const geo = L.geoJson(geojson, {
+      filter: (f) => !(f.properties && f.properties._isMessage),
       pointToLayer(feature, latlng) {
         const c = colours.get(markerKey(feature));
         const em = String((feature.properties || {})["In Emergency"]).toLowerCase() === "true";
@@ -38,36 +40,43 @@
       },
       onEachFeature(feature, layer) {
         layer.bindPopup(buildPopupHtml(feature.properties || {}, feature.geometry && feature.geometry.coordinates), { maxWidth: 320 });
+        keyed["pos:" + markerKey(feature)] = layer;
       }
     });
-    // Envelope beside each team that has sent a message, in the team's colour;
-    // separate from the position marker and opens the message.
+    // Message marker per team, fixed where the last message was received and
+    // independent of the moving position marker.
     const group = L.featureGroup([geo]);
     geojson.features.forEach((f) => {
       const p = f.properties || {};
-      const type = p["Message Type"] || (String(p.Text || "").trim() ? "text" : "");
-      if (!f.geometry || f.geometry.type !== "Point" || isUnregistered(f) || !type) return;
-      const em = String(p["In Emergency"]).toLowerCase() === "true";
-      const [lng, lat] = f.geometry.coordinates;
+      if (!p._isMessage || !f.geometry) return;
+      const type = p.type;
       const name = markerKey(f);
       const sos = type === "sos";
-      const body = type === "sos" ? "SOS" + (p.Text ? " - " + String(p.Text).trim() : "")
-        : type === "sos-cancelled" ? "SOS cancelled" + (p.Text ? " - " + String(p.Text).trim() : "")
-        : String(p.Text || "").trim();
+      const cancelled = type === "sos-cancelled";
+      const urgent = type === "urgent";
+      const [lng, lat] = f.geometry.coordinates;
+      const label = sos ? "SOS" : cancelled ? "SOS cancelled" : type === "ok" || type === "assist" || urgent ? "Puck message" : "Text message";
+      const rows = [["Type", label], ["Message", p.text || (sos ? "SOS" : "")], ["Received", p.time], ["Latitude", lat], ["Longitude", lng],
+        ["Elevation", p.elevation], ["Speed", p.speed], ["Course", p.course], ["Source", p.source]]
+        .filter(([, v]) => v !== "" && v != null);
+      const gr = gridRef(lat, lng);
       const html = `<div class="kml-popup"><strong>${escapeHtml(name)} - last message</strong>` +
         (sos ? '<div class="kml-popup-emergency">SOS</div>' : "") +
-        `<div class="kml-popup-desc">${escapeHtml(body)}</div>` +
-        (p["Message Time"] ? `<div>${escapeHtml(p["Message Time"])}</div>` : "") + "</div>";
-      L.marker([lat, lng], {
+        '<table class="kml-popup-table">' + rows.map(([l, v]) => `<tr><th>${escapeHtml(l)}</th><td>${escapeHtml(String(v))}</td></tr>`).join("") + "</table>" +
+        (gr ? `<div class="kml-popup-grid">Grid ref: ${gr}</div>` : "") +
+        `<div class="kml-popup-map"><a href="${escapeHtml(mapAppUrl(lat, lng, name + " message"))}" target="_blank" rel="noopener">&#128506; Map</a></div></div>`;
+      const m = L.marker([lat, lng], {
         icon: L.divIcon({
-          className: "team-message" + (sos ? " team-message-sos" : "") + (type === "urgent" ? " team-message-urgent" : ""),
-          html: `<span style="background:${sos ? "#e00" : colours.get(name)}" title="Last message from ${escapeHtml(name)}">${sos ? "SOS" : type === "urgent" ? "&#9993;!" : "&#9993;"}</span>`,
-          iconSize: sos ? [34, 20] : [22, 16], iconAnchor: [em ? -24 : -6, 22]
+          className: "team-message" + (sos ? " team-message-sos" : "") + (urgent ? " team-message-urgent" : ""),
+          html: `<span style="background:${sos ? "#e00" : colours.get(name)}" title="Last message from ${escapeHtml(name)}">${sos ? "SOS" : urgent ? "&#9993;!" : "&#9993;"}</span>`,
+          iconSize: sos ? [34, 20] : [22, 16], iconAnchor: sos ? [17, 26] : [11, 22]
         }),
         alt: "Last message from " + name,
         zIndexOffset: sos ? 1000 : 0
       }).bindPopup(html, { maxWidth: 320 }).addTo(group);
+      keyed["msg:" + name] = m;
     });
+    group._keyed = keyed;
     return group;
   }
 
@@ -199,7 +208,8 @@
         "Battery": l.lowBattery ? "Low" : "",
         "Unregistered": known ? "false" : "true",
         "_posTime": Date.parse(l.timestamp) || 0,
-        "_msgTime": l.textTime || 0
+        "_msgTime": l.textTime || 0,
+        "_msgPos": l.messagePosition || null
       };
       (known ? registered : unregistered).push({
         type: "Feature", properties: props,
@@ -251,37 +261,69 @@
       const kMsg = hasText(kp) ? kPos : -1;
       const msgSrc = iMsg < 0 && kMsg < 0 ? null : (iMsg >= kMsg ? i : k);
       const props = Object.assign({}, posSrc.properties, { "Map Display Name": key });
-      delete props._posTime; delete props._msgTime;
+      delete props._posTime; delete props._msgTime; delete props._msgPos;
       const mp = msgSrc && msgSrc.properties;
-      props.Text = mp ? mp.Text : "";
-      props["Message Time"] = mp ? (msgSrc === i ? mp["Message Time"] : mp.Time || "") : "";
-      props["Message Type"] = mp ? (msgSrc === i ? mp["Message Type"] : "text") : "";
+      props.Text = ""; props["Message Time"] = ""; props["Message Type"] = "";
       const iLatest = ip ? Math.max(iPos, iMsg) : -1, kLatest = kp ? kPos : -1;
       props["In Emergency"] = (iLatest >= kLatest ? ip : kp)["In Emergency"];
       props["Position source"] = posSrc === i ? "Garmin push" : "MapShare KML";
       if (posSrc === i) fromIpc++; else fromKml++;
       out.push({ type: "Feature", properties: props, geometry: posSrc.geometry });
+      if (mp) {
+        const viaIpc = msgSrc === i;
+        const mpos = viaIpc ? ip._msgPos : null;
+        const coords = viaIpc ? (mpos ? [mpos.longitude, mpos.latitude] : null) : msgSrc.geometry.coordinates;
+        if (coords) {
+          out.push({
+            type: "Feature", geometry: { type: "Point", coordinates: coords },
+            properties: {
+              _isMessage: true, "Map Display Name": key,
+              type: (viaIpc ? mp["Message Type"] : "") || "text",
+              text: mp.Text,
+              time: viaIpc ? mp["Message Time"] : mp.Time || "",
+              elevation: viaIpc ? (mpos && mpos.altitude != null ? mpos.altitude + " m" : "") : mp.Elevation || "",
+              speed: viaIpc ? (mpos && mpos.speed != null ? mpos.speed + " km/h" : "") : mp.Velocity || "",
+              course: viaIpc ? (mpos && mpos.course != null ? mpos.course + "\u00b0" : "") : mp.Course || "",
+              source: viaIpc ? "Garmin push" : "MapShare KML"
+            }
+          });
+        }
+      }
     });
     return { features: out.concat(others), fromIpc, fromKml };
   }
 
-  async function refresh(map, relayUrl, devices) {
+  let kmlFeaturesCache = [];
+  let kmlErrorCache = null;
+  let kmlFetchedAt = 0;
+  let openKey = null;
+  let rebuilding = false;
+
+  // The push feed (a cheap read of the Worker's stored state) is refreshed
+  // often so every position report shows; the MapShare KML is fetched on the
+  // slower garminPollIntervalMs and its last result reused in between.
+  async function refresh(map, relayUrl, devices, kmlEveryMs) {
     let ipc = { registered: [], unregistered: [] };
     let ipcError = null;
-    let kmlError = null;
-    let kmlFeatures = [];
+    const kmlDue = Date.now() - kmlFetchedAt >= (kmlEveryMs || 0) - 500;
     const [ipcRes, kmlRes] = await Promise.allSettled([
       fetchIpc(relayUrl, devices || []),
-      MaynardUtils.fetchText(relayUrl, { timeoutMs: 15000, cache: "no-store" })
+      kmlDue ? MaynardUtils.fetchText(relayUrl, { timeoutMs: 15000, cache: "no-store" }) : Promise.resolve(null)
     ]);
     if (ipcRes.status === "fulfilled") ipc = ipcRes.value; else ipcError = ipcRes.reason.message;
-    if (kmlRes.status === "fulfilled") {
-      try {
-        const gj = kmlTextToGeojson(kmlRes.value);
-        if (!gj || !gj.features || !gj.features.length) throw new Error("no features returned");
-        kmlFeatures = gj.features;
-      } catch (e) { kmlError = e.message; }
-    } else kmlError = kmlRes.reason.message;
+    if (kmlDue) {
+      kmlFetchedAt = Date.now();
+      if (kmlRes.status === "fulfilled") {
+        try {
+          const gj = kmlTextToGeojson(kmlRes.value);
+          if (!gj || !gj.features || !gj.features.length) throw new Error("no features returned");
+          kmlFeaturesCache = gj.features;
+          kmlErrorCache = null;
+        } catch (e) { kmlErrorCache = e.message; }
+      } else kmlErrorCache = kmlRes.reason.message;
+    }
+    const kmlError = kmlErrorCache;
+    const kmlFeatures = kmlError ? [] : kmlFeaturesCache;
 
     if (ipcError && kmlError) {
       console.warn("Team position refresh failed (will retry)", ipcError, kmlError);
@@ -299,18 +341,29 @@
     const sig = JSON.stringify(features);
     if (sig === lastRawKml) return; // unchanged
     lastRawKml = sig;
+    rebuilding = true;
     if (layerGroup && map.hasLayer(layerGroup)) map.removeLayer(layerGroup);
     layerGroup = buildLayer({ type: "FeatureCollection", features });
+    layerGroup.on("popupopen", (e) => { if (!rebuilding) openKey = Object.keys(layerGroup._keyed).find((k) => layerGroup._keyed[k] === e.popup._source) || null; });
+    layerGroup.on("popupclose", () => { if (!rebuilding) openKey = null; });
     if (visible) layerGroup.addTo(map);
-  }
-  function start(map, { relayUrl, pollIntervalMs, palette, startVisible, devices }) {
-    markerPalette = MaynardUtils.sanitizePalette(palette);
-    visible = startVisible !== false;
-    refresh(map, relayUrl, devices);
-    stop();
-    pollTimer = setInterval(() => refresh(map, relayUrl, devices), pollIntervalMs);
+    rebuilding = false;
+    if (visible && openKey && layerGroup._keyed[openKey]) {
+      rebuilding = true;
+      layerGroup._keyed[openKey].openPopup();
+      rebuilding = false;
+    }
   }
 
+  function start(map, { relayUrl, pollIntervalMs, pushPollIntervalMs, palette, startVisible, devices }) {
+    markerPalette = MaynardUtils.sanitizePalette(palette);
+    visible = startVisible !== false;
+    kmlFetchedAt = 0;
+    refresh(map, relayUrl, devices, pollIntervalMs);
+    stop();
+    const fast = Math.max(5000, Math.min(pushPollIntervalMs || 10000, pollIntervalMs));
+    pollTimer = setInterval(() => refresh(map, relayUrl, devices, pollIntervalMs), fast);
+  }
   function stop() {
     if (pollTimer) clearInterval(pollTimer);
     pollTimer = null;

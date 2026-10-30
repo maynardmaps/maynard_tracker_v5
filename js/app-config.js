@@ -22,6 +22,7 @@ window.MAYNARD_CONFIG = {
   // How often to re-poll the Garmin feed and Met Office image for
   // "real-time" updates, in milliseconds.
   garminPollIntervalMs: 60000,
+  garminPushPollIntervalMs: 10000,
   weatherPollIntervalMs: 300000,
 
   // Manifest describing the routes/ folder tree (GitHub Pages can't list
