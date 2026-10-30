@@ -315,3 +315,22 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .team-message-urgent span { border-color: #e00; border-width: 2px; font-weight: bold; }
 @keyframes sos-pulse { from { transform: scale(1); } to { transform: scale(1.25); } }
 @media (prefers-reduced-motion: reduce) { .team-message-sos span { animation: none; } }
+
+/* Messaging panel */
+.msg-team-card { border: 1px solid var(--panel-border); border-radius: 4px; padding: 0.5rem 0.7rem; margin-bottom: 0.6rem; background: #fff; color: #111; }
+.msg-team-head { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
+.msg-track-state { font-size: 0.8rem; color: #555; flex: 1; }
+.msg-list { list-style: none; margin: 0.4rem 0 0; padding: 0; }
+.msg-list li { padding: 0.3rem 0.4rem; border-left: 4px solid #888; margin-bottom: 0.25rem; background: #f6f6f6; }
+.msg-list time { display: block; font-size: 0.75rem; color: #666; }
+.msg-list .msg-text { border-left-color: #1976d2; }
+.msg-list .msg-puck { border-left-color: #2e7d32; }
+.msg-list .msg-urgent { border-left-color: #ef6c00; }
+.msg-list .msg-sos { border-left-color: #c62828; background: #fdecea; font-weight: 700; }
+.msg-list .msg-none { border-left-color: #ccc; color: #777; }
+.msg-badge { display: inline-block; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; padding: 0 0.35rem; border-radius: 3px; background: #ddd; margin-right: 0.3rem; }
+.msg-send, .msg-track { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-bottom: 0.6rem; }
+.msg-send textarea { flex-basis: 100%; }
+.msg-cmdlog { white-space: pre-wrap; font-size: 0.75rem; }
+
+#test-mode-banner { position: fixed; top: 0; left: 50%; transform: translateX(-50%); z-index: 2000; background: #c62828; color: #fff; font-weight: 700; letter-spacing: 0.05em; padding: 0.3rem 1rem; border-radius: 0 0 6px 6px; box-shadow: 0 2px 6px rgba(0,0,0,0.4); pointer-events: none; }

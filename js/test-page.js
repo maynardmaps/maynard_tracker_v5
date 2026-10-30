@@ -80,6 +80,7 @@
       const s = await (await fetch("settings.json", { cache: "no-store" })).json();
       $("t-imei").innerHTML = (s.devices || []).map((d) => `<option value="${d.imei}">${String(d.name).replace(/</g, "&lt;")} (${d.imei})</option>`).join("");
       if (s.mode !== "test") logLine("settings.json says mode is NORMAL - injection will be refused until Test mode is saved.");
+      MaynardMessaging.mount($("t-msg-root"), { devices: s.devices || [], passphrase: () => passphrase, testTools: true });
     } catch (e) { logLine("Could not load settings.json"); }
   }
 

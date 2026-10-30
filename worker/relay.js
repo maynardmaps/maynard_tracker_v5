@@ -111,6 +111,9 @@ const IPC_STATE_KEY = "ipc:state";
 const IPC_MAX_BODY = 2000000;
 const IPC_MAX_DEVICES = 50;
 const IPC_EMERGENCY_ON = new Set([4, 6]);
+const IPC_HISTORY_MAX = 3;
+const IPC_INBOUND_BASE = "https://explore.garmin.com/ipcinbound/V1";
+const IPC_CMD_LOG_KEY = "ipc:cmdlog";
 
 async function safeEqual(a, b) {
   const [da, db] = await Promise.all([digest(a), digest(b)]);
@@ -215,6 +218,15 @@ async function ipcApply(events, env, cfg, testMode) {
       if (IPC_EMERGENCY_ON.has(code)) rec.inEmergency = true;
       else if (code === 7) rec.inEmergency = false;
       const msg = ipcMessage(code, ev.freeText);
+      if (msg) {
+        const at = Number.isFinite(ts) ? ts : Date.now();
+        rec.history = (rec.history || []).filter((h) => !(h.time === at && h.type === msg.type && h.text === msg.text));
+        rec.history.push({ type: msg.type, text: msg.text, time: at });
+        rec.history.sort((a, b) => b.time - a.time);
+        rec.history = rec.history.slice(0, IPC_HISTORY_MAX);
+      }
+      if (code === 10 || code === 11) rec.tracking = { active: true, time: Date.now(), source: "event" };
+      else if (code === 12) rec.tracking = { active: false, time: Date.now(), source: "event" };
       if (msg && (!rec.msgTime || !Number.isFinite(ts) || ts >= rec.msgTime)) {
         rec.msgType = msg.type;
         rec.text = msg.text;
@@ -248,6 +260,112 @@ async function ipcLog(env, request, res) {
   await env.RATE_LIMIT.put(IPC_LOG_KEY, JSON.stringify(log.slice(0, IPC_LOG_MAX)));
 }
 
+// Passphrase-protected remote commands (messaging tab and test tool).
+// Normal mode sends the real Garmin IPC Inbound V1 call (HTTP Basic auth with the Portal Connect credentials in the IPC_INBOUND_USER and IPC_INBOUND_PASSWORD
+// secret; messages are billed to the device plan). Test mode never contacts
+// Garmin: the command is simulated, recorded in the command log, and applied to
+// the stored state so the whole flow can be exercised at no cost.
+async function ipcCmdLog(env, entry) {
+  const log = (await env.RATE_LIMIT.get(IPC_CMD_LOG_KEY, "json")) || [];
+  log.unshift({ time: new Date().toISOString(), ...entry });
+  await env.RATE_LIMIT.put(IPC_CMD_LOG_KEY, JSON.stringify(log.slice(0, IPC_LOG_MAX)));
+}
+
+async function garminInbound(env, method, path, body) {
+  const res = await fetch(IPC_INBOUND_BASE + path, {
+    method,
+    headers: { Authorization: "Basic " + btoa(env.IPC_INBOUND_USER + ":" + env.IPC_INBOUND_PASSWORD), "Content-Type": "application/json", Accept: "application/json" },
+    body: body === undefined ? undefined : JSON.stringify(body)
+  });
+  let data = null;
+  try { data = await res.json(); } catch (e) { /* empty body */ }
+  if (!res.ok) {
+    const err = new Error((data && (data.message || data.description)) || `Garmin HTTP ${res.status}`);
+    err.status = res.status;
+    throw err;
+  }
+  return data;
+}
+
+async function ipcCommand(request, env) {
+  if (!env.RATE_LIMIT) return json({ error: "IPC not configured" }, 503);
+  let body;
+  try { body = await request.json(); } catch (e) { return json({ error: "Invalid JSON" }, 400); }
+  const action = body && body.action;
+  const cfg = await ipcConfig(env);
+  const testMode = cfg.mode === "test";
+  const state = (await env.RATE_LIMIT.get(IPC_STATE_KEY, "json")) || {};
+
+  if (action === "cmdLog") return json({ log: (await env.RATE_LIMIT.get(IPC_CMD_LOG_KEY, "json")) || [] }, 200);
+  if (action === "clearCmdLog") { await env.RATE_LIMIT.delete(IPC_CMD_LOG_KEY); return json({ ok: true }, 200); }
+
+  const imei = String((body && body.imei) || "");
+  if (!/^\d{15}$/.test(imei)) return json({ error: "imei must be 15 digits" }, 400);
+  if (!testMode && !cfg.imeis.includes(imei)) return json({ error: "IMEI is not a registered device" }, 400);
+
+  if (action === "clearHistory") {
+    const rec = state[imei] || {};
+    rec.clearedAt = Date.now();
+    rec.history = [];
+    state[imei] = rec;
+    await env.RATE_LIMIT.put(IPC_STATE_KEY, JSON.stringify(state));
+    return json({ ok: true }, 200);
+  }
+
+  const known = ["sendMessage", "trackingStart", "trackingStop", "trackingStatus"];
+  if (!known.includes(action)) return json({ error: "Unknown action" }, 400);
+
+  let text = "", interval = 0;
+  if (action === "sendMessage") {
+    text = typeof body.text === "string" ? body.text.trim() : "";
+    if (!text || text.length > 160) return json({ error: "Message must be 1-160 characters" }, 400);
+  }
+  if (action === "trackingStart") {
+    interval = Number(body.interval);
+    if (!Number.isInteger(interval) || interval < 1 || interval > 1440) return json({ error: "interval must be a whole number from 1 to 1440" }, 400);
+  }
+
+  const entry = { action, imei, mode: testMode ? "test (simulated)" : "normal (Garmin)", text };
+  try {
+    let result = { ok: true };
+    if (testMode) {
+      if (body.simulateFailure === true) throw Object.assign(new Error("Simulated Garmin failure"), { status: 422 });
+    } else {
+      if (!env.IPC_INBOUND_USER || !env.IPC_INBOUND_PASSWORD) throw Object.assign(new Error("IPC_INBOUND_USER / IPC_INBOUND_PASSWORD secrets are not set on the Worker"), { status: 503 });
+      if (action === "sendMessage") {
+        result = await garminInbound(env, "POST", "/Messaging.svc/Message", {
+          Messages: [{ Recipients: [Number(imei)], Sender: env.IPC_SENDER || "Maynard Tracker", Timestamp: new Date().toISOString(), Message: text }]
+        });
+      } else if (action === "trackingStart" || action === "trackingStop") {
+        await garminInbound(env, "POST", "/Tracking.svc/Tracking", {
+          Devices: [{ IMEI: Number(imei), Tracking: action === "trackingStart", Interval: action === "trackingStart" ? interval * 60 : 0 }]
+        });
+      } else {
+        const g = await garminInbound(env, "GET", "/Tracking.svc/Tracking?IMEI=" + imei);
+        const d = g && Array.isArray(g.Devices) ? g.Devices.find((x) => String(x.IMEI) === imei) : null;
+        if (!d) throw Object.assign(new Error("Garmin returned no tracking status for this device"), { status: 502 });
+        const rec = state[imei] || {};
+        rec.tracking = { active: d.Tracking === true, interval: d.Interval ? Math.round(d.Interval / 60) : null, time: Date.now(), source: "garmin" };
+        state[imei] = rec;
+        await env.RATE_LIMIT.put(IPC_STATE_KEY, JSON.stringify(state));
+      }
+    }
+    if (action === "trackingStart" || action === "trackingStop") {
+      const rec = state[imei] || {};
+      rec.tracking = { active: action === "trackingStart", interval: action === "trackingStart" ? interval : null, time: Date.now(), source: testMode ? "simulated" : "command" };
+      state[imei] = rec;
+      await env.RATE_LIMIT.put(IPC_STATE_KEY, JSON.stringify(state));
+      result.tracking = rec.tracking;
+    }
+    if (action === "trackingStatus") result.tracking = (state[imei] && state[imei].tracking) || null;
+    await ipcCmdLog(env, { ...entry, ok: true });
+    return json(result, 200);
+  } catch (e) {
+    await ipcCmdLog(env, { ...entry, ok: false, error: e.message });
+    return json({ error: e.message }, e.status === 401 || e.status === 403 ? 502 : (e.status && e.status < 600 ? e.status : 502));
+  }
+}
+
 // Passphrase-protected test tool; injection only works while mode is "test".
 async function ipcTest(request, env) {
   if (!env.RATE_LIMIT) return json({ error: "IPC not configured" }, 503);
@@ -277,15 +395,20 @@ async function ipcLocations(url, env) {
   if (!imeis.length || imeis.length > IPC_MAX_DEVICES || !imeis.every((i) => /^\d{15}$/.test(i))) {
     return json(param ? { error: "imeis must be comma-separated 15-digit IMEIs" } : { locations: [] }, param ? 400 : 200);
   }
-  const locations = imeis.filter((i) => state[i] && state[i].timestamp).map((i) => {
+  const locations = imeis.filter((i) => state[i] && (state[i].timestamp || state[i].history || state[i].tracking)).map((i) => {
     const r = state[i];
     return {
       imei: i,
-      timestamp: new Date(r.timestamp).toISOString(),
-      coordinate: { latitude: r.latitude, longitude: r.longitude },
+      timestamp: r.timestamp ? new Date(r.timestamp).toISOString() : null,
+      coordinate: r.timestamp ? { latitude: r.latitude, longitude: r.longitude } : null,
       altitude: r.altitude, speed: r.speed, course: r.course, gpsFixStatus: r.gpsFix,
       lowBattery: r.lowBattery === true, inEmergency: r.inEmergency === true,
-      text: r.text || null, textTime: r.textTime || null, messageType: r.msgType || (r.text ? "text" : null)
+      text: r.text && (r.textTime || 0) > (r.clearedAt || 0) ? r.text : null,
+      textTime: r.textTime || null,
+      messageType: r.text && (r.textTime || 0) > (r.clearedAt || 0) ? (r.msgType || "text") : null,
+      clearedAt: r.clearedAt || 0,
+      history: (r.history || []).filter((h) => h.time > (r.clearedAt || 0)),
+      tracking: r.tracking || null
     };
   });
   return new Response(JSON.stringify({ locations }), {
@@ -666,6 +789,12 @@ export default {
       try { res = await ipcReceive(request, env); } catch (e) { res = json({ error: "Server error" }, 500); }
       try { await ipcLog(env, request, res); } catch (e) { /* logging is best effort */ }
       return res;
+    }
+    if (request.method === "POST" && pathname === "/ipc/command") {
+      try {
+        if (!(await passphraseOk(request, env))) return json({ error: "Unauthorized" }, 401);
+        return await ipcCommand(request, env);
+      } catch (e) { return json({ error: "Server error" }, 500); }
     }
     if (request.method === "POST" && pathname === "/ipc/test") {
       try {

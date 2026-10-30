@@ -32,6 +32,7 @@
   const manageRoutes = (op, passphrase) => post("/routes/manage", passphrase, op);
 
   const ipcTest = (op, passphrase) => post("/ipc/test", passphrase, op);
+  const ipcCommand = (op, passphrase) => post("/ipc/command", passphrase, op);
 
-  global.MaynardGithubSave = { commitSettingsJson, verifyPassphrase, manageRoutes, ipcTest };
+  global.MaynardGithubSave = { commitSettingsJson, verifyPassphrase, manageRoutes, ipcTest, ipcCommand };
 })(window);

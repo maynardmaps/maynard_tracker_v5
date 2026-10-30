@@ -39,6 +39,9 @@
     try {
       await MaynardGithubSave.verifyPassphrase(entered);
       passphrase = entered;
+      MaynardMessaging.mount(document.getElementById("messaging-root"), {
+        devices: settings.devices || [], passphrase: () => passphrase, testTools: false
+      });
       document.getElementById("locked-overlay").style.display = "none";
       document.getElementById("config-form").style.display = "block";
     } catch (e) {

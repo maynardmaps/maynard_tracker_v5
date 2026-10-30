@@ -129,6 +129,28 @@ Test harness requirements:
 3) The harness should provide a way to register and unregister IMEIs to test the handling of unregistered devices.
 4) The harness should log all simulated events and their handling by the map for verification purposes.
 5) The test harness should allow a user to specify a team and a route and simulate the team moving around the route at 60mph sending position reports every 10s via the simulated outbound API. The team should send a free text message reading "first turn" at the first turn, puck message 1 at the second turn, puck message 2 at the third turn, and puck message 3 at the fourth turn. At the last point of the route, the team should send an SOS.
+6) The test harness should include a messaging and tracking control section (the same panel as the configuration Messaging tab, plus test aids) that works against simulated data in Test mode.
+7) It should allow messages of each type (free text, puck 1-3, SOS, SOS cancel) to be injected for a team, and verify that only the last 3 appear newest first, with the correct type styling, and that clearing a team's history empties it without affecting its position.
+8) It should allow sending a text message to a team and force starting (with an interval), force stopping and querying tracking for a team, verifying that the displayed tracking status changes accordingly and that no request is made to Garmin in Test mode.
+9) It should provide a toggle to simulate a Garmin failure for the next command, to verify the failure feedback shown to the user, and validation errors (empty or over-long message, invalid interval, unregistered IMEI in Normal mode).
+10) It should show a command log of every message and tracking command with its mode, result and any error, which can be cleared.
+11) When Test mode is active, the map page must show a clear, always-visible banner (e.g. "TEST MODE - data may be simulated") so test data cannot be mistaken for real team positions; the banner is absent in Normal mode.
 
 Messaging requirements:
 1) The user requires a messaging tab on the configuration page.
+2) The messaging tab should display the last 3 received messages for each team, including the message content, type, and timestamp.
+3) The messaging tab should allow the user to clear the message history for each team.
+4) The messaging tab should visually differentiate between different message types, such as free-text messages, puck messages, and SOS messages.
+5) The messaging tab should update in real-time as new messages are received from the simulated or real outbound API or KML feed.
+6) The messaging tab should allow the user to send outbound messages to the selected team, specifying the message type and content via the inbound API.
+7) The messaging tab should provide feedback to the user on the success or failure of sending outbound messages.
+8) The messaging tab should allow the user to force-start tracking for a selected team.
+9) The messaging tab should allow the user to force-stop tracking for a selected team.
+10) The messaging tab should allow the user to view the current tracking status of each team, including whether tracking is active or stopped.
+
+Note - messaging and tracking control (Garmin IPC Inbound):
+- Messaging and tracking commands go through the Worker (POST /ipc/command, passphrase protected); the Garmin Inbound API key is never exposed to the browser.
+- Uses version 1 of the Garmin IPC Inbound API (https://explore.garmin.com/ipcinbound/V1, docs at https://explore.garmin.com/IPCInbound/docs/) with HTTP Basic authentication using the Portal Connect account credentials. Store them as Worker secrets: npx wrangler secret put IPC_INBOUND_USER and npx wrangler secret put IPC_INBOUND_PASSWORD.
+- Send message = POST /V1/Messaging.svc/Message (Recipients [IMEI], Sender, Timestamp, Message text up to 160 characters). Force start/stop tracking = POST /V1/Tracking.svc/Tracking (IMEI, Tracking true/false, Interval in seconds; the page takes minutes). Tracking status query = GET /V1/Tracking.svc/Tracking?IMEI=. Tracking status is also kept from received track start/stop events (codes 10-12) and from commands sent from this page.
+- Garmin delivers outbound messages and tracking changes over Iridium and bills them to the device plan, so in Test mode these commands are simulated by the Worker and never sent to Garmin. The Worker keeps the last 3 received messages per team and a command log (last 30).
+- Only the Text message type can be sent to a device; puck and SOS messages are received only.

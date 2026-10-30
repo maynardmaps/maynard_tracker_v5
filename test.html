@@ -63,6 +63,12 @@
       </div>
 
       <div class="config-section">
+        <h2>Messaging and tracking control</h2>
+        <p class="status-msg">In Test mode, sending a message and force start/stop tracking are simulated (nothing is sent to Garmin or billed); the tracking state is stored and shown. Use the failure toggle to check error feedback. Events injected above with message types appear in the history.</p>
+        <div id="t-msg-root"></div>
+      </div>
+
+      <div class="config-section">
         <h2>Fallback test</h2>
         <p class="status-msg">Clearing stored positions removes all push data, so the map falls back to the MapShare KML feed.</p>
         <button type="button" id="t-clear" class="danger">Clear stored positions</button>
@@ -87,6 +93,7 @@
   <script src="https://unpkg.com/togeojson@0.16.0/togeojson.js" integrity="sha384-dlcQC0RqbD5hkW9dIHtouEHEP0tHnSuyKco85aJB5jdtbDseEsx4T3Jaa0lHs5ae" crossorigin="anonymous"></script>
   <script src="js/app-config.js"></script>
   <script src="js/github-save.js"></script>
+  <script src="js/messaging-panel.js"></script>
   <script src="js/test-page.js"></script>
 </body>
 </html>

@@ -33,6 +33,13 @@
 
     await loadRouteFolder(settings.defaultRouteFolder);
 
+    if (settings.mode === "test") {
+      const banner = document.createElement("div");
+      banner.id = "test-mode-banner";
+      banner.setAttribute("role", "status");
+      banner.textContent = "TEST MODE - data on this map may be simulated";
+      document.body.appendChild(banner);
+    }
     MaynardUtils.diag("Mode", true, settings.mode === "test" ? "TEST mode (unregistered devices and test injection allowed)" : "normal mode");
     MaynardKmlMarkers.start(map, {
       relayUrl: window.MAYNARD_CONFIG.garminRelayUrl,
