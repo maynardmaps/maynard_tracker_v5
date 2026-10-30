@@ -128,4 +128,7 @@ Test harness requirements:
 2) It should allow toggling between successful and failed push events, and injecting events with older or newer timestamps than the KML feed, to test that the newest data wins and the KML takes over when the push feed stops.
 3) The harness should provide a way to register and unregister IMEIs to test the handling of unregistered devices.
 4) The harness should log all simulated events and their handling by the map for verification purposes.
+5) The test harness should allow a user to specify a team and a route and simulate the team moving around the route at 60mph sending position reports every 10s via the simulated outbound API. The team should send a free text message reading "first turn" at the first turn, puck message 1 at the second turn, puck message 2 at the third turn, and puck message 3 at the fourth turn. At the last point of the route, the team should send an SOS.
 
+Messaging requirements:
+1) The user requires a messaging tab on the configuration page.

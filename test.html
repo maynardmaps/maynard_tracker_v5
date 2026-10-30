@@ -50,6 +50,19 @@
       </div>
 
       <div class="config-section">
+        <h2>Route simulation</h2>
+        <p class="status-msg">The selected team drives the chosen route at 60 mph, sending a position report every 10 s. It sends "first turn" (free text) at the first turn, puck message 1, 2 and 3 at the second, third and fourth turns, and an SOS at the end of the route. Uses the Device selected above.</p>
+        <div class="field-row"><label class="field-label" for="r-route">Route</label><select id="r-route"></select></div>
+        <div class="field-row"><label class="field-label" for="r-speedup">Speed-up</label>
+          <select id="r-speedup"><option value="1">1x (real time)</option><option value="6">6x</option><option value="30">30x</option></select></div>
+        <div class="rm-actions">
+          <button type="button" id="r-start">Start route simulation</button>
+          <button type="button" id="r-stop" disabled>Stop</button>
+        </div>
+        <p id="r-status" class="status-msg"></p>
+      </div>
+
+      <div class="config-section">
         <h2>Fallback test</h2>
         <p class="status-msg">Clearing stored positions removes all push data, so the map falls back to the MapShare KML feed.</p>
         <button type="button" id="t-clear" class="danger">Clear stored positions</button>
@@ -71,6 +84,7 @@
       </div>
     </div>
   </div>
+  <script src="https://unpkg.com/togeojson@0.16.0/togeojson.js" integrity="sha384-dlcQC0RqbD5hkW9dIHtouEHEP0tHnSuyKco85aJB5jdtbDseEsx4T3Jaa0lHs5ae" crossorigin="anonymous"></script>
   <script src="js/app-config.js"></script>
   <script src="js/github-save.js"></script>
   <script src="js/test-page.js"></script>

@@ -83,6 +83,143 @@
     } catch (e) { logLine("Could not load settings.json"); }
   }
 
+  // ---- Route simulation ----
+  const STEP_SECONDS = 10;
+  const STEP_METRES = 26.8224 * STEP_SECONDS; // 60 mph
+  const TURN_DEGREES = 40;
+  const TURN_MIN_GAP_M = 200;
+  const R = 6371000;
+  const rad = (d) => d * Math.PI / 180;
+
+  function distM(a, b) {
+    const dLat = rad(b[0] - a[0]), dLon = rad(b[1] - a[1]);
+    const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a[0])) * Math.cos(rad(b[0])) * Math.sin(dLon / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(h));
+  }
+  function bearing(a, b) {
+    const y = Math.sin(rad(b[1] - a[1])) * Math.cos(rad(b[0]));
+    const x = Math.cos(rad(a[0])) * Math.sin(rad(b[0])) - Math.sin(rad(a[0])) * Math.cos(rad(b[0])) * Math.cos(rad(b[1] - a[1]));
+    return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+  }
+
+  // pts: [[lat, lon], ...]. Returns cumulative distances, the points (tiny
+  // segments dropped) and the cumulative distances of the first turns.
+  function analyseRoute(raw) {
+    const pts = [raw[0]];
+    raw.forEach((p) => { if (distM(pts[pts.length - 1], p) >= 25) pts.push(p); });
+    if (distM(pts[pts.length - 1], raw[raw.length - 1]) > 0) pts.push(raw[raw.length - 1]);
+    const cum = [0];
+    for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + distM(pts[i - 1], pts[i]));
+    const turns = [];
+    for (let i = 1; i < pts.length - 1; i++) {
+      let d = Math.abs(bearing(pts[i - 1], pts[i]) - bearing(pts[i], pts[i + 1]));
+      if (d > 180) d = 360 - d;
+      if (d >= TURN_DEGREES && (!turns.length || cum[i] - turns[turns.length - 1] >= TURN_MIN_GAP_M)) turns.push(cum[i]);
+    }
+    return { pts, cum, turns, total: cum[cum.length - 1] };
+  }
+
+  function pointAt(a, dist) {
+    if (dist <= 0) return a.pts[0];
+    if (dist >= a.total) return a.pts[a.pts.length - 1];
+    let i = 1;
+    while (a.cum[i] < dist) i++;
+    const f = (dist - a.cum[i - 1]) / ((a.cum[i] - a.cum[i - 1]) || 1);
+    const p = a.pts[i - 1], q = a.pts[i];
+    return [p[0] + (q[0] - p[0]) * f, p[1] + (q[1] - p[1]) * f];
+  }
+
+  // One entry per 10 s step; turn messages land on the first step at or after each turn.
+  function buildSteps(a) {
+    const script = [{ code: 3, text: "first turn" }, { code: 14 }, { code: 15 }, { code: 16 }];
+    const steps = [];
+    let next = 0;
+    for (let d = 0; d < a.total; d += STEP_METRES) {
+      const [lat, lon] = pointAt(a, d);
+      const s = { lat, lon, code: 0 };
+      if (next < script.length && next < a.turns.length && d + STEP_METRES > a.turns[next]) Object.assign(s, script[next++]);
+      steps.push(s);
+    }
+    const [lat, lon] = a.pts[a.pts.length - 1];
+    steps.push({ lat, lon, code: 4, text: "SOS" });
+    return { steps, turnsFound: Math.min(a.turns.length, script.length) };
+  }
+
+  async function loadManifest() {
+    const base = (window.MAYNARD_CONFIG.garminRelayUrl || "").replace(/\/$/, "");
+    try {
+      const res = await fetch(base + "/routes", { cache: "no-store" });
+      if (res.ok) { const m = await res.json(); if (m && m.folders) return m; }
+    } catch (e) { /* fall back to static manifest */ }
+    return (await fetch(window.MAYNARD_CONFIG.routesManifestUrl, { cache: "no-store" })).json();
+  }
+
+  async function loadRouteList() {
+    try {
+      const m = await loadManifest();
+      const opts = [];
+      Object.keys(m.folders).sort().forEach((f) => m.folders[f].forEach((file) => {
+        opts.push(`<option value="${encodeURIComponent(f)}/${encodeURIComponent(file)}">${f} / ${file}</option>`.replace(/&(?!amp;)/g, "&amp;"));
+      }));
+      $("r-route").innerHTML = opts.join("") || '<option value="">(no routes)</option>';
+    } catch (e) { logLine("Could not load route list: " + e.message); }
+  }
+
+  async function loadRoutePoints(path) {
+    const text = await (await fetch("routes/" + path, { cache: "no-store" })).text();
+    const xml = new DOMParser().parseFromString(text, "text/xml");
+    const gj = /\.gpx$/i.test(path) ? toGeoJSON.gpx(xml) : toGeoJSON.kml(xml);
+    let best = [];
+    gj.features.forEach((f) => {
+      const g = f.geometry;
+      if (!g) return;
+      const lines = g.type === "LineString" ? [g.coordinates] : g.type === "MultiLineString" ? g.coordinates : [];
+      lines.forEach((l) => { if (l.length > best.length) best = l; });
+    });
+    return best.map((c) => [c[1], c[0]]);
+  }
+
+  function stopRoute(msg) {
+    stopWalk();
+    $("r-start").disabled = false;
+    $("r-stop").disabled = true;
+    if (msg) $("r-status").textContent = msg;
+  }
+
+  async function startRoute() {
+    const imei = currentImei();
+    const path = $("r-route").value;
+    if (!imei || !path) { logLine("Choose a device and a route first"); return; }
+    $("r-status").textContent = "Loading route...";
+    let sim;
+    try {
+      const raw = await loadRoutePoints(path.split("/").map(decodeURIComponent).join("/"));
+      if (raw.length < 2) throw new Error("no line found in the route file");
+      const a = analyseRoute(raw);
+      sim = buildSteps(a);
+      logLine(`Route ${decodeURIComponent(path)}: ${(a.total / 1000).toFixed(2)} km, ${sim.steps.length} reports, ${a.turns.length} turn(s) detected`);
+      if (sim.turnsFound < 4) logLine(`Only ${sim.turnsFound} of the 4 turn messages can be sent on this route`);
+    } catch (e) { $("r-status").textContent = "Could not load route: " + e.message; return; }
+
+    const interval = STEP_SECONDS * 1000 / Number($("r-speedup").value || 1);
+    let n = 0;
+    $("r-start").disabled = true;
+    $("r-stop").disabled = false;
+    $("t-walk").disabled = true;
+    $("t-stop").disabled = false;
+    const tick = async () => {
+      const s = sim.steps[n++];
+      $("r-status").textContent = `Step ${n} of ${sim.steps.length}`;
+      try {
+        await call({ action: "inject", events: [makeEvent(imei, s.lat, s.lon, s.code, s.text, false)] });
+        logLine(`Route step ${n}/${sim.steps.length}: code ${s.code}${s.text ? ' "' + s.text + '"' : ""} at ${s.lat.toFixed(5)}, ${s.lon.toFixed(5)}`);
+      } catch (e) { stopRoute("Stopped: " + e.message); return; }
+      if (n >= sim.steps.length) stopRoute("Route simulation finished (SOS sent).");
+    };
+    tick();
+    if (n < sim.steps.length) walkTimer = setInterval(tick, interval);
+  }
+
   async function unlock() {
     const entered = $("test-password").value;
     $("password-status").textContent = "Checking...";
@@ -92,6 +229,7 @@
       $("locked-overlay").style.display = "none";
       $("test-form").style.display = "";
       await loadDevices();
+      loadRouteList();
       refreshLog();
     } catch (e) {
       $("password-status").textContent = e.status === 401 ? "Incorrect password." : "Could not verify (" + e.message + ").";
@@ -103,6 +241,8 @@
   $("t-send").addEventListener("click", () => send(Number($("t-lat").value), Number($("t-lon").value)).catch(() => {}));
   $("t-walk").addEventListener("click", startWalk);
   $("t-stop").addEventListener("click", stopWalk);
+  $("r-start").addEventListener("click", startRoute);
+  $("r-stop").addEventListener("click", () => stopRoute("Stopped."));
   $("t-clear").addEventListener("click", () => call({ action: "clear" }).then(() => logLine("Cleared stored positions")).catch(() => {}));
   $("t-log-refresh").addEventListener("click", refreshLog);
   $("t-log-clear").addEventListener("click", () => call({ action: "clearLog" }).then(refreshLog).catch(() => {}));
