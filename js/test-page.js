@@ -21,11 +21,11 @@
 
   function makeEvent(imei, lat, lon, code, text, low) {
     const ev = {
-      imei, messageCode: code, timeStamp: Date.now(),
+      imei, messageCode: code, timeStamp: Date.now() - Math.max(0, Number($("t-age").value) || 0) * 60000,
       point: { latitude: lat, longitude: lon, altitude: 100, gpsFix: 2, course: 0, speed: 0 },
       status: { autonomous: 0, lowBattery: low ? 1 : 0, intervalChange: 0, resetDetected: 0 }
     };
-    if (code === 3) ev.freeText = text;
+    if (code === 3 || code === 4) ev.freeText = text;
     return ev;
   }
 

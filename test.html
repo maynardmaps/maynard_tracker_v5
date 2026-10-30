@@ -33,10 +33,14 @@
           <select id="t-code">
             <option value="0">Position report</option>
             <option value="3">Free-text message</option>
+            <option value="14">Puck message 1 (All ok)</option>
+            <option value="15">Puck message 2 (assistance needed)</option>
+            <option value="16">Puck message 3 (urgent assistance)</option>
             <option value="4">SOS declared</option>
             <option value="7">SOS cancelled</option>
           </select></div>
         <div class="field-row"><label class="field-label" for="t-text">Message</label><input type="text" id="t-text" maxlength="160" value="Test message" /></div>
+        <div class="field-row"><label class="field-label" for="t-age">Minutes ago</label><input type="number" id="t-age" min="0" step="1" value="0" /></div>
         <div class="field-row"><label><input type="checkbox" id="t-low" /> Low battery</label></div>
         <div class="rm-actions">
           <button type="button" id="t-send">Send event</button>

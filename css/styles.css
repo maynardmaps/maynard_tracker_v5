@@ -309,3 +309,9 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .river-arrow { background: none; border: 0; }
 .river-arrow svg { display: block; }
 .river-dot { display: block; width: 8px; height: 8px; margin: 5px; border-radius: 50%; border: 1px solid #fff; }
+
+.team-message span { display: flex; align-items: center; justify-content: center; width: 22px; height: 16px; border: 1.5px solid #222; border-radius: 2px; box-sizing: border-box; color: #000; font: 12px/1 sans-serif; box-shadow: 0 1px 3px rgba(0,0,0,.4); cursor: pointer; }
+.team-message-sos span { width: 34px; height: 20px; background: #e00; color: #fff; border: 2px solid #fff; font: bold 12px/1 sans-serif; animation: sos-pulse 1s infinite alternate; }
+.team-message-urgent span { border-color: #e00; border-width: 2px; font-weight: bold; }
+@keyframes sos-pulse { from { transform: scale(1); } to { transform: scale(1.25); } }
+@media (prefers-reduced-motion: reduce) { .team-message-sos span { animation: none; } }

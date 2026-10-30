@@ -25,7 +25,7 @@
         .map(markerKey)
     )];
     const colours = MaynardUtils.assignColours(keys, markerPalette);
-    return L.geoJson(geojson, {
+    const geo = L.geoJson(geojson, {
       pointToLayer(feature, latlng) {
         const c = colours.get(markerKey(feature));
         const em = String((feature.properties || {})["In Emergency"]).toLowerCase() === "true";
@@ -40,6 +40,35 @@
         layer.bindPopup(buildPopupHtml(feature.properties || {}, feature.geometry && feature.geometry.coordinates), { maxWidth: 320 });
       }
     });
+    // Envelope beside each team that has sent a message, in the team's colour;
+    // separate from the position marker and opens the message.
+    const group = L.featureGroup([geo]);
+    geojson.features.forEach((f) => {
+      const p = f.properties || {};
+      const type = p["Message Type"] || (String(p.Text || "").trim() ? "text" : "");
+      if (!f.geometry || f.geometry.type !== "Point" || isUnregistered(f) || !type) return;
+      const em = String(p["In Emergency"]).toLowerCase() === "true";
+      const [lng, lat] = f.geometry.coordinates;
+      const name = markerKey(f);
+      const sos = type === "sos";
+      const body = type === "sos" ? "SOS" + (p.Text ? " - " + String(p.Text).trim() : "")
+        : type === "sos-cancelled" ? "SOS cancelled" + (p.Text ? " - " + String(p.Text).trim() : "")
+        : String(p.Text || "").trim();
+      const html = `<div class="kml-popup"><strong>${escapeHtml(name)} - last message</strong>` +
+        (sos ? '<div class="kml-popup-emergency">SOS</div>' : "") +
+        `<div class="kml-popup-desc">${escapeHtml(body)}</div>` +
+        (p["Message Time"] ? `<div>${escapeHtml(p["Message Time"])}</div>` : "") + "</div>";
+      L.marker([lat, lng], {
+        icon: L.divIcon({
+          className: "team-message" + (sos ? " team-message-sos" : "") + (type === "urgent" ? " team-message-urgent" : ""),
+          html: `<span style="background:${sos ? "#e00" : colours.get(name)}" title="Last message from ${escapeHtml(name)}">${sos ? "SOS" : type === "urgent" ? "&#9993;!" : "&#9993;"}</span>`,
+          iconSize: sos ? [34, 20] : [22, 16], iconAnchor: [em ? -24 : -6, 22]
+        }),
+        alt: "Last message from " + name,
+        zIndexOffset: sos ? 1000 : 0
+      }).bindPopup(html, { maxWidth: 320 }).addTo(group);
+    });
+    return group;
   }
 
   // Fields shown first, in this order; any other non-empty KML field follows.
@@ -47,6 +76,7 @@
     ["Time", "Time"],
     ["Time UTC", "Time (UTC)"],
     ["Text", "Message"],
+    ["Message Time", "Message time"],
     ["Note", "Note"],
     ["Event", "Event"],
     ["Latitude", "Latitude"],
@@ -60,7 +90,7 @@
     ["Device Type", "Device type"]
   ];
   // Internal/duplicate fields not worth showing.
-  const POPUP_HIDDEN = new Set(["Map Display Name", "Unregistered", "SpatialRefSystem", "Incident Id", "Device Identifier"]);
+  const POPUP_HIDDEN = new Set(["Map Display Name", "Unregistered", "Message Type", "SpatialRefSystem", "Incident Id", "Device Identifier"]);
 
   // Opens the phone's native map app: Apple Maps on iOS, geo: intent on Android,
   // Google Maps web URL elsewhere.
@@ -99,7 +129,7 @@
     };
     POPUP_FIELDS.forEach(([k, l]) => add(k, l));
     Object.keys(props).forEach((k) => {
-      if (!shown.has(k) && !POPUP_HIDDEN.has(k) && !EXCLUDED_PROPS.has(k)) add(k, k);
+      if (!shown.has(k) && !POPUP_HIDDEN.has(k) && !EXCLUDED_PROPS.has(k) && k[0] !== "_") add(k, k);
     });
 
     const emergency = String(props["In Emergency"]).toLowerCase() === "true";
@@ -160,12 +190,16 @@
         "Longitude": l.coordinate.longitude,
         "Elevation": l.altitude != null ? l.altitude + " m" : "",
         "Velocity": l.speed != null ? l.speed + " km/h" : "",
-        "Course": l.course != null ? l.course + " ° True" : "",
+        "Course": l.course != null ? l.course + " ï¿½ True" : "",
         "In Emergency": l.inEmergency === true ? "True" : "False",
         "Text": l.text || "",
+        "Message Time": l.textTime ? new Date(l.textTime).toLocaleString() : "",
+        "Message Type": l.messageType || "",
         "Note": known ? "" : "Unregistered device (IMEI " + imei + ")",
         "Battery": l.lowBattery ? "Low" : "",
-        "Unregistered": known ? "false" : "true"
+        "Unregistered": known ? "false" : "true",
+        "_posTime": Date.parse(l.timestamp) || 0,
+        "_msgTime": l.textTime || 0
       };
       (known ? registered : unregistered).push({
         type: "Feature", properties: props,
@@ -175,35 +209,93 @@
     return { registered, unregistered };
   }
 
+  // KML time fields look like "10/30/2026 9:57:12 PM" (UTC in "Time UTC").
+  function kmlTimeMs(props) {
+    const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2}):(\d{2})\s*([AP]M)?$/i.exec(String(props["Time UTC"] || "").trim());
+    if (m) {
+      let h = Number(m[4]) % 12;
+      if (/^P/i.test(m[7] || "")) h += 12;
+      else if (!m[7]) h = Number(m[4]);
+      return Date.UTC(Number(m[3]), Number(m[1]) - 1, Number(m[2]), h, Number(m[5]), Number(m[6]));
+    }
+    const t = Date.parse(props.timestamp || props.when || props.begin || "");
+    return isNaN(t) ? 0 : t;
+  }
+
+  // Per team, show the newest position and the newest message across the push
+  // feed and the MapShare KML, so whichever source is current wins and a silent
+  // failure of one is covered by the other.
+  function mergeTeams(ipcFeatures, kmlFeatures, devices) {
+    const names = new Map(devices.map((d) => [d.imei, d.name]));
+    const teams = new Map();
+    const others = [];
+    const slot = (key) => { if (!teams.has(key)) teams.set(key, {}); return teams.get(key); };
+    ipcFeatures.forEach((f) => { slot(markerKey(f)).ipc = f; });
+    kmlFeatures.forEach((f) => {
+      if (!f.geometry || f.geometry.type !== "Point") { others.push(f); return; }
+      const p = f.properties || {};
+      const key = names.get(String(p.IMEI || p.Id || "").trim()) || markerKey(f);
+      const t = slot(key);
+      if (!t.kml || kmlTimeMs(p) > kmlTimeMs(t.kml.properties || {})) t.kml = f;
+    });
+
+    const out = [];
+    let fromIpc = 0, fromKml = 0;
+    teams.forEach((t, key) => {
+      const i = t.ipc, k = t.kml;
+      const ip = i ? i.properties : null, kp = k ? k.properties : null;
+      const iPos = ip ? ip._posTime || 0 : -1, kPos = kp ? kmlTimeMs(kp) : -1;
+      const posSrc = iPos >= kPos ? i : k;
+      const hasText = (p) => p && String(p.Text || "").trim() !== "";
+      const iMsg = hasText(ip) ? ip._msgTime || 0 : -1;
+      const kMsg = hasText(kp) ? kPos : -1;
+      const msgSrc = iMsg < 0 && kMsg < 0 ? null : (iMsg >= kMsg ? i : k);
+      const props = Object.assign({}, posSrc.properties, { "Map Display Name": key });
+      delete props._posTime; delete props._msgTime;
+      const mp = msgSrc && msgSrc.properties;
+      props.Text = mp ? mp.Text : "";
+      props["Message Time"] = mp ? (msgSrc === i ? mp["Message Time"] : mp.Time || "") : "";
+      props["Message Type"] = mp ? (msgSrc === i ? mp["Message Type"] : "text") : "";
+      const iLatest = ip ? Math.max(iPos, iMsg) : -1, kLatest = kp ? kPos : -1;
+      props["In Emergency"] = (iLatest >= kLatest ? ip : kp)["In Emergency"];
+      props["Position source"] = posSrc === i ? "Garmin push" : "MapShare KML";
+      if (posSrc === i) fromIpc++; else fromKml++;
+      out.push({ type: "Feature", properties: props, geometry: posSrc.geometry });
+    });
+    return { features: out.concat(others), fromIpc, fromKml };
+  }
+
   async function refresh(map, relayUrl, devices) {
     let ipc = { registered: [], unregistered: [] };
     let ipcError = null;
-    let relayError = null;
-    try { ipc = await fetchIpc(relayUrl, devices || []); } catch (e) { ipcError = e.message; }
-
-    let features = ipc.registered;
-    let source = "Garmin IPC Outbound push (via Worker)";
-    if (!features.length) {
+    let kmlError = null;
+    let kmlFeatures = [];
+    const [ipcRes, kmlRes] = await Promise.allSettled([
+      fetchIpc(relayUrl, devices || []),
+      MaynardUtils.fetchText(relayUrl, { timeoutMs: 15000, cache: "no-store" })
+    ]);
+    if (ipcRes.status === "fulfilled") ipc = ipcRes.value; else ipcError = ipcRes.reason.message;
+    if (kmlRes.status === "fulfilled") {
       try {
-        const raw = await MaynardUtils.fetchText(relayUrl, { timeoutMs: 15000, cache: "no-store" });
-        const gj = kmlTextToGeojson(raw);
+        const gj = kmlTextToGeojson(kmlRes.value);
         if (!gj || !gj.features || !gj.features.length) throw new Error("no features returned");
-        features = gj.features;
-        source = "Cloudflare Worker relay (MapShare)" + (ipcError ? " - push feed failed: " + ipcError : " - no push data yet");
-      } catch (e) {
-        relayError = e.message;
-      }
-    }
-    features = features.concat(ipc.unregistered);
+        kmlFeatures = gj.features;
+      } catch (e) { kmlError = e.message; }
+    } else kmlError = kmlRes.reason.message;
 
-    if (relayError && !features.length) {
-      console.warn("KML marker refresh failed (will retry)", relayError);
-      MaynardUtils.diag("Garmin", false, "all sources failed: " + (ipcError ? "push feed: " + ipcError + "; " : "") + "relay: " + relayError);
+    if (ipcError && kmlError) {
+      console.warn("Team position refresh failed (will retry)", ipcError, kmlError);
+      MaynardUtils.diag("Garmin", false, "all sources failed: push feed: " + ipcError + "; MapShare KML: " + kmlError);
       MaynardUtils.setStatus("garmin", layerGroup ? "Team positions could not be updated (showing last known)" : "Team positions unavailable");
       return;
     }
     MaynardUtils.setStatus("garmin", null);
-    MaynardUtils.diag("Garmin", !ipcError && !relayError, "via " + source + (ipc.unregistered.length ? "; " + ipc.unregistered.length + " unregistered device(s)" : ""));
+    const merged = mergeTeams(ipc.registered, kmlFeatures, devices || []);
+    const features = merged.features.concat(ipc.unregistered);
+    MaynardUtils.diag("Garmin", !ipcError && !kmlError,
+      `newest data per team: ${merged.fromIpc} from push feed, ${merged.fromKml} from MapShare KML` +
+      (ipcError ? "; push feed failed: " + ipcError : "") + (kmlError ? "; MapShare KML failed: " + kmlError : "") +
+      (ipc.unregistered.length ? "; " + ipc.unregistered.length + " unregistered device(s)" : ""));
     const sig = JSON.stringify(features);
     if (sig === lastRawKml) return; // unchanged
     lastRawKml = sig;

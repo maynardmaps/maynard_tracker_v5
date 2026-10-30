@@ -169,6 +169,22 @@ async function ipcReceive(request, env) {
   return json({ ok: true }, 200);
 }
 
+const IPC_PUCK = {
+  14: { type: "ok", text: "All ok" },
+  15: { type: "assist", text: "We're ok, but assistance needed" },
+  16: { type: "urgent", text: "Urgent Assistance required" }
+};
+
+// Maps an event to the "last message" shown on the map, or null if it carries none.
+function ipcMessage(code, freeText) {
+  const free = typeof freeText === "string" ? freeText.trim().slice(0, 500) : "";
+  if (code === 3 && free) return { type: "text", text: free };
+  if (IPC_PUCK[code]) return IPC_PUCK[code];
+  if (IPC_EMERGENCY_ON.has(code)) return { type: "sos", text: free };
+  if (code === 7) return { type: "sos-cancelled", text: free };
+  return null;
+}
+
 async function ipcApply(events, env, cfg, testMode) {
   const registered = new Set(cfg.imeis);
   let state = (await env.RATE_LIMIT.get(IPC_STATE_KEY, "json")) || {};
@@ -198,9 +214,12 @@ async function ipcApply(events, env, cfg, testMode) {
       if (st.lowBattery === 0 || st.lowBattery === 1) rec.lowBattery = st.lowBattery === 1;
       if (IPC_EMERGENCY_ON.has(code)) rec.inEmergency = true;
       else if (code === 7) rec.inEmergency = false;
-      if (code === 3 && typeof ev.freeText === "string" && ev.freeText) {
-        rec.text = ev.freeText.slice(0, 500);
-        rec.textTime = Number.isFinite(ts) ? ts : null;
+      const msg = ipcMessage(code, ev.freeText);
+      if (msg && (!rec.msgTime || !Number.isFinite(ts) || ts >= rec.msgTime)) {
+        rec.msgType = msg.type;
+        rec.text = msg.text;
+        rec.textTime = Number.isFinite(ts) ? ts : Date.now();
+        rec.msgTime = rec.textTime;
       }
       rec.updated = Date.now();
       state[imei] = rec;
@@ -266,7 +285,7 @@ async function ipcLocations(url, env) {
       coordinate: { latitude: r.latitude, longitude: r.longitude },
       altitude: r.altitude, speed: r.speed, course: r.course, gpsFixStatus: r.gpsFix,
       lowBattery: r.lowBattery === true, inEmergency: r.inEmergency === true,
-      text: r.text || null
+      text: r.text || null, textTime: r.textTime || null, messageType: r.msgType || (r.text ? "text" : null)
     };
   });
   return new Response(JSON.stringify({ locations }), {
