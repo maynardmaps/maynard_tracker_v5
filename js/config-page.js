@@ -383,19 +383,29 @@
   function buildMapSourceList() {
     const container = document.getElementById("map-source-list");
     container.innerHTML = "";
-    settings.mapSources.forEach((source) => container.appendChild(mapSourceRow(source)));
+    const first = settings.mapSources.find((s) => s.enabled);
+    settings.mapSources.forEach((source) => container.appendChild(mapSourceRow(source, first && first.id === source.id)));
   }
 
-  function mapSourceRow(source) {
+  function mapSourceRow(source, isDefault) {
     const row = document.createElement("div");
     row.className = "map-source-row";
     row.dataset.id = source.id;
     row.innerHTML =
       `<input type="checkbox" class="ms-enabled" ${source.enabled ? "checked" : ""} title="Available to map users" />` +
+      `<label class="ms-default-label" title="Map shown when the page opens"><input type="checkbox" class="ms-default" ${isDefault ? "checked" : ""} /> Default</label>` +
       `<input type="text" class="ms-name" value="${escapeAttr(source.name)}" placeholder="Display name" />` +
       `<input type="text" class="ms-url" value="${escapeAttr(source.url)}" placeholder="XYZ tile URL template, e.g. https://.../{z}/{x}/{y}.png" />` +
       `<button type="button" class="secondary ms-remove">Remove</button>`;
     row.querySelector(".ms-remove").addEventListener("click", () => row.remove());
+    const def = row.querySelector(".ms-default");
+    const en = row.querySelector(".ms-enabled");
+    def.addEventListener("change", () => {
+      if (!def.checked) { def.checked = true; return; }
+      en.checked = true;
+      document.querySelectorAll("#map-source-list .ms-default").forEach((o) => { if (o !== def) o.checked = false; });
+    });
+    en.addEventListener("change", () => { if (!en.checked && def.checked) { en.checked = true; } });
     return row;
   }
 
@@ -426,7 +436,11 @@
   }
 
   function collectMapSources() {
-    return [...document.querySelectorAll("#map-source-list .map-source-row")].map((row) => {
+    const rows = [...document.querySelectorAll("#map-source-list .map-source-row")];
+    // The default map is stored as the first enabled entry in the list.
+    const di = rows.findIndex((r) => r.querySelector(".ms-default").checked);
+    if (di > 0) rows.unshift(rows.splice(di, 1)[0]);
+    return rows.map((row) => {
       const existing = settings.mapSources.find((s) => s.id === row.dataset.id) || {};
       return {
         id: row.dataset.id,

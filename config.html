@@ -22,6 +22,11 @@
     </div>
 
     <div id="config-form" style="display:none;">
+      <details class="config-section" id="messaging-section">
+        <summary>Messaging</summary>
+        <div id="messaging-root"></div>
+      </details>
+
 
             <details class="config-section">
         <summary>Route management</summary>
@@ -126,11 +131,6 @@
         <p class="status-msg"><a href="test.html">Open the test tool</a> (also shows the Garmin delivery log).</p>
       </details>
 
-      <details class="config-section" id="messaging-section">
-        <summary>Messaging</summary>
-        <div id="messaging-root"></div>
-      </details>
-
       <details class="config-section">
         <summary>Device management</summary>
         <p class="status-msg">inReach devices (IMEI and display name) used for the direct Garmin API source. IMEIs are 15 digits.</p>
@@ -149,7 +149,7 @@
 
       <details class="config-section">
         <summary>Map sources</summary>
-        <p class="status-msg">Toggle which base layers are offered to map users, or add your own XYZ tile source.</p>
+        <p class="status-msg">Toggle which base layers are offered to map users, tick Default for the map shown on opening, or add your own XYZ tile source.</p>
         <div id="map-source-list"></div>
         <button type="button" class="secondary" id="add-map-source-btn" style="margin-top:0.6rem;">+ Add map source</button>
       </details>

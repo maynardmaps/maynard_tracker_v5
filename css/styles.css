@@ -226,7 +226,7 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .map-source-row {
   display: grid;
-  grid-template-columns: 24px 1fr 2fr auto;
+  grid-template-columns: 24px auto 1fr 2fr auto;
   gap: 0.5rem;
   align-items: center;
   padding: 0.3rem 0;

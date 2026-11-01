@@ -60,6 +60,7 @@ Configuration page requirements:
 8) The configuration page should provide a link to the github folder in which the project is stored.
 9) The configuration page should provide toggles for which map sources are available for the map user to select.
 10) Map sources should be displayed as a list on the configuration page, with the user able to add extra map sources to the list as needed.
+10a) Each map source in the list should have a Default checkbox (only one can be ticked, and it must be an enabled source) to choose the map shown when the map page opens. The configuration page should list Messaging as its first section.
 11) The configuration page should have a clear "save settings" button that applies all changes made by the user.
 12) Each configuration box should be collapsible and collapsed by default when the page opens.
 13) A "Device management" section should list the registered inReach devices (IMEI + short name, e.g. "TT1", without the "inReach Mini" prefix). The user can edit names, add devices (15-digit unique IMEI required) and delete devices (after confirmation); changes apply on "Save settings". Initial devices: 300434031477230=TT1, 300434031379170=TT2, 300434031470000=TT3, 300434031375980=TT4.
