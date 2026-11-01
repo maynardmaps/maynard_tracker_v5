@@ -13,6 +13,15 @@
   "startZoom": 12,
   "mapSources": [
     {
+      "id": "os-leisure",
+      "name": "OS Leisure (Ordnance Survey)",
+      "url": "https://api.os.uk/maps/raster/v1/zxy/Leisure_27700/{z}/{x}/{y}.png",
+      "attribution": "Contains OS data © Crown copyright and database rights",
+      "type": "os-27700",
+      "requiresKey": true,
+      "enabled": true
+    },
+    {
       "id": "osm",
       "name": "OpenStreetMap",
       "url": "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
@@ -28,15 +37,6 @@
       "attribution": "Tiles © Esri",
       "type": "xyz",
       "requiresKey": false,
-      "enabled": true
-    },
-    {
-      "id": "os-leisure",
-      "name": "OS Leisure (Ordnance Survey)",
-      "url": "https://api.os.uk/maps/raster/v1/zxy/Leisure_27700/{z}/{x}/{y}.png",
-      "attribution": "Contains OS data © Crown copyright and database rights",
-      "type": "os-27700",
-      "requiresKey": true,
       "enabled": true
     }
   ],
