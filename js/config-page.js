@@ -454,6 +454,52 @@
     });
   }
 
+  function canon(v) {
+    if (Array.isArray(v)) return v.map(canon);
+    if (v && typeof v === "object") {
+      const o = {};
+      Object.keys(v).sort().forEach((k) => { o[k] = canon(v[k]); });
+      return o;
+    }
+    return v;
+  }
+
+  // Live settings match when every key GitHub has published equals what was saved
+  // (the Worker may drop keys it does not whitelist).
+  function isLive(live, wanted) {
+    const subset = {};
+    Object.keys(live).forEach((k) => { subset[k] = wanted[k]; });
+    return JSON.stringify(canon(live)) === JSON.stringify(canon(subset));
+  }
+
+  let liveTimer = null;
+  function waitForLive(wanted, statusEl) {
+    clearInterval(liveTimer);
+    const started = Date.now();
+    const check = async () => {
+      try {
+        const res = await fetch("settings.json?t=" + Date.now(), { cache: "no-store" });
+        if (res.ok && isLive(await res.json(), wanted)) {
+          clearInterval(liveTimer);
+          statusEl.textContent = "Changes are live - reloading...";
+          statusEl.className = "status-msg ok";
+          setTimeout(() => location.reload(), 800);
+          return;
+        }
+      } catch (e) { /* keep waiting */ }
+      const secs = Math.round((Date.now() - started) / 1000);
+      if (Date.now() - started > 15 * 60 * 1000) {
+        clearInterval(liveTimer);
+        statusEl.textContent = "Committed, but not live after 15 minutes - check the GitHub Pages deployment, then reload.";
+        statusEl.className = "status-msg error";
+      } else {
+        statusEl.textContent = `Committed to GitHub - changes pending, waiting for the site to go live (${secs}s). Page will reload automatically.`;
+      }
+    };
+    liveTimer = setInterval(check, 10000);
+    check();
+  }
+
   async function onSave() {
     const statusEl = document.getElementById("save-status");
     statusEl.textContent = "Saving...";
@@ -493,8 +539,9 @@
     const result = await MaynardSettings.save(newSettings, passphrase);
     settings = newSettings;
     if (result.githubSaved) {
-      statusEl.textContent = "Saved locally and committed to GitHub.";
-      statusEl.className = "status-msg ok";
+      statusEl.textContent = "Committed to GitHub - changes pending until the site goes live (page will reload automatically)...";
+      statusEl.className = "status-msg";
+      waitForLive(newSettings, statusEl);
     } else if (result.localSaved) {
       statusEl.textContent = `Saved locally only (${result.reason}).`;
       statusEl.className = "status-msg";
