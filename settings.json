@@ -7,20 +7,11 @@
   },
   "defaultRouteFolder": "TT1",
   "startPoint": {
-    "lat": 50.523489,
-    "lng": -3.819772
+    "lat": 50.558626,
+    "lng": -3.964054
   },
   "startZoom": 12,
   "mapSources": [
-    {
-      "id": "os-leisure",
-      "name": "OS Leisure (Ordnance Survey)",
-      "url": "https://api.os.uk/maps/raster/v1/zxy/Leisure_27700/{z}/{x}/{y}.png",
-      "attribution": "Contains OS data © Crown copyright and database rights",
-      "type": "os-27700",
-      "requiresKey": true,
-      "enabled": true
-    },
     {
       "id": "osm",
       "name": "OpenStreetMap",
@@ -38,16 +29,25 @@
       "type": "xyz",
       "requiresKey": false,
       "enabled": true
+    },
+    {
+      "id": "os-leisure",
+      "name": "OS Leisure (Ordnance Survey)",
+      "url": "https://api.os.uk/maps/raster/v1/zxy/Leisure_27700/{z}/{x}/{y}.png",
+      "attribution": "Contains OS data © Crown copyright and database rights",
+      "type": "os-27700",
+      "requiresKey": true,
+      "enabled": true
     }
   ],
   "routeColours": [
     "#e6194b",
-    "#ff0000",
-    "#00ff00",
-    "#0000ff",
-    "#ff8c00",
-    "#8a0081",
-    "#00ffff",
+    "#3cb44b",
+    "#4363d8",
+    "#f58231",
+    "#911eb4",
+    "#46f0f0",
+    "#f032e6",
     "#9a6324"
   ],
   "markerColours": [
