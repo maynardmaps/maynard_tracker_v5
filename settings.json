@@ -79,7 +79,7 @@
     }
   ],
   "weatherEnabledByDefault": false,
-  "mode": "test",
+  "mode": "normal",
   "birdsRiversEnabledByDefault": false,
   "riverLevels": {
     "enabledByDefault": false,
