@@ -331,6 +331,8 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .msg-badge { display: inline-block; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; padding: 0 0.35rem; border-radius: 3px; background: #ddd; margin-right: 0.3rem; }
 .msg-send, .msg-track { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-bottom: 0.6rem; }
 .msg-send textarea { flex-basis: 100%; }
+.location-history-entry { border-top: 1px solid var(--panel-border); padding-top: 0.3rem; margin-top: 0.4rem; }
+.location-history-raw { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 16rem; overflow: auto; padding: 0.5rem; background: #f5f5f5; font-size: 0.75rem; }
 .msg-cmdlog { white-space: pre-wrap; font-size: 0.75rem; }
 
 #test-mode-banner { position: fixed; top: 0; left: 50%; transform: translateX(-50%); z-index: 2000; background: #c62828; color: #fff; font-weight: 700; letter-spacing: 0.05em; padding: 0.3rem 1rem; border-radius: 0 0 6px 6px; box-shadow: 0 2px 6px rgba(0,0,0,0.4); pointer-events: none; }

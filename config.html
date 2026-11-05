@@ -175,6 +175,14 @@
         <button id="save-btn">Save settings</button>
         <span id="save-status" class="status-msg"></span>
       </div>
+
+      <details class="config-section" id="location-history-section">
+        <summary>Location history</summary>
+        <p class="status-msg">The last five received position reports or messages per tracker, including the reported location and raw event payload. Diagnostic data is only available after unlocking this page.</p>
+        <button type="button" class="secondary" id="location-history-refresh">Refresh history</button>
+        <p id="location-history-status" class="status-msg" aria-live="polite"></p>
+        <div id="location-history-list"></div>
+      </details>
     </div>
   </div>
 

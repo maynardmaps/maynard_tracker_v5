@@ -49,7 +49,7 @@ Nothing sensitive is in this repo:
 | Met Office order id | Worker var `MET_ORDER_ID` in `worker/wrangler.toml` |
 | GitHub token (fine-grained PAT, this repo only, Contents: read/write) | Worker secret `GITHUB_TOKEN` |
 | Config page passphrase | Worker secret `CONFIG_PASSPHRASE` |
-| Garmin IPC Outbound token | Worker secret `IPC_OUTBOUND_TOKEN` (required in every mode; must match the Authorization token set in Garmin Portal Connect) |
+| Garmin IPC Outbound token | Worker secret `IPC_OUTBOUND_TOKEN` (required in every mode; must match the Authorization Token set in Garmin Portal Connect, sent in `X-Outbound-Auth-Token`) |
 | Garmin IPC Inbound credentials (V1, HTTP Basic) | Worker secrets `IPC_INBOUND_USER` and `IPC_INBOUND_PASSWORD` (optional `IPC_SENDER` sets the message sender name) |
 
 Set Worker secrets with `wrangler.cmd secret put <NAME>` and type the value at
@@ -140,7 +140,8 @@ wrangler.cmd deploy
 
 **Outbound (receiving).** In Garmin Portal Connect set the Outbound URL to
 `https://<your-worker>.workers.dev/ipc/outbound` (HTTP POST JSON, event schema V2+) with a static
-authorisation token equal to the Worker secret `IPC_OUTBOUND_TOKEN`. The Worker stores the latest
+authorisation token equal to the Worker secret `IPC_OUTBOUND_TOKEN` (Garmin sends this in the
+`X-Outbound-Auth-Token` header). The Worker also accepts `Authorization` for compatible clients. The Worker stores the latest
 position, last 3 messages (free text, puck 1-3, SOS, SOS cancel) with their location, emergency state and
 tracking state per registered IMEI in KV. The map reads `/ipc/locations` every 10 seconds
 (`garminPushPollIntervalMs`) and the MapShare KML every minute (`garminPollIntervalMs`); for each team the newest
@@ -149,13 +150,20 @@ timestamp wins, per position and per message. Full Garmin settings are in the No
 **Modes** (config page, "Operating mode"). *Normal*: only authenticated Garmin traffic for registered
 IMEIs is accepted. *Test*: unregistered IMEIs are also accepted, the test tool can inject false data, Inbound
 commands are simulated (nothing is sent to Garmin or billed), and the map shows a red "TEST MODE" banner.
-The token is required in both modes.
+The token is required in both modes. Garmin Portal Connect's Outbound SOS Test is accepted in Test mode
+for an unregistered fake IMEI; its test SOS at latitude 43, longitude -72 is exposed as an unregistered test
+marker/message.
 
-**Messaging tab** (config page, after unlocking). Shows each team's last 3 messages and tracking status, with
-Clear history, send text message, and force start / force stop / query tracking. Commands go through the
+**Messaging tab** (config page, after unlocking). Shows each team's last 3 messages and tracking status, plus
+an "Unregistered trackers" entry while Test mode data is present. Clear history, send text message, and force start / force stop / query tracking. Commands go through the
 passphrase-protected `POST /ipc/command`, which calls Garmin IPC Inbound **V1**
 (`https://explore.garmin.com/ipcinbound/V1`: `Messaging.svc/Message`, `Tracking.svc/Tracking`). Real
 messages and tracking changes travel over Iridium and are billed to the device plan.
+
+The bottom of the unlocked config page also has **Location history**: up to five recent position reports or messages
+per registered or unregistered tracker, including event time, reported coordinates, and raw event payload. It loads
+when opened and can be refreshed on demand. The Garmin delivery log in the passphrase-protected test tool includes each request's
+payload alongside its HTTP response; payloads are size-capped and marked when truncated, and auth header values are never logged.
 
 **Test tool** (`test.html`, passphrase-protected, Test mode only for injection): inject any event type
 with an age offset, a 20-step walk, route simulation (60 mph, a report every 10 s, messages at turns, SOS at the

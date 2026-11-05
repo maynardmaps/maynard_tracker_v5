@@ -257,7 +257,8 @@
       const iPos = ip ? ip._posTime || 0 : -1, kPos = kp ? kmlTimeMs(kp) : -1;
       const posSrc = iPos >= kPos ? i : k;
       const hasText = (p) => p && String(p.Text || "").trim() !== "";
-      const iMsg = hasText(ip) ? ip._msgTime || 0 : -1;
+      const hasIpcMessage = (p) => hasText(p) || (p && p["Message Type"] && p._msgTime > 0);
+      const iMsg = hasIpcMessage(ip) ? ip._msgTime || 0 : -1;
       const kMsg = hasText(kp) ? kPos : -1;
       const msgSrc = iMsg < 0 && kMsg < 0 ? null : (iMsg >= kMsg ? i : k);
       const props = Object.assign({}, posSrc.properties, { "Map Display Name": key });

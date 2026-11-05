@@ -112,8 +112,24 @@ const IPC_MAX_BODY = 2000000;
 const IPC_MAX_DEVICES = 50;
 const IPC_EMERGENCY_ON = new Set([4, 6]);
 const IPC_HISTORY_MAX = 3;
+const IPC_LOCATION_HISTORY_MAX = 5;
+const IPC_LOG_PAYLOAD_MAX = 12000;
+const IPC_EVENT_PAYLOAD_MAX = 12000;
 const IPC_INBOUND_BASE = "https://explore.garmin.com/ipcinbound/V1";
 const IPC_CMD_LOG_KEY = "ipc:cmdlog";
+
+function ipcTimestamp(value) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value > 0 && value < 100000000000 ? value * 1000 : value;
+  }
+  if (typeof value === "string" && value.trim()) {
+    const numeric = Number(value);
+    if (Number.isFinite(numeric)) return numeric > 0 && numeric < 100000000000 ? numeric * 1000 : numeric;
+    const parsed = Date.parse(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return null;
+}
 
 async function safeEqual(a, b) {
   const [da, db] = await Promise.all([digest(a), digest(b)]);
@@ -153,7 +169,9 @@ async function ipcReceive(request, env) {
   const testMode = cfg.mode === "test";
   if (!env.IPC_OUTBOUND_TOKEN) return json({ error: "IPC token not configured" }, 503);
   {
-    const given = (request.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
+    // Garmin Portal Connect sends its configured token under this header name.
+    // Keep Authorization support for compatible clients and existing setups.
+    const given = (request.headers.get("X-Outbound-Auth-Token") || request.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
     if (!given || !(await safeEqual(given, env.IPC_OUTBOUND_TOKEN.replace(/^Bearer\s+/i, "")))) {
       return json({ error: "Unauthorized" }, 401);
     }
@@ -195,7 +213,8 @@ async function ipcApply(events, env, cfg, testMode) {
   for (const ev of events) {
     if (!ev || typeof ev !== "object") continue;
     const code = Number(ev.messageCode);
-    const ts = Number(ev.timeStamp);
+    const parsedTs = ipcTimestamp(ev.timeStamp);
+    const ts = parsedTs === null && testMode ? Date.now() : parsedTs;
     const p = ev.point || {};
     const st = ev.status || {};
     for (const imei of String(ev.imei || "").split(",").map((s) => s.trim())) {
@@ -221,6 +240,17 @@ async function ipcApply(events, env, cfg, testMode) {
       const msgPos = hasFix
         ? { latitude: p.latitude, longitude: p.longitude, altitude: Number.isFinite(p.altitude) ? p.altitude : null, speed: Number.isFinite(p.speed) ? p.speed : null, course: Number.isFinite(p.course) ? p.course : null }
         : (Number.isFinite(rec.latitude) ? { latitude: rec.latitude, longitude: rec.longitude, altitude: rec.altitude, speed: rec.speed, course: rec.course } : null);
+      if (hasFix || msg) {
+        const raw = JSON.stringify(ev);
+        rec.locationHistory = (rec.locationHistory || []).concat([{
+          time: Number.isFinite(ts) ? ts : Date.now(),
+          latitude: hasFix ? p.latitude : null,
+          longitude: hasFix ? p.longitude : null,
+          kind: msg ? msg.type : "position",
+          raw: raw.length > IPC_EVENT_PAYLOAD_MAX ? raw.slice(0, IPC_EVENT_PAYLOAD_MAX) : raw,
+          truncated: raw.length > IPC_EVENT_PAYLOAD_MAX
+        }]).slice(-IPC_LOCATION_HISTORY_MAX);
+      }
       if (msg) {
         const at = Number.isFinite(ts) ? ts : Date.now();
         rec.history = (rec.history || []).filter((h) => !(h.time === at && h.type === msg.type && h.text === msg.text));
@@ -255,11 +285,14 @@ async function ipcLog(env, request, res) {
   if (!env.RATE_LIMIT) return;
   let reason = "";
   if (res.status !== 200) { try { reason = (await res.clone().json()).error || ""; } catch (e) { /* none */ } }
+  const raw = await request.text();
   const log = (await env.RATE_LIMIT.get(IPC_LOG_KEY, "json")) || [];
   log.unshift({
     time: new Date().toISOString(), status: res.status, reason,
     contentType: request.headers.get("Content-Type") || "",
-    headers: [...request.headers.keys()].filter((h) => !h.startsWith("cf-") && !h.startsWith("x-forwarded")).slice(0, 20)
+    headers: [...request.headers.keys()].filter((h) => !h.startsWith("cf-") && !h.startsWith("x-forwarded")).slice(0, 20),
+    payload: raw.slice(0, IPC_LOG_PAYLOAD_MAX),
+    payloadTruncated: raw.length > IPC_LOG_PAYLOAD_MAX
   });
   await env.RATE_LIMIT.put(IPC_LOG_KEY, JSON.stringify(log.slice(0, IPC_LOG_MAX)));
 }
@@ -299,6 +332,18 @@ async function ipcCommand(request, env) {
   const cfg = await ipcConfig(env);
   const testMode = cfg.mode === "test";
   const state = (await env.RATE_LIMIT.get(IPC_STATE_KEY, "json")) || {};
+
+  if (action === "locationHistory") {
+    const registered = cfg.imeis.map((imei) => ({
+      imei,
+      entries: (state[imei] && state[imei].locationHistory) || []
+    }));
+    const registeredSet = new Set(cfg.imeis);
+    const unregistered = Object.keys(state)
+      .filter((imei) => /^\d{15}$/.test(imei) && !registeredSet.has(imei))
+      .map((imei) => ({ imei, name: "Unregistered tracker", entries: state[imei].locationHistory || [] }));
+    return json({ registered, unregistered }, 200);
+  }
 
   if (action === "cmdLog") return json({ log: (await env.RATE_LIMIT.get(IPC_CMD_LOG_KEY, "json")) || [] }, 200);
   if (action === "clearCmdLog") { await env.RATE_LIMIT.delete(IPC_CMD_LOG_KEY); return json({ ok: true }, 200); }
@@ -399,18 +444,19 @@ async function ipcLocations(url, env) {
   if (!imeis.length || imeis.length > IPC_MAX_DEVICES || !imeis.every((i) => /^\d{15}$/.test(i))) {
     return json(param ? { error: "imeis must be comma-separated 15-digit IMEIs" } : { locations: [] }, param ? 400 : 200);
   }
-  const locations = imeis.filter((i) => state[i] && (state[i].timestamp || state[i].history || state[i].tracking)).map((i) => {
+  const locations = imeis.filter((i) => state[i] && (state[i].timestamp || state[i].history || state[i].tracking || state[i].locationHistory)).map((i) => {
     const r = state[i];
+    const hasMessage = (r.msgTime || 0) > (r.clearedAt || 0);
     return {
       imei: i,
       timestamp: r.timestamp ? new Date(r.timestamp).toISOString() : null,
       coordinate: r.timestamp ? { latitude: r.latitude, longitude: r.longitude } : null,
       altitude: r.altitude, speed: r.speed, course: r.course, gpsFixStatus: r.gpsFix,
       lowBattery: r.lowBattery === true, inEmergency: r.inEmergency === true,
-      text: r.text && (r.textTime || 0) > (r.clearedAt || 0) ? r.text : null,
+      text: hasMessage ? (r.text || "") : null,
       textTime: r.textTime || null,
-      messagePosition: r.text && (r.textTime || 0) > (r.clearedAt || 0) ? (r.msgPos || null) : null,
-      messageType: r.text && (r.textTime || 0) > (r.clearedAt || 0) ? (r.msgType || "text") : null,
+      messagePosition: hasMessage ? (r.msgPos || null) : null,
+      messageType: hasMessage ? (r.msgType || "text") : null,
       clearedAt: r.clearedAt || 0,
       history: (r.history || []).filter((h) => h.time > (r.clearedAt || 0)),
       tracking: r.tracking || null
@@ -790,9 +836,10 @@ export default {
 
     const { pathname } = new URL(request.url);
     if (request.method === "POST" && pathname === "/ipc/outbound") {
+      const logRequest = request.clone();
       let res;
       try { res = await ipcReceive(request, env); } catch (e) { res = json({ error: "Server error" }, 500); }
-      try { await ipcLog(env, request, res); } catch (e) { /* logging is best effort */ }
+      try { await ipcLog(env, logRequest, res); } catch (e) { /* logging is best effort */ }
       return res;
     }
     if (request.method === "POST" && pathname === "/ipc/command") {

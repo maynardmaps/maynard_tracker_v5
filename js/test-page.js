@@ -70,7 +70,7 @@
     try {
       const { log } = await call({ action: "log" });
       $("t-garmin-log").textContent = log.length
-        ? log.map((l) => `${l.time}  HTTP ${l.status}${l.reason ? " (" + l.reason + ")" : ""}  type=${l.contentType || "-"}\n    headers: ${l.headers.join(", ")}`).join("\n")
+        ? log.map((l) => `${l.time}  HTTP ${l.status}${l.reason ? " (" + l.reason + ")" : ""}  type=${l.contentType || "-"}\n    headers: ${l.headers.join(", ")}\n    payload${l.payloadTruncated ? " (truncated)" : ""}: ${l.payload || "(empty)"}`).join("\n")
         : "No requests received from Garmin yet.";
     } catch (e) { /* already logged */ }
   }

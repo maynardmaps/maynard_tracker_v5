@@ -29,6 +29,8 @@
     root.innerHTML = `
       <p class="status-msg">Last three messages received from each team, newest first. Updates automatically.</p>
       <div class="msg-teams"></div>
+      <h3>Unregistered trackers</h3>
+      <div class="msg-unregistered"><p class="msg-none">No unregistered trackers received.</p></div>
       <h3>Send a message</h3>
       <div class="msg-send">
         <label>Team <select class="msg-team"></select></label>
@@ -76,6 +78,7 @@
         const res = await fetch(relay + "/ipc/locations", { cache: "no-store" });
         const locs = (await res.json()).locations || [];
         const byImei = new Map(locs.map((l) => [String(l.imei), l]));
+        const registeredImeis = new Set(devices.map((d) => String(d.imei)));
         q(".msg-teams").innerHTML = devices.map((d) => {
           const l = byImei.get(String(d.imei)) || {};
           const hist = l.history || [];
@@ -88,8 +91,19 @@
               <button type="button" class="secondary msg-clear">Clear history</button></div>
             <ul class="msg-list">${rows}</ul></div>`;
         }).join("") || '<p class="status-msg">No devices configured.</p>';
+        const unknown = locs.filter((l) => !registeredImeis.has(String(l.imei)));
+        q(".msg-unregistered").innerHTML = unknown.length
+            ? unknown.map((l) => {
+              const point = l.coordinate ? `${l.coordinate.latitude}, ${l.coordinate.longitude}` : "No position";
+              const hist = (l.history || []).map((h) => `${esc(TYPE_LABEL[h.type] || h.type)}: ${esc(h.text || "(no text)")} - ${esc(fmtTime(h.time))}`).join("<br>");
+              return `<div class="msg-team-card"><div class="msg-team-head"><strong>Unregistered IMEI ${esc(l.imei)}</strong></div>
+                <p class="status-msg">Last position: ${esc(point)}${l.timestamp ? ` - ${esc(fmtTime(Date.parse(l.timestamp)))}` : ""}</p>
+                ${hist ? `<p class="status-msg">${hist}</p>` : ""}</div>`;
+            }).join("")
+            : '<p class="msg-none">No unregistered trackers received.</p>';
       } catch (e) {
         q(".msg-teams").innerHTML = '<p class="status-msg error">Could not load messages from the server.</p>';
+        q(".msg-unregistered").innerHTML = '<p class="status-msg error">Could not load unregistered trackers.</p>';
       }
       if (testTools) {
         try {

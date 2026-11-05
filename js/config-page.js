@@ -22,6 +22,10 @@
       if (e.key === "Enter") unlock();
     });
     document.getElementById("save-btn").addEventListener("click", onSave);
+    document.getElementById("location-history-refresh").addEventListener("click", refreshLocationHistory);
+    document.getElementById("location-history-section").addEventListener("toggle", (event) => {
+      if (event.currentTarget.open) refreshLocationHistory();
+    });
     document.getElementById("add-map-source-btn").addEventListener("click", addMapSourceRow);
     document.getElementById("add-device-btn").addEventListener("click", () => {
       document.getElementById("device-list").appendChild(deviceRow({ imei: "", name: "" }));
@@ -48,6 +52,70 @@
       status.textContent = e.status === 401 ? "Incorrect passphrase." : `Could not verify (${e.message}).`;
       status.className = "status-msg error";
     }
+  }
+
+  async function refreshLocationHistory() {
+    const status = document.getElementById("location-history-status");
+    const container = document.getElementById("location-history-list");
+    status.textContent = "Loading location history...";
+    status.className = "status-msg";
+    try {
+      const data = await MaynardGithubSave.ipcCommand({ action: "locationHistory" }, passphrase);
+      container.replaceChildren();
+      const byImei = new Map((data.registered || []).map((r) => [String(r.imei), r]));
+      const trackers = (settings.devices || []).map((device) => ({
+        imei: String(device.imei),
+        name: device.name,
+        entries: (byImei.get(String(device.imei)) || {}).entries || []
+      }));
+      trackers.forEach((tracker) => renderLocationHistory(container, tracker));
+      (data.unregistered || []).forEach((tracker) => renderLocationHistory(container, {
+        ...tracker,
+        name: "Unregistered tracker"
+      }));
+      status.textContent = `Updated ${new Date().toLocaleTimeString()}.`;
+      status.className = "status-msg ok";
+    } catch (e) {
+      status.textContent = `Could not load location history: ${e.message}`;
+      status.className = "status-msg error";
+    }
+  }
+
+  function renderLocationHistory(container, tracker) {
+    const card = document.createElement("div");
+    card.className = "msg-team-card";
+    const heading = document.createElement("h3");
+    heading.textContent = `${tracker.name} (${tracker.imei})`;
+    card.appendChild(heading);
+    if (!tracker.entries.length) {
+      const empty = document.createElement("p");
+      empty.className = "msg-none";
+      empty.textContent = "No position reports or messages received.";
+      card.appendChild(empty);
+    } else {
+      tracker.entries.forEach((entry) => {
+        const row = document.createElement("div");
+        row.className = "location-history-entry";
+        const summary = document.createElement("p");
+        const location = Number.isFinite(entry.latitude) && Number.isFinite(entry.longitude)
+          ? `${entry.latitude}, ${entry.longitude}`
+          : "No coordinates in event";
+        summary.textContent = `${new Date(entry.time).toLocaleString()} — ${entry.kind} — ${location}`;
+        row.appendChild(summary);
+        const raw = document.createElement("pre");
+        raw.className = "location-history-raw";
+        raw.textContent = entry.raw || "(raw event unavailable)";
+        row.appendChild(raw);
+        if (entry.truncated) {
+          const note = document.createElement("p");
+          note.className = "status-msg";
+          note.textContent = "Raw event truncated to fit diagnostic storage.";
+          row.appendChild(note);
+        }
+        card.appendChild(row);
+      });
+    }
+    container.appendChild(card);
   }
 
   // ---- Route management (folders and files under routes/) ----
