@@ -48,7 +48,13 @@
       </div>
       ${testTools ? `<label class="switch-row"><input type="checkbox" class="msg-fail" /> Simulate a Garmin failure for the next command</label>` : ""}
       <p class="status-msg msg-feedback" aria-live="polite"></p>
-      ${testTools ? `<h3>Command log</h3><pre class="msg-cmdlog"></pre><button type="button" class="secondary msg-cmdlog-clear">Clear command log</button>` : ""}`;
+      <details class="msg-command-log">
+        <summary>Recent messaging and tracking command results</summary>
+        <p class="status-msg">Includes Garmin IPC Inbound response status and response details when available.</p>
+        <button type="button" class="secondary msg-cmdlog-refresh">Refresh command log</button>
+        <pre class="msg-cmdlog"></pre>
+        <button type="button" class="secondary msg-cmdlog-clear">Clear command log</button>
+      </details>`;
 
     const q = (s) => root.querySelector(s);
     const options = devices.map((d) => `<option value="${esc(d.imei)}">${esc(d.name)} (${esc(d.imei)})</option>`).join("");
@@ -105,12 +111,24 @@
         q(".msg-teams").innerHTML = '<p class="status-msg error">Could not load messages from the server.</p>';
         q(".msg-unregistered").innerHTML = '<p class="status-msg error">Could not load unregistered trackers.</p>';
       }
-      if (testTools) {
-        try {
-          const r = await MaynardGithubSave.ipcCommand({ action: "cmdLog" }, opts.passphrase());
-          q(".msg-cmdlog").textContent = (r.log || []).map((e) =>
-            `${e.time}  ${e.action}  ${e.imei}  [${e.mode}]  ${e.ok ? "OK" : "FAILED: " + e.error}${e.text ? '  "' + e.text + '"' : ""}`).join("\n") || "(empty)";
-        } catch (e) { /* best effort */ }
+      await refreshCommandLog();
+    }
+
+    async function refreshCommandLog() {
+      try {
+        const r = await MaynardGithubSave.ipcCommand({ action: "cmdLog" }, opts.passphrase());
+        q(".msg-cmdlog").textContent = (r.log || []).map((e) => {
+          const parts = [
+            `${e.time}  ${e.action}  ${e.imei}  [${e.mode}]  ${e.ok ? "OK" : "FAILED: " + e.error}`,
+            e.text ? `Message: "${e.text}"` : "",
+            e.upstreamEndpoint ? `Upstream: ${e.upstreamEndpoint}` : "",
+            e.upstreamStatus ? `Upstream HTTP ${e.upstreamStatus}${e.upstreamContentType ? ` (${e.upstreamContentType})` : ""}` : "",
+            e.upstreamResponse ? `Upstream response${e.upstreamResponseTruncated ? " (truncated)" : ""}: ${e.upstreamResponse}` : ""
+          ];
+          return parts.filter(Boolean).join("\n");
+        }).join("\n\n") || "(empty)";
+      } catch (e) {
+        q(".msg-cmdlog").textContent = `Could not load command log: ${e.message}`;
       }
     }
 
@@ -149,6 +167,8 @@
       } else if (t.classList.contains("msg-cmdlog-clear")) {
         try { await MaynardGithubSave.ipcCommand({ action: "clearCmdLog" }, opts.passphrase()); } catch (e) { /* ignore */ }
         refresh();
+      } else if (t.classList.contains("msg-cmdlog-refresh")) {
+        refreshCommandLog();
       }
     });
 

@@ -115,6 +115,7 @@ const IPC_HISTORY_MAX = 3;
 const IPC_LOCATION_HISTORY_MAX = 5;
 const IPC_LOG_PAYLOAD_MAX = 12000;
 const IPC_EVENT_PAYLOAD_MAX = 12000;
+const IPC_INBOUND_RESPONSE_MAX = 2000;
 const IPC_INBOUND_BASE = "https://explore.garmin.com/ipcinbound/V1";
 const IPC_CMD_LOG_KEY = "ipc:cmdlog";
 
@@ -314,11 +315,18 @@ async function garminInbound(env, method, path, body) {
     headers: { Authorization: "Basic " + btoa(env.IPC_INBOUND_USER + ":" + env.IPC_INBOUND_PASSWORD), "Content-Type": "application/json", Accept: "application/json" },
     body: body === undefined ? undefined : JSON.stringify(body)
   });
+  const responseText = await res.text();
   let data = null;
-  try { data = await res.json(); } catch (e) { /* empty body */ }
+  try { data = responseText ? JSON.parse(responseText) : null; } catch (e) { /* non-JSON response */ }
   if (!res.ok) {
-    const err = new Error((data && (data.message || data.description)) || `Garmin HTTP ${res.status}`);
+    const responseDetail = String((data && (data.message || data.description)) || responseText.trim());
+    const err = new Error(`Garmin HTTP ${res.status}${responseDetail ? `: ${responseDetail.slice(0, 1000)}` : ""}`);
     err.status = res.status;
+    err.upstreamStatus = res.status;
+    err.upstreamEndpoint = `${method} ${path}`;
+    err.upstreamContentType = res.headers.get("Content-Type") || "";
+    err.upstreamResponse = responseText.slice(0, IPC_INBOUND_RESPONSE_MAX);
+    err.upstreamResponseTruncated = responseText.length > IPC_INBOUND_RESPONSE_MAX;
     throw err;
   }
   return data;
@@ -410,8 +418,15 @@ async function ipcCommand(request, env) {
     await ipcCmdLog(env, { ...entry, ok: true });
     return json(result, 200);
   } catch (e) {
-    await ipcCmdLog(env, { ...entry, ok: false, error: e.message });
-    return json({ error: e.message }, e.status === 401 || e.status === 403 ? 502 : (e.status && e.status < 600 ? e.status : 502));
+    const upstream = e.upstreamStatus ? {
+      upstreamStatus: e.upstreamStatus,
+      upstreamEndpoint: e.upstreamEndpoint,
+      upstreamContentType: e.upstreamContentType,
+      upstreamResponse: e.upstreamResponse,
+      upstreamResponseTruncated: e.upstreamResponseTruncated
+    } : {};
+    await ipcCmdLog(env, { ...entry, ok: false, error: e.message, ...upstream });
+    return json({ error: e.message, ...upstream }, e.status === 401 || e.status === 403 ? 502 : (e.status && e.status < 600 ? e.status : 502));
   }
 }
 

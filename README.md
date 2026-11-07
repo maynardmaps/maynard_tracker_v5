@@ -160,6 +160,10 @@ passphrase-protected `POST /ipc/command`, which calls Garmin IPC Inbound **V1**
 (`https://explore.garmin.com/ipcinbound/V1`: `Messaging.svc/Message`, `Tracking.svc/Tracking`). Real
 messages and tracking changes travel over Iridium and are billed to the device plan.
 
+The unlocked config page's Messaging section also includes a passphrase-protected **command results log** (last 30
+message/tracking commands), including the Garmin IPC Inbound endpoint, HTTP status, and bounded response body on failure.
+This is separate from the test tool's Garmin delivery log, which records inbound-to-Worker **Outbound** deliveries.
+
 The bottom of the unlocked config page also has **Location history**: up to five recent position reports or messages
 per registered or unregistered tracker, including event time, reported coordinates, and raw event payload. It loads
 when opened and can be refreshed on demand. The Garmin delivery log in the passphrase-protected test tool includes each request's
