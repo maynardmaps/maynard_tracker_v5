@@ -22,7 +22,7 @@ Map requirements:
 
 Data source requirements:
 1) The map should be compatible with open street map, google maps and other common map providers.
-2) The map should also be compatible with Ordnance Survey "Leisure Style" map layer. End point with API key (should be treated as secret): https://api.os.uk/maps/raster/v1/zxy/Leisure_27700/{z}/{x}/{y}.png?key=s2Jm0v3DoInYiNuQDnt6kw7K1VpfuxGE
+2) The map should also be compatible with Ordnance Survey "Leisure Style" map layer. End point with API key (should be treated as secret): https://api.os.uk/maps/raster/v1/zxy/Leisure_27700/{z}/{x}/{y}.png?key=<APIKEYHERE> (stored as Cloudflare Worker secret OS_API_KEY). The map should be able to switch between these map sources.
 3) The map should display KML markers from https://share.garmin.com/Feed/Share/9ZU7V - these should be updated in real time without having to refresh the webpage. These are known as "KML Markers"
 4) The map should display a series of routes from either KML files or GPX files. These will be stored in sub-folders with names like "TT1", "TT2", etc within a "routes" folder.
 5) The route sub-folder should be selectable, with a default set by the configuration page (see configuration page requirements).

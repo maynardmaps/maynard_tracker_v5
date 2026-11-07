@@ -6,3 +6,5 @@ Thumbs.db
 # Wrangler local state
 worker/.wrangler/
 node_modules/
+
+noshare.txt
