@@ -20,6 +20,10 @@
     return ms ? new Date(ms).toLocaleString() : "";
   }
 
+  function since(ms) {
+    return MaynardUtils.timeSince(ms);
+  }
+
   function mount(root, opts) {
     const devices = opts.devices || [];
     const testTools = !!opts.testTools;
@@ -76,7 +80,7 @@
       if (!t) return "Tracking status unknown";
       const when = fmtTime(t.time);
       return (t.active ? "Tracking ACTIVE" : "Tracking STOPPED") + (t.active && t.interval ? ` (every ${t.interval} min)` : "") +
-        (when ? ` - as of ${when}` : "") + (t.source ? ` [${t.source}]` : "");
+        (when ? ` - as of ${when}${since(t.time) ? ` (${since(t.time)})` : ""}` : "") + (t.source ? ` [${t.source}]` : "");
     }
 
     async function refresh() {
@@ -89,10 +93,11 @@
           const l = byImei.get(String(d.imei)) || {};
           const hist = l.history || [];
           const rows = hist.length
-            ? hist.map((h) => `<li class="${typeClass(h.type)}"><span class="msg-badge">${esc(TYPE_LABEL[h.type] || h.type)}</span> ${esc(h.text)} <time>${esc(fmtTime(h.time))}</time></li>`).join("")
+            ? hist.map((h) => `<li class="${typeClass(h.type)}"><span class="msg-badge">${esc(TYPE_LABEL[h.type] || h.type)}</span> ${esc(h.text)} <time>${esc(fmtTime(h.time))}${since(h.time) ? ` (${esc(since(h.time))})` : ""}</time></li>`).join("")
             : '<li class="msg-none">No messages</li>';
+          const positionAge = l.timestamp ? since(Date.parse(l.timestamp)) : "";
           return `<div class="msg-team-card" data-imei="${esc(d.imei)}">
-            <div class="msg-team-head"><strong>${esc(d.name)}</strong>
+            <div class="msg-team-head"><strong>${esc(d.name)}${positionAge ? ` — ${esc(positionAge)}` : ""}</strong>
               <span class="msg-track-state">${esc(trackText(l.tracking))}</span>
               <button type="button" class="secondary msg-clear">Clear history</button></div>
             <ul class="msg-list">${rows}</ul></div>`;
@@ -101,8 +106,9 @@
         q(".msg-unregistered").innerHTML = unknown.length
             ? unknown.map((l) => {
               const point = l.coordinate ? `${l.coordinate.latitude}, ${l.coordinate.longitude}` : "No position";
-              const hist = (l.history || []).map((h) => `${esc(TYPE_LABEL[h.type] || h.type)}: ${esc(h.text || "(no text)")} - ${esc(fmtTime(h.time))}`).join("<br>");
-              return `<div class="msg-team-card"><div class="msg-team-head"><strong>Unregistered IMEI ${esc(l.imei)}</strong></div>
+              const hist = (l.history || []).map((h) => `${esc(TYPE_LABEL[h.type] || h.type)}: ${esc(h.text || "(no text)")} - ${esc(fmtTime(h.time))}${since(h.time) ? ` (${esc(since(h.time))})` : ""}`).join("<br>");
+              const positionAge = l.timestamp ? since(Date.parse(l.timestamp)) : "";
+              return `<div class="msg-team-card"><div class="msg-team-head"><strong>Unregistered IMEI ${esc(l.imei)}${positionAge ? ` — ${esc(positionAge)}` : ""}</strong></div>
                 <p class="status-msg">Last position: ${esc(point)}${l.timestamp ? ` - ${esc(fmtTime(Date.parse(l.timestamp)))}` : ""}</p>
                 ${hist ? `<p class="status-msg">${hist}</p>` : ""}</div>`;
             }).join("")

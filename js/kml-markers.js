@@ -64,7 +64,9 @@
         ["Elevation", p.elevation], ["Speed", p.speed], ["Course", p.course], ["Source", p.source]]
         .filter(([, v]) => v !== "" && v != null);
       const gr = gridRef(lat, lng);
-      const html = `<div class="kml-popup"><strong>${escapeHtml(name)} - last message</strong>` +
+      const messageTime = Date.parse(p.time);
+      const messageAge = MaynardUtils.timeSince(messageTime);
+      const html = `<div class="kml-popup"><strong>${escapeHtml(name)} - last message${messageAge ? ` ${escapeHtml(messageAge)}` : ""}</strong>` +
         '<table class="kml-popup-table">' + rows.map(([l, v]) => `<tr><th>${escapeHtml(l)}</th><td>${l === "Message" ? `<strong>${escapeHtml(String(v))}</strong>` : escapeHtml(String(v))}</td></tr>`).join("") + "</table>" +
         (sos ? '<div class="kml-popup-emergency">SOS</div>' : "") +
         (gr ? `<div class="kml-popup-grid">Grid ref: ${gr}</div>` : "") +
@@ -137,6 +139,7 @@
   function buildPopupHtml(props, coords) {
     const has = (k) => props[k] != null && String(props[k]).trim() !== "";
     const title = has("Map Display Name") ? props["Map Display Name"] : props.name || "Marker";
+    const positionAge = MaynardUtils.timeSince(kmlTimeMs(props));
     const rows = [];
     const shown = new Set();
     const add = (key, label) => {
@@ -149,7 +152,7 @@
     });
 
     const emergency = String(props["In Emergency"]).toLowerCase() === "true";
-    let html = `<div class="kml-popup"><strong>${escapeHtml(title)}</strong>`;
+    let html = `<div class="kml-popup"><strong>${escapeHtml(title)}${positionAge ? ` ${escapeHtml(positionAge)}` : ""}</strong>`;
     if (emergency) html += '<div class="kml-popup-emergency">EMERGENCY</div>';
     if (has("description") && !has("Time")) {
       html += `<div class="kml-popup-desc">${escapeHtml(props.description)}</div>`;
@@ -235,7 +238,7 @@
       else if (!m[7]) h = Number(m[4]);
       return Date.UTC(Number(m[3]), Number(m[1]) - 1, Number(m[2]), h, Number(m[5]), Number(m[6]));
     }
-    const t = Date.parse(props.timestamp || props.when || props.begin || "");
+    const t = Date.parse(props["Time UTC"] || props.timestamp || props.when || props.begin || props.Time || "");
     return isNaN(t) ? 0 : t;
   }
 

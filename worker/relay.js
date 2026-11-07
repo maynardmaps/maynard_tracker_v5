@@ -92,10 +92,121 @@ async function osTile(match, env, ctx, request) {
   return new Response(body, { status: 200, headers: { ...CORS, "Content-Type": "image/png", "Cache-Control": "public, max-age=86400" } });
 }
 
-async function garmin() {
+// Workers don't expose DOMParser; extract the point placemarks needed by the
+// protected history from Garmin's KML response without changing the map feed.
+function xmlText(value) {
+  return String(value || "")
+    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
+    .replace(/&#x([0-9a-f]+);/gi, (_, code) => String.fromCodePoint(parseInt(code, 16)))
+    .replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(Number(code)))
+    .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, "\"")
+    .replace(/&apos;/g, "'").replace(/&amp;/g, "&")
+    .replace(/<[^>]*>/g, "").trim();
+}
+
+function kmlTag(block, name) {
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = new RegExp(`<(?:(?:[\\w.-]+):)?${escaped}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/(?:(?:[\\w.-]+):)?${escaped}\\s*>`, "i").exec(block);
+  return match ? xmlText(match[1]) : "";
+}
+
+function kmlProperties(block) {
+  const properties = {};
+  const data = /<Data\b[^>]*\bname=["']([^"']+)["'][^>]*>([\s\S]*?)<\/Data\s*>/gi;
+  const simple = /<SimpleData\b[^>]*\bname=["']([^"']+)["'][^>]*>([\s\S]*?)<\/SimpleData\s*>/gi;
+  let match;
+  while ((match = data.exec(block))) properties[xmlText(match[1])] = kmlTag(match[2], "value");
+  while ((match = simple.exec(block))) properties[xmlText(match[1])] = xmlText(match[2]);
+  return properties;
+}
+
+function kmlTime(value) {
+  const match = /^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2}):(\d{2})\s*([AP]M)?$/i.exec(String(value || "").trim());
+  if (match) {
+    let hours = Number(match[4]) % 12;
+    if (/^P/i.test(match[7] || "")) hours += 12;
+    else if (!match[7]) hours = Number(match[4]);
+    return Date.UTC(Number(match[3]), Number(match[1]) - 1, Number(match[2]), hours, Number(match[5]), Number(match[6]));
+  }
+  const time = Date.parse(value || "");
+  return Number.isFinite(time) ? time : null;
+}
+
+function kmlHistoryRecords(kml, cfg, fetchedAt) {
+  const devices = Array.isArray(cfg.devices) ? cfg.devices : [];
+  const byImei = new Map(devices.map((device) => [String(device.imei), device]));
+  const byName = new Map(devices.map((device) => [String(device.name || "").trim().toLowerCase(), device]));
+  const records = [];
+  const placemarks = /<Placemark\b[^>]*>([\s\S]*?)<\/Placemark\s*>/gi;
+  let match;
+  while ((match = placemarks.exec(kml))) {
+    const block = match[1];
+    const point = /<Point\b[^>]*>([\s\S]*?)<\/Point\s*>/i.exec(block);
+    if (!point) continue;
+    const coordinate = kmlTag(point[1], "coordinates").split(/[,\s]+/).map(Number);
+    if (coordinate.length < 2 || !Number.isFinite(coordinate[0]) || !Number.isFinite(coordinate[1]) ||
+        Math.abs(coordinate[0]) > 180 || Math.abs(coordinate[1]) > 90) continue;
+    const properties = kmlProperties(block);
+    const name = kmlTag(block, "name") || properties.Name || "";
+    const rawImei = String(properties.IMEI || properties.Imei || properties.Id || "").trim();
+    const device = /^\d{15}$/.test(rawImei) ? byImei.get(rawImei) : byName.get(name.trim().toLowerCase());
+    const imei = device ? String(device.imei) : rawImei;
+    if (!/^\d{15}$/.test(imei)) continue;
+    const positionTimestamp = kmlTime(properties["Time UTC"] || properties.Time || kmlTag(block, "when"));
+    const positionTime = positionTimestamp === null ? fetchedAt : positionTimestamp;
+    const messageTime = kmlTime(properties["Message Time"]);
+    const text = String(properties.Text || "").trim().slice(0, 500);
+    const raw = JSON.stringify({ source: "MapShare KML", name, properties, coordinates: [coordinate[0], coordinate[1]] });
+    const entry = (kind, time, id) => ({
+      time, latitude: coordinate[1], longitude: coordinate[0], kind, source: "MapShare KML", id,
+      raw: raw.length > IPC_EVENT_PAYLOAD_MAX ? raw.slice(0, IPC_EVENT_PAYLOAD_MAX) : raw,
+      truncated: raw.length > IPC_EVENT_PAYLOAD_MAX
+    });
+    const positionId = positionTimestamp === null
+      ? `position|${name}|${coordinate[0]}|${coordinate[1]}`
+      : `position|${positionTimestamp}|${coordinate[0]}|${coordinate[1]}`;
+    records.push({ imei, entry: entry("position", positionTime, positionId) });
+    if (text) {
+      const eventTime = messageTime === null ? positionTime : messageTime;
+      const messageId = messageTime === null
+        ? `message|${name}|${coordinate[0]}|${coordinate[1]}|${text}`
+        : `message|${messageTime}|${text}`;
+      records.push({ imei, entry: entry(properties["Message Type"] || "message", eventTime, messageId) });
+    }
+  }
+  return records;
+}
+
+async function recordKmlHistory(kml, env, cfg, fetchedAt) {
+  if (!env.RATE_LIMIT) return;
+  const records = kmlHistoryRecords(kml, cfg, fetchedAt);
+  if (!records.length) return;
+  const state = (await env.RATE_LIMIT.get(IPC_STATE_KEY, "json")) || {};
+  let changed = false;
+  records.forEach(({ imei, entry }) => {
+    const rec = state[imei] || {};
+    const ids = rec.kmlHistoryIds || [];
+    if (ids.includes(entry.id)) return;
+    if (!state[imei] && Object.keys(state).length >= IPC_MAX_DEVICES) return;
+    rec.kmlHistoryIds = ids.concat(entry.id).slice(-200);
+    rec.locationHistory = (rec.locationHistory || []).concat([entry])
+      .sort((a, b) => b.time - a.time).slice(0, IPC_LOCATION_HISTORY_MAX);
+    state[imei] = rec;
+    changed = true;
+  });
+  if (changed) await env.RATE_LIMIT.put(IPC_STATE_KEY, JSON.stringify(state));
+}
+
+async function garmin(env) {
   const upstream = await fetch(GARMIN_FEED, { cf: { cacheTtl: 0 } });
   if (!upstream.ok) return new Response(`Upstream HTTP ${upstream.status}`, { status: 502, headers: CORS });
-  return new Response(upstream.body, {
+  const kml = await upstream.text();
+  try {
+    await recordKmlHistory(kml, env, await ipcConfig(env), Date.now());
+  } catch (e) {
+    console.error("Could not record Garmin KML history", e);
+  }
+  return new Response(kml, {
     status: 200,
     headers: {
       ...CORS,
@@ -146,14 +257,23 @@ const CFG_KEY = "cfg:ipc";
 function ipcConfigFrom(s) {
   return {
     mode: s && s.mode === "test" ? "test" : "normal",
-    imeis: ((s && s.devices) || []).map((d) => d.imei).filter((i) => /^\d{15}$/.test(i))
+    imeis: ((s && s.devices) || []).map((d) => d.imei).filter((i) => /^\d{15}$/.test(i)),
+    devices: ((s && s.devices) || []).filter((d) => d && /^\d{15}$/.test(d.imei)).map((d) => ({ imei: d.imei, name: d.name }))
   };
 }
 
 async function ipcConfig(env) {
   try {
     const kv = await env.RATE_LIMIT.get(CFG_KEY, "json");
-    if (kv && Array.isArray(kv.imeis)) return kv;
+    if (kv && Array.isArray(kv.imeis) && Array.isArray(kv.devices)) return kv;
+    if (kv && Array.isArray(kv.imeis)) {
+      const res = await fetch(`https://raw.githubusercontent.com/${GH_OWNER}/${GH_REPO}/${GH_BRANCH}/${GH_PATH}`, { cf: { cacheTtl: 60 } });
+      if (res.ok) {
+        const fromSettings = ipcConfigFrom(await res.json());
+        return { ...fromSettings, mode: kv.mode || fromSettings.mode, imeis: kv.imeis };
+      }
+      return { ...kv, devices: [] };
+    }
   } catch (e) { /* fall through */ }
   try {
     const res = await fetch(`https://raw.githubusercontent.com/${GH_OWNER}/${GH_REPO}/${GH_BRANCH}/${GH_PATH}`, { cf: { cacheTtl: 60 } });
@@ -248,9 +368,10 @@ async function ipcApply(events, env, cfg, testMode) {
           latitude: hasFix ? p.latitude : null,
           longitude: hasFix ? p.longitude : null,
           kind: msg ? msg.type : "position",
+          source: testMode ? "Test injection" : "Garmin push",
           raw: raw.length > IPC_EVENT_PAYLOAD_MAX ? raw.slice(0, IPC_EVENT_PAYLOAD_MAX) : raw,
           truncated: raw.length > IPC_EVENT_PAYLOAD_MAX
-        }]).slice(-IPC_LOCATION_HISTORY_MAX);
+        }]).sort((a, b) => b.time - a.time).slice(0, IPC_LOCATION_HISTORY_MAX);
       }
       if (msg) {
         const at = Number.isFinite(ts) ? ts : Date.now();
@@ -899,7 +1020,7 @@ export default {
     if (request.method !== "GET") return new Response("Method not allowed", { status: 405, headers: CORS });
 
     try {
-      if (pathname === "/") return await garmin();
+      if (pathname === "/") return await garmin(env);
       if (pathname === "/routes") return await routesManifest(env, ctx);
       if (pathname === "/ipc/locations") return await ipcLocations(new URL(request.url), env);
       const osMatch = OS_TILE_PATH.exec(pathname);

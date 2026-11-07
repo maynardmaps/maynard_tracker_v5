@@ -100,7 +100,8 @@
         const location = Number.isFinite(entry.latitude) && Number.isFinite(entry.longitude)
           ? `${entry.latitude}, ${entry.longitude}`
           : "No coordinates in event";
-        summary.textContent = `${new Date(entry.time).toLocaleString()} — ${entry.kind} — ${location}`;
+        const timeSince = MaynardUtils.timeSince(entry.time);
+        summary.textContent = `${new Date(entry.time).toLocaleString()}${timeSince ? ` (${timeSince})` : ""} — ${entry.kind} — ${entry.source || "Garmin push"} — ${location}`;
         row.appendChild(summary);
         const raw = document.createElement("pre");
         raw.className = "location-history-raw";

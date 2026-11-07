@@ -8,7 +8,7 @@ Pages with **no backend**. It shows:
   Survey Leisure (via the OS Maps API).
 - GPX/KML routes, loaded from subfolders under `routes/`, auto-coloured and
   individually toggleable.
-- Live team positions and messages from two sources used together: Garmin IPC Outbound pushes (received by the Worker) and the MapShare KML feed. Position reports are compared by position timestamp; messages by message timestamp (not the timestamp of a later KML position update). Position and message are separate markers; a message marker stays where the message was received (envelope, or a red pulsing SOS badge).
+- Live team positions and messages from two sources used together: Garmin IPC Outbound pushes (received by the Worker) and the MapShare KML feed. Position reports are compared by position timestamp; messages by message timestamp (not the timestamp of a later KML position update). Garmin popup headers and tracker information show a rounded relative age, with reports under one minute labeled "less than a minute ago". Position and message are separate markers; a message marker stays where the message was received (envelope, or a red pulsing SOS badge).
 - A Met Office precipitation radar/forecast overlay.
 - A static "birds and rivers" KML overlay (points and polygons) loaded once
   from every KML file in the version-controlled `data/` folder.
@@ -184,7 +184,8 @@ This is the Worker-to-Garmin Inbound command log. It is separate from the test
 tool's Garmin delivery log, which records Garmin-to-Worker **Outbound** deliveries.
 
 The bottom of the unlocked config page also has **Location history**: up to five recent position reports or messages
-per registered or unregistered tracker, including event time, reported coordinates, and raw event payload. It loads
+per registered or unregistered tracker from Garmin IPC Outbound and MapShare KML, including source, event time,
+reported coordinates, and raw event payload. KML reports are captured by the Worker when it relays the feed. It loads
 when opened and can be refreshed on demand. The Garmin delivery log in the passphrase-protected test tool includes each request's
 payload alongside its HTTP response; payloads are size-capped and marked when truncated, and auth header values are never logged.
 

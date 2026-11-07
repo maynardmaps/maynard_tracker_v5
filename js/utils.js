@@ -61,6 +61,17 @@
   const HTML_ESC = { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" };
   const escapeHtml = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => HTML_ESC[c]);
 
+  function timeSince(timestamp) {
+    const time = typeof timestamp === "number" ? timestamp : Date.parse(timestamp);
+    if (!Number.isFinite(time) || time <= 0) return "";
+    const delta = Date.now() - time;
+    if (delta >= 0 && delta < 60000) return "less than a minute ago";
+    if (delta < 0 && delta > -60000) return "in less than a minute";
+    const minutes = Math.round(Math.abs(delta) / 60000);
+    const label = `${minutes} minute${minutes === 1 ? "" : "s"}`;
+    return delta > 0 ? `${label} ago` : `in ${label}`;
+  }
+
   // EPSG:27700 (British National Grid) definition, shared by the map and grid refs.
   const BNG_PROJ4 = "+proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 +x_0=400000 +y_0=-100000 +ellps=airy +datum=OSGB36 +units=m +no_defs";
 
@@ -126,6 +137,7 @@
     fetchJson,
     fetchText,
     escapeHtml,
+    timeSince,
     setStatus,
     diag,
     setDiagnosticsEnabled,
