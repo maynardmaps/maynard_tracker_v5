@@ -32,10 +32,11 @@
         const c = colours.get(markerKey(feature));
         const em = String((feature.properties || {})["In Emergency"]).toLowerCase() === "true";
         const s = em ? 54 : 18;
+        const popupY = em ? -19.5 : -s / 2;
         return L.marker(latlng, { icon: L.divIcon({
           className: em ? "team-diamond team-emergency" : "team-diamond",
           html: `<span style="background:${c}"></span>`,
-          iconSize: [s, s], iconAnchor: [s / 2, s / 2]
+          iconSize: [s, s], iconAnchor: [s / 2, s / 2], popupAnchor: [0, popupY]
         }) });
       },
       onEachFeature(feature, layer) {
@@ -59,20 +60,22 @@
       const urgent = type === "urgent";
       const [lng, lat] = f.geometry.coordinates;
       const label = sos ? "SOS" : cancelled ? "SOS cancelled" : type === "ok" || type === "assist" || urgent ? "Puck message" : "Text message";
-      const rows = [["Type", label], ["Message", p.text || (sos ? "SOS" : "")], ["Received", p.time], ["Latitude", lat], ["Longitude", lng],
+      const rows = [["Message", p.text || (sos ? "SOS" : "")], ["Type", label], ["Received", p.time], ["Latitude", lat], ["Longitude", lng],
         ["Elevation", p.elevation], ["Speed", p.speed], ["Course", p.course], ["Source", p.source]]
         .filter(([, v]) => v !== "" && v != null);
       const gr = gridRef(lat, lng);
       const html = `<div class="kml-popup"><strong>${escapeHtml(name)} - last message</strong>` +
+        '<table class="kml-popup-table">' + rows.map(([l, v]) => `<tr><th>${escapeHtml(l)}</th><td>${l === "Message" ? `<strong>${escapeHtml(String(v))}</strong>` : escapeHtml(String(v))}</td></tr>`).join("") + "</table>" +
         (sos ? '<div class="kml-popup-emergency">SOS</div>' : "") +
-        '<table class="kml-popup-table">' + rows.map(([l, v]) => `<tr><th>${escapeHtml(l)}</th><td>${escapeHtml(String(v))}</td></tr>`).join("") + "</table>" +
         (gr ? `<div class="kml-popup-grid">Grid ref: ${gr}</div>` : "") +
         `<div class="kml-popup-map"><a href="${escapeHtml(mapAppUrl(lat, lng, name + " message"))}" target="_blank" rel="noopener">&#128506; Map</a></div></div>`;
+      const iconSize = sos ? [34, 20] : [22, 16];
+      const iconAnchor = sos ? [17, 26] : [11, 22];
       const m = L.marker([lat, lng], {
         icon: L.divIcon({
           className: "team-message" + (sos ? " team-message-sos" : "") + (urgent ? " team-message-urgent" : ""),
           html: `<span style="background:${sos ? "#e00" : colours.get(name)}" title="Last message from ${escapeHtml(name)}">${sos ? "SOS" : urgent ? "&#9993;!" : "&#9993;"}</span>`,
-          iconSize: sos ? [34, 20] : [22, 16], iconAnchor: sos ? [17, 26] : [11, 22]
+          iconSize, iconAnchor, popupAnchor: [0, -iconAnchor[1]]
         }),
         alt: "Last message from " + name,
         zIndexOffset: sos ? 1000 : 0
@@ -236,6 +239,11 @@
     return isNaN(t) ? 0 : t;
   }
 
+  function kmlMessageTimeMs(props) {
+    const time = Date.parse(String(props["Message Time"] || "").trim());
+    return Number.isFinite(time) ? time : -1;
+  }
+
   // Per team, show the newest position and the newest message across the push
   // feed and the MapShare KML, so whichever source is current wins and a silent
   // failure of one is covered by the other.
@@ -262,9 +270,13 @@
       const posSrc = iPos >= kPos ? i : k;
       const hasText = (p) => p && String(p.Text || "").trim() !== "";
       const hasIpcMessage = (p) => hasText(p) || (p && p["Message Type"] && p._msgTime > 0);
-      const iMsg = hasIpcMessage(ip) ? ip._msgTime || 0 : -1;
-      const kMsg = hasText(kp) ? kPos : -1;
-      const msgSrc = iMsg < 0 && kMsg < 0 ? null : (iMsg >= kMsg ? i : k);
+      const hasIpc = hasIpcMessage(ip);
+      const hasKml = hasText(kp);
+      const iMsg = hasIpc ? ip._msgTime || 0 : -1;
+      const kMsg = hasKml ? kmlMessageTimeMs(kp) : -1;
+      const msgSrc = hasIpc && hasKml
+        ? (kMsg > iMsg ? k : i)
+        : hasIpc ? i : hasKml ? k : null;
       const props = Object.assign({}, posSrc.properties, { "Map Display Name": key });
       delete props._posTime; delete props._msgTime; delete props._msgPos;
       const mp = msgSrc && msgSrc.properties;
@@ -285,7 +297,7 @@
               _isMessage: true, "Map Display Name": key,
               type: (viaIpc ? mp["Message Type"] : "") || "text",
               text: mp.Text,
-              time: viaIpc ? mp["Message Time"] : mp.Time || "",
+              time: viaIpc ? mp["Message Time"] : mp["Message Time"] || mp.Time || "",
               elevation: viaIpc ? (mpos && mpos.altitude != null ? mpos.altitude + " m" : "") : mp.Elevation || "",
               speed: viaIpc ? (mpos && mpos.speed != null ? mpos.speed + " km/h" : "") : mp.Velocity || "",
               course: viaIpc ? (mpos && mpos.course != null ? mpos.course + "\u00b0" : "") : mp.Course || "",

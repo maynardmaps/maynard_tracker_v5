@@ -21,7 +21,8 @@
     l.bindPopup(
       `<div class="kml-popup"><strong>${escapeHtml(name)}</strong>` +
         (desc ? `<div class="kml-popup-desc">${escapeHtml(desc)}</div>` : "") +
-        "</div>"
+        "</div>",
+      { offset: feature.geometry && feature.geometry.type === "Point" ? [0, 4] : [0, 0] }
     );
     if (feature.geometry && feature.geometry.type === "Point") {
       MaynardNearbyPicker.register(l, "Birds and rivers", name);

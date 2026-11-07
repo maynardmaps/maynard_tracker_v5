@@ -8,7 +8,7 @@ Pages with **no backend**. It shows:
   Survey Leisure (via the OS Maps API).
 - GPX/KML routes, loaded from subfolders under `routes/`, auto-coloured and
   individually toggleable.
-- Live team positions and messages from two sources used together: Garmin IPC Outbound pushes (received by the Worker) and the MapShare KML feed. The newest timestamp per team wins, so either source covers for the other. Position and message are separate markers; a message marker stays where the message was received (envelope, or a red pulsing SOS badge).
+- Live team positions and messages from two sources used together: Garmin IPC Outbound pushes (received by the Worker) and the MapShare KML feed. Position reports are compared by position timestamp; messages by message timestamp (not the timestamp of a later KML position update). Position and message are separate markers; a message marker stays where the message was received (envelope, or a red pulsing SOS badge).
 - A Met Office precipitation radar/forecast overlay.
 - A static "birds and rivers" KML overlay (points and polygons) loaded once
   from every KML file in the version-controlled `data/` folder.

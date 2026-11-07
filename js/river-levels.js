@@ -151,7 +151,7 @@
       ? `<svg viewBox="0 0 20 20" width="18" height="18" style="transform:rotate(${ROTATE[trend]}deg)">` +
         `<path d="M10 1 L18 11 H13 V19 H7 V11 H2 Z" fill="${colour}" stroke="#fff" stroke-width="1.2" stroke-linejoin="round"/></svg>`
       : `<span class="river-dot" style="background:${colour}"></span>`;
-    return L.divIcon({ className: "river-arrow", html, iconSize: [18, 18], iconAnchor: [9, 9] });
+    return L.divIcon({ className: "river-arrow", html, iconSize: [18, 18], iconAnchor: [9, 9], popupAnchor: [0, trend ? -9 : -4] });
   }
 
   let markers = {};
