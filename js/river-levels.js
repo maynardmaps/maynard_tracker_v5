@@ -205,6 +205,7 @@
           if (el) fillTrend(el);
         })
         .addTo(layer);
+      MaynardNearbyPicker.register(marker, "River level station", s.label || s.river || "Station");
       markers[s.id] = { marker, band, measureId: m.id };
     });
     const n = Object.keys(markers).length;

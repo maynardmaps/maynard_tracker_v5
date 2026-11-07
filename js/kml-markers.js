@@ -40,6 +40,9 @@
       },
       onEachFeature(feature, layer) {
         layer.bindPopup(buildPopupHtml(feature.properties || {}, feature.geometry && feature.geometry.coordinates), { maxWidth: 320 });
+        if (feature.geometry && feature.geometry.type === "Point") {
+          MaynardNearbyPicker.register(layer, "Team position", markerKey(feature));
+        }
         keyed["pos:" + markerKey(feature)] = layer;
       }
     });
@@ -74,6 +77,7 @@
         alt: "Last message from " + name,
         zIndexOffset: sos ? 1000 : 0
       }).bindPopup(html, { maxWidth: 320 }).addTo(group);
+      MaynardNearbyPicker.register(m, "Team message", name);
       keyed["msg:" + name] = m;
     });
     group._keyed = keyed;

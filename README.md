@@ -16,6 +16,10 @@ Pages with **no backend**. It shows:
   steady) for a configurable area of England, with the Dartmoor area as the default.
 - A right-click / long-press menu giving the clicked coordinates, an OS grid
   reference (inside Great Britain) and a link to open the spot in a maps app.
+- A nearby-item chooser for crowded taps: when multiple team, message, river,
+  route-point, or birds-and-rivers markers are close together, choose the
+  intended feature from a list; team, message, and river icons have larger
+  invisible tap targets for mobile.
 - A password-gated `config.html` page for editing defaults (start point,
   route colours, map sources, GitHub link) which are saved to
   `settings.json` and committed straight back to the repo via the GitHub
@@ -50,7 +54,7 @@ Nothing sensitive is in this repo:
 | GitHub token (fine-grained PAT, this repo only, Contents: read/write) | Worker secret `GITHUB_TOKEN` |
 | Config page passphrase | Worker secret `CONFIG_PASSPHRASE` |
 | Garmin IPC Outbound token | Worker secret `IPC_OUTBOUND_TOKEN` (required in every mode; must match the Authorization Token set in Garmin Portal Connect, sent in `X-Outbound-Auth-Token`) |
-| Garmin IPC Inbound credentials (V1, HTTP Basic) | Worker secrets `IPC_INBOUND_USER` and `IPC_INBOUND_PASSWORD` (optional `IPC_SENDER` sets the message sender name) |
+| Garmin IPC Inbound credentials (V1, HTTP Basic) | Worker secrets `IPC_INBOUND_USER` and `IPC_INBOUND_PASSWORD`; `IPC_SENDER` must be set to the sender's email address |
 
 Set Worker secrets with `wrangler.cmd secret put <NAME>` and type the value at
 the prompt (never as a command argument).
@@ -157,12 +161,27 @@ marker/message.
 **Messaging tab** (config page, after unlocking). Shows each team's last 3 messages and tracking status, plus
 an "Unregistered trackers" entry while Test mode data is present. Clear history, send text message, and force start / force stop / query tracking. Commands go through the
 passphrase-protected `POST /ipc/command`, which calls Garmin IPC Inbound **V1**
-(`https://explore.garmin.com/ipcinbound/V1`: `Messaging.svc/Message`, `Tracking.svc/Tracking`). Real
+(`https://eur-origin.explore.garmin.com:443/ipcinbound/V1`: `Messaging.svc/Message`, `Tracking.svc/Tracking`). Real
 messages and tracking changes travel over Iridium and are billed to the device plan.
+
+To check IPC Inbound authentication directly from a computer without involving the
+Worker, run `python tools/test_garmin_inbound.py`. The script prompts for a 15-digit
+IMEI, username, and hidden password, then issues only a read-only tracking-status
+GET request to `https://eur-origin.explore.garmin.com:443/ipcinbound/V1/Tracking.svc/Tracking?IMEI=<IMEI>`
+and prints Garmin's HTTP status and response. Credentials are not saved.
+
+The Worker sends text messages to `POST /Messaging.svc/Message`. `IPC_SENDER` is
+the sender email address. The request uses Garmin's `/Date(<Unix milliseconds>)/`
+timestamp format, a string recipient IMEI, and the required `ReferencePoint`
+fields used by the known-working Portal Connect example (`LocationType: "0"`,
+altitude/speed/course `"1"`, coordinate `0,0`, and empty label). Tracking start
+and stop use `POST /Tracking.svc/Tracking` with a numeric IMEI, boolean `Tracking`,
+and interval in seconds; status uses `GET /Tracking.svc/Tracking?IMEI=<IMEI>`.
 
 The unlocked config page's Messaging section also includes a passphrase-protected **command results log** (last 30
 message/tracking commands), including the Garmin IPC Inbound endpoint, HTTP status, and bounded response body on failure.
-This is separate from the test tool's Garmin delivery log, which records inbound-to-Worker **Outbound** deliveries.
+This is the Worker-to-Garmin Inbound command log. It is separate from the test
+tool's Garmin delivery log, which records Garmin-to-Worker **Outbound** deliveries.
 
 The bottom of the unlocked config page also has **Location history**: up to five recent position reports or messages
 per registered or unregistered tracker, including event time, reported coordinates, and raw event payload. It loads

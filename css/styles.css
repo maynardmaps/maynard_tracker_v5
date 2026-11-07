@@ -313,8 +313,30 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .team-message span { display: flex; align-items: center; justify-content: center; width: 22px; height: 16px; border: 1.5px solid #222; border-radius: 2px; box-sizing: border-box; color: #000; font: 12px/1 sans-serif; box-shadow: 0 1px 3px rgba(0,0,0,.4); cursor: pointer; }
 .team-message-sos span { width: 34px; height: 20px; background: #e00; color: #fff; border: 2px solid #fff; font: bold 12px/1 sans-serif; animation: sos-pulse 1s infinite alternate; }
 .team-message-urgent span { border-color: #e00; border-width: 2px; font-weight: bold; }
+.team-diamond, .team-message, .river-arrow { position: absolute; }
+.team-diamond::before, .team-message::before, .river-arrow::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 0;
+  width: 40px;
+  height: 40px;
+  transform: translate(-50%, -50%);
+  background: transparent;
+  pointer-events: auto;
+}
+.team-diamond span, .team-message span, .river-arrow svg { position: relative; z-index: 1; pointer-events: none; }
 @keyframes sos-pulse { from { transform: scale(1); } to { transform: scale(1.25); } }
 @media (prefers-reduced-motion: reduce) { .team-message-sos span { animation: none; } }
+.nearby-picker-popup .leaflet-popup-content { margin: 0.65rem; }
+.nearby-picker { min-width: 190px; }
+.nearby-picker > strong { display: block; margin-bottom: 0.4rem; }
+.nearby-picker-list { display: grid; gap: 0.3rem; max-height: 220px; overflow-y: auto; }
+.nearby-picker-item { display: grid; gap: 0.1rem; width: 100%; padding: 0.45rem 0.55rem; border: 1px solid #888; border-radius: 4px; background: #fff; color: #111; text-align: left; cursor: pointer; font: inherit; }
+.nearby-picker-item:hover, .nearby-picker-item:focus-visible { background: #edf4ff; outline: 2px solid #2367c9; outline-offset: 1px; }
+.nearby-picker-category { color: #555; font-size: 0.75rem; }
+.nearby-picker-label { font-weight: 600; }
 
 /* Messaging panel */
 .msg-team-card { border: 1px solid var(--panel-border); border-radius: 4px; padding: 0.5rem 0.7rem; margin-bottom: 0.6rem; background: #fff; color: #111; }

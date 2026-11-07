@@ -116,7 +116,7 @@ const IPC_LOCATION_HISTORY_MAX = 5;
 const IPC_LOG_PAYLOAD_MAX = 12000;
 const IPC_EVENT_PAYLOAD_MAX = 12000;
 const IPC_INBOUND_RESPONSE_MAX = 2000;
-const IPC_INBOUND_BASE = "https://explore.garmin.com/ipcinbound/V1";
+const IPC_INBOUND_BASE = "https://eur-origin.explore.garmin.com:443/ipcinbound/V1";
 const IPC_CMD_LOG_KEY = "ipc:cmdlog";
 
 function ipcTimestamp(value) {
@@ -390,8 +390,25 @@ async function ipcCommand(request, env) {
     } else {
       if (!env.IPC_INBOUND_USER || !env.IPC_INBOUND_PASSWORD) throw Object.assign(new Error("IPC_INBOUND_USER / IPC_INBOUND_PASSWORD secrets are not set on the Worker"), { status: 503 });
       if (action === "sendMessage") {
+        const sender = String(env.IPC_SENDER || "").trim();
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(sender)) {
+          throw Object.assign(new Error("IPC_SENDER must be set to a valid sender email address"), { status: 503 });
+        }
         result = await garminInbound(env, "POST", "/Messaging.svc/Message", {
-          Messages: [{ Recipients: [Number(imei)], Sender: env.IPC_SENDER || "Maynard Tracker", Timestamp: new Date().toISOString(), Message: text }]
+          Messages: [{
+            Recipients: [imei],
+            Sender: sender,
+            Timestamp: `/Date(${Date.now()})/`,
+            Message: text,
+            ReferencePoint: {
+              LocationType: "0",
+              Altitude: "1",
+              Speed: "1",
+              Course: "1",
+              Coordinate: { Latitude: 0, Longitude: 0 },
+              Label: ""
+            }
+          }]
         });
       } else if (action === "trackingStart" || action === "trackingStop") {
         await garminInbound(env, "POST", "/Tracking.svc/Tracking", {

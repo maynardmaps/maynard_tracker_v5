@@ -15,7 +15,13 @@
     return new Promise((resolve, reject) => {
       const style = () => ({ color: "#3388ff", weight: 4, opacity: 0.85 });
       let layer;
-      const pointToLayer = (f, ll) => L.circleMarker(ll, { radius: 4, weight: 1, color: "#fff", fillColor: "#3388ff", fillOpacity: 1 });
+      const pointToLayer = (f, ll) => {
+        const point = L.circleMarker(ll, { radius: 4, weight: 1, color: "#fff", fillColor: "#3388ff", fillOpacity: 1 });
+        const name = String((f.properties && f.properties.name) || filename);
+        point.bindPopup(`<div class="kml-popup"><strong>${MaynardUtils.escapeHtml(name)}</strong><div>Route point</div></div>`);
+        MaynardNearbyPicker.register(point, "Route point", name);
+        return point;
+      };
       if (ext === "gpx") {
         layer = omnivore.gpx(url, null, L.geoJson(null, { style, pointToLayer }));
       } else if (ext === "kml") {

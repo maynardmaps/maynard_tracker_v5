@@ -23,6 +23,9 @@
         (desc ? `<div class="kml-popup-desc">${escapeHtml(desc)}</div>` : "") +
         "</div>"
     );
+    if (feature.geometry && feature.geometry.type === "Point") {
+      MaynardNearbyPicker.register(l, "Birds and rivers", name);
+    }
   }
 
   function buildLayer(url) {
