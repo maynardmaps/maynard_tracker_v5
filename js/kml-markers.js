@@ -64,7 +64,7 @@
         ["Elevation", p.elevation], ["Speed", p.speed], ["Course", p.course], ["Source", p.source]]
         .filter(([, v]) => v !== "" && v != null);
       const gr = gridRef(lat, lng);
-      const messageTime = Date.parse(p.time);
+      const messageTime = Number.isFinite(p.timeMs) ? p.timeMs : parseKmlTime(p.time);
       const messageAge = MaynardUtils.timeSince(messageTime);
       const html = `<div class="kml-popup"><strong>${escapeHtml(name)} - last message${messageAge ? ` ${escapeHtml(messageAge)}` : ""}</strong>` +
         '<table class="kml-popup-table">' + rows.map(([l, v]) => `<tr><th>${escapeHtml(l)}</th><td>${l === "Message" ? `<strong>${escapeHtml(String(v))}</strong>` : escapeHtml(String(v))}</td></tr>`).join("") + "</table>" +
@@ -230,21 +230,25 @@
   }
 
   // KML time fields look like "10/30/2026 9:57:12 PM" (UTC in "Time UTC").
-  function kmlTimeMs(props) {
-    const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2}):(\d{2})\s*([AP]M)?$/i.exec(String(props["Time UTC"] || "").trim());
+  function parseKmlTime(value) {
+    const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})\s*,?\s*(\d{1,2}):(\d{2}):(\d{2})\s*([AP]M)?$/i.exec(String(value || "").trim());
     if (m) {
       let h = Number(m[4]) % 12;
       if (/^P/i.test(m[7] || "")) h += 12;
       else if (!m[7]) h = Number(m[4]);
       return Date.UTC(Number(m[3]), Number(m[1]) - 1, Number(m[2]), h, Number(m[5]), Number(m[6]));
     }
-    const t = Date.parse(props["Time UTC"] || props.timestamp || props.when || props.begin || props.Time || "");
-    return isNaN(t) ? 0 : t;
+    const time = Date.parse(value || "");
+    return Number.isFinite(time) ? time : -1;
+  }
+
+  function kmlTimeMs(props) {
+    const time = parseKmlTime(props["Time UTC"] || props.timestamp || props.when || props.begin || props.Time || "");
+    return time < 0 ? 0 : time;
   }
 
   function kmlMessageTimeMs(props) {
-    const time = Date.parse(String(props["Message Time"] || "").trim());
-    return Number.isFinite(time) ? time : -1;
+    return parseKmlTime(props["Message Time"]);
   }
 
   // Per team, show the newest position and the newest message across the push
@@ -301,6 +305,7 @@
               type: (viaIpc ? mp["Message Type"] : "") || "text",
               text: mp.Text,
               time: viaIpc ? mp["Message Time"] : mp["Message Time"] || mp.Time || "",
+              timeMs: viaIpc ? ip._msgTime : (kmlMessageTimeMs(mp) >= 0 ? kmlMessageTimeMs(mp) : kmlTimeMs(mp)),
               elevation: viaIpc ? (mpos && mpos.altitude != null ? mpos.altitude + " m" : "") : mp.Elevation || "",
               speed: viaIpc ? (mpos && mpos.speed != null ? mpos.speed + " km/h" : "") : mp.Velocity || "",
               course: viaIpc ? (mpos && mpos.course != null ? mpos.course + "\u00b0" : "") : mp.Course || "",
