@@ -28,6 +28,7 @@
   }
 
   const isUnregistered = (f) => !!(f.properties && f.properties.Unregistered === "true");
+  const NAV_ICON = '<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 2 4.5 21 12 17l7.5 4L12 2Zm0 5.2 4.2 10.1-4.2-2.2-4.2 2.2L12 7.2Z"/></svg>';
 
   function buildLayer(geojson) {
     // Each point marker gets the next palette slot in alphanumerical order of
@@ -93,9 +94,10 @@
         (messageAge ? `<div class="kml-popup-age">${escapeHtml(messageAge)}</div>` : "") +
         location +
         `<div class="kml-popup-emergency${sos ? "" : " kml-popup-emergency-clear"}">${sos ? "EMERGENCY: SOS" : "No emergency"}</div>` +
+        `<div class="kml-popup-nav"><a href="${escapeHtml(mapAppUrl(lat, lng, name + " message"))}" title="Open location in maps" aria-label="Nav to ${escapeHtml(name)} in maps" target="_blank" rel="noopener">${NAV_ICON} Nav to</a></div>` +
         '<details class="kml-popup-details"><summary>More details</summary>' +
         '<table class="kml-popup-table">' + rows.map(([l, v]) => `<tr><th>${escapeHtml(l)}</th><td>${l === "Message" ? `<strong>${escapeHtml(String(v))}</strong>` : escapeHtml(String(v))}</td></tr>`).join("") + "</table>" +
-        `<div class="kml-popup-map"><a href="${escapeHtml(mapAppUrl(lat, lng, name + " message"))}" target="_blank" rel="noopener">&#128506; Map</a></div></details></div>`;
+        "</details></div>";
       const iconSize = sos ? [34, 20] : [22, 16];
       const iconAnchor = sos ? [17, 26] : [11, 22];
       const m = L.marker([lat, lng], {
@@ -192,6 +194,10 @@
     if (gr) html += `<div class="kml-popup-grid">Grid ref: ${escapeHtml(gr)}</div>`;
     else if (hasCoordinates) html += `<div class="kml-popup-grid">Location: ${formatCoordinate(lat)}, ${formatCoordinate(lng)}</div>`;
     html += `<div class="kml-popup-emergency${emergency ? "" : " kml-popup-emergency-clear"}">${emergency ? "EMERGENCY" : "No emergency"}</div>`;
+    if (hasCoordinates) {
+      const href = mapAppUrl(lat, lng, title);
+      html += `<div class="kml-popup-nav"><a href="${escapeHtml(href)}" title="Open location in maps" aria-label="Nav to ${escapeHtml(title)} in maps" target="_blank" rel="noopener">${NAV_ICON} Nav to</a></div>`;
+    }
     let details = "";
     if (has("description") && !has("Time")) {
       details += `<div class="kml-popup-desc">${escapeHtml(props.description)}</div>`;
@@ -205,10 +211,6 @@
         "</table>";
     }
     if (etaHtml) details += etaHtml;
-    if (hasCoordinates) {
-      const href = mapAppUrl(lat, lng, title);
-      details += `<div class="kml-popup-map"><a href="${escapeHtml(href)}" title="Open in maps app" aria-label="Open in maps app" target="_blank" rel="noopener">&#128506; Map</a></div>`;
-    }
     if (details) html += `<details class="kml-popup-details"><summary>More details</summary>${details}</details>`;
     return html + "</div>";
   }

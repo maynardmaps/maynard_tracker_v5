@@ -114,9 +114,10 @@
       const lng = e.latlng.lng.toFixed(6);
       const href = MaynardKmlMarkers.mapAppUrl(lat, lng, "Dropped pin");
       const gr = MaynardKmlMarkers.gridRef(e.latlng.lat, e.latlng.lng);
+      const navIcon = '<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 2 4.5 21 12 17l7.5 4L12 2Zm0 5.2 4.2 10.1-4.2-2.2-4.2 2.2L12 7.2Z"/></svg>';
       const html = `<div class="kml-popup"><strong>${lat}, ${lng}</strong>` +
         (gr ? `<div class="kml-popup-grid">Grid ref: ${gr}</div>` : "") +
-        `<div class="kml-popup-map"><a href="${MaynardUtils.escapeHtml(href)}" title="Open in maps app" aria-label="Open in maps app" target="_blank" rel="noopener">&#128506; Map</a></div></div>`;
+        `<div class="kml-popup-nav"><a href="${MaynardUtils.escapeHtml(href)}" title="Open location in maps" aria-label="Nav to dropped pin in maps" target="_blank" rel="noopener">${navIcon} Nav to</a></div></div>`;
       L.popup().setLatLng(e.latlng).setContent(html).openOn(map);
     });
   }
