@@ -77,9 +77,25 @@
 
   async function loadDevices() {
     try {
-      const s = await (await fetch("settings.json", { cache: "no-store" })).json();
+      const s = await MaynardSettings.load();
       $("t-imei").innerHTML = (s.devices || []).map((d) => `<option value="${d.imei}">${String(d.name).replace(/</g, "&lt;")} (${d.imei})</option>`).join("");
-      if (s.mode !== "test") logLine("settings.json says mode is NORMAL - injection will be refused until Test mode is saved.");
+      if (s.mode !== "test") {
+        logLine("Settings say mode is NORMAL - injection and the stale-icon override require Test mode to be saved.");
+      } else {
+        $("stale-data-test").hidden = false;
+        const override = $("show-stale-map-data");
+        override.checked = MaynardUtils.showStaleMapDataTestOverride();
+        override.addEventListener("change", () => {
+          try {
+            if (override.checked) localStorage.setItem(MaynardUtils.STALE_MAP_DATA_TEST_OVERRIDE_KEY, "true");
+            else localStorage.removeItem(MaynardUtils.STALE_MAP_DATA_TEST_OVERRIDE_KEY);
+            logLine(`Stale Garmin and river-level icons ${override.checked ? "shown" : "hidden by age limit"} on open Test mode maps.`);
+          } catch (e) {
+            logLine("Could not save stale-icon override: " + e.message);
+            override.checked = MaynardUtils.showStaleMapDataTestOverride();
+          }
+        });
+      }
       MaynardMessaging.mount($("t-msg-root"), { devices: s.devices || [], passphrase: () => passphrase, testTools: true });
     } catch (e) { logLine("Could not load settings.json"); }
   }

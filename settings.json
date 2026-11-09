@@ -79,6 +79,7 @@
     }
   ],
   "weatherEnabledByDefault": false,
+  "mapDataMaxAgeHours": 12,
   "mode": "normal",
   "birdsRiversEnabledByDefault": false,
   "riverLevels": {

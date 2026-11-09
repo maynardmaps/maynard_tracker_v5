@@ -74,6 +74,16 @@
 
   // EPSG:27700 (British National Grid) definition, shared by the map and grid refs.
   const BNG_PROJ4 = "+proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 +x_0=400000 +y_0=-100000 +ellps=airy +datum=OSGB36 +units=m +no_defs";
+  const STALE_MAP_DATA_TEST_OVERRIDE_KEY = "maynard_test_show_stale_map_data_v1";
+
+  function showStaleMapDataTestOverride() {
+    try {
+      return localStorage.getItem(STALE_MAP_DATA_TEST_OVERRIDE_KEY) === "true";
+    } catch (e) {
+      console.warn("Could not read stale map data test override", e);
+      return false;
+    }
+  }
 
   // Small status line over the map (e.g. "River levels unavailable"). Each
   // feature owns a key; pass a falsy message to clear it.
@@ -141,6 +151,8 @@
     setStatus,
     diag,
     setDiagnosticsEnabled,
-    BNG_PROJ4
+    BNG_PROJ4,
+    STALE_MAP_DATA_TEST_OVERRIDE_KEY,
+    showStaleMapDataTestOverride
   };
 })(window);

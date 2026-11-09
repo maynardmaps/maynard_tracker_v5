@@ -74,6 +74,15 @@
         <button type="button" id="t-clear" class="danger">Clear stored positions</button>
       </div>
 
+      <div class="config-section" id="stale-data-test" hidden>
+        <h2>Map icon age filter</h2>
+        <p class="status-msg">In Test mode, temporarily show Garmin and river-level icons older than the configured age limit. This helps check older live KML data; it does not change saved settings or remove location history. The open map tab updates automatically.</p>
+        <label class="switch-row">
+          <input type="checkbox" id="show-stale-map-data" />
+          Show stale Garmin and river-level icons
+        </label>
+      </div>
+
       <div class="config-section">
         <h2>Garmin delivery log</h2>
         <p class="status-msg">Recent requests received at /ipc/outbound, with HTTP response, header names (never values), and request payload. Payloads are size-capped and marked if truncated. Use Garmin's Test button, then refresh.</p>
@@ -92,6 +101,8 @@
   </div>
   <script src="https://unpkg.com/togeojson@0.16.0/togeojson.js" integrity="sha384-dlcQC0RqbD5hkW9dIHtouEHEP0tHnSuyKco85aJB5jdtbDseEsx4T3Jaa0lHs5ae" crossorigin="anonymous"></script>
   <script src="js/app-config.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/settings-store.js"></script>
   <script src="js/github-save.js"></script>
   <script src="js/messaging-panel.js"></script>
   <script src="js/test-page.js"></script>

@@ -115,6 +115,13 @@ select#route-folder-select {
 
 .kml-popup { max-width: 300px; }
 .kml-popup-emergency { background: #c62828; color: #fff; font-weight: bold; padding: 0.1rem 0.4rem; margin-top: 0.25rem; border-radius: 3px; display: inline-block; }
+.kml-popup-emergency-clear { background: #e8f5e9; color: #256029; }
+.kml-popup-age { margin-top: 0.1rem; color: var(--muted); }
+.kml-popup-details { margin-top: 0.3rem; }
+.kml-popup-details > summary { cursor: pointer; font-weight: 600; list-style: none; }
+.kml-popup-details > summary::-webkit-details-marker { display: none; }
+.kml-popup-details > summary::before { content: "\25B8"; display: inline-block; width: 1em; }
+.kml-popup-details[open] > summary::before { content: "\25BE"; }
 .kml-popup-table { border-collapse: collapse; margin-top: 0.35rem; font-size: 0.85rem; }
 .kml-popup-table th { text-align: left; font-weight: 600; padding: 0.1rem 0.6rem 0.1rem 0; vertical-align: top; white-space: nowrap; }
 .kml-popup-table td { padding: 0.1rem 0; word-break: break-word; }

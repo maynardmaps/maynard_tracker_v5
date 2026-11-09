@@ -265,6 +265,7 @@
 
   function populateForm() {
     fillDefaultFolderSelect();
+    document.getElementById("map-data-max-age-hours").value = settings.mapDataMaxAgeHours || 12;
 
     // Start point
     document.getElementById("start-lat").value = settings.startPoint.lat;
@@ -580,9 +581,16 @@
       statusEl.className = "status-msg error";
       return;
     }
+    const mapDataMaxAgeHours = Number(document.getElementById("map-data-max-age-hours").value);
+    if (!Number.isInteger(mapDataMaxAgeHours) || mapDataMaxAgeHours < 1 || mapDataMaxAgeHours > 720) {
+      statusEl.textContent = "Map icon age limit must be a whole number from 1 to 720 hours.";
+      statusEl.className = "status-msg error";
+      return;
+    }
 
     const newSettings = {
       ...settings,
+      mapDataMaxAgeHours,
       devices,
       defaultRouteFolder: document.getElementById("default-route-folder").value,
       startPoint: {

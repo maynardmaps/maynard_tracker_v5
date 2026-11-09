@@ -657,7 +657,8 @@ const MAX_SETTINGS_BYTES = 50000;
 const ALLOWED_KEYS = new Set([
   "_comment", "github", "defaultRouteFolder", "startPoint", "startZoom",
   "mapSources", "routeColours", "markerColours", "weatherEnabledByDefault",
-  "birdsRiversEnabledByDefault",   "diagnosticsEnabled", "riverLevels", "devices", "mode"
+  "birdsRiversEnabledByDefault", "diagnosticsEnabled", "riverLevels", "devices",
+  "mapDataMaxAgeHours", "mode"
 ]);
 
 // Fallback used only if the RATE_LIMIT KV binding is missing.
@@ -765,6 +766,10 @@ function settingsError(s) {
     return "defaultRouteFolder invalid";
   }
   if (s.mode !== undefined && s.mode !== "normal" && s.mode !== "test") return "mode must be normal or test";
+  if (s.mapDataMaxAgeHours !== undefined &&
+      (!Number.isInteger(s.mapDataMaxAgeHours) || s.mapDataMaxAgeHours < 1 || s.mapDataMaxAgeHours > 720)) {
+    return "mapDataMaxAgeHours must be a whole number from 1 to 720";
+  }
   for (const k of ["weatherEnabledByDefault", "birdsRiversEnabledByDefault", "diagnosticsEnabled"]) {
     if (s[k] !== undefined && !isBool(s[k])) return `${k} must be true or false`;
   }

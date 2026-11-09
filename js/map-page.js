@@ -46,6 +46,8 @@
       pollIntervalMs: window.MAYNARD_CONFIG.garminPollIntervalMs,
       pushPollIntervalMs: window.MAYNARD_CONFIG.garminPushPollIntervalMs,
       palette: settings.markerColours,
+      mapDataMaxAgeHours: settings.mapDataMaxAgeHours || 12,
+      mode: settings.mode,
       devices: settings.devices || [],
       startVisible: true
     });
@@ -67,7 +69,12 @@
     if (birdsRiversToggle) birdsRiversToggle.checked = settings.birdsRiversEnabledByDefault === true;
 
     const rl = riverLevelSettings();
-    MaynardRiverLevels.init(map, { bounds: rl.bounds, startVisible: rl.enabledByDefault });
+    MaynardRiverLevels.init(map, {
+      bounds: rl.bounds,
+      startVisible: rl.enabledByDefault,
+      mapDataMaxAgeHours: settings.mapDataMaxAgeHours || 12,
+      mode: settings.mode
+    });
     const riverToggle = document.getElementById("toggle-river-levels");
     if (riverToggle) riverToggle.checked = rl.enabledByDefault;
 

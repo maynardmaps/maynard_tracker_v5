@@ -29,6 +29,9 @@
   let loading = null;
   let trends = {};
   const BULK_THRESHOLD = 150;
+  let maxAgeMs = 12 * 60 * 60 * 1000;
+  let testMode = false;
+  let showStaleOverride = false;
 
   const esc = MaynardUtils.escapeHtml;
   const idOf = (url) => String(url).split("/").pop();
@@ -197,6 +200,8 @@
       if (!m) return;
       const r = readings[m.id];
       if (typeof r.value !== "number") return;
+      const readingTime = Date.parse(r.dateTime);
+      if (!(testMode && showStaleOverride) && Number.isFinite(readingTime) && Date.now() - readingTime > maxAgeMs) return;
       const band = bandOf(s, r.value);
       const marker = L.marker([s.lat, s.lng], { icon: iconFor(band, trends[s.id]), keyboard: false })
         .bindPopup(popupHtml(s, m, r, band), { maxWidth: 260 })
@@ -232,12 +237,21 @@
     if (!timer) timer = setInterval(() => { if (visible) refresh(); }, REFRESH_MS);
   }
 
-  function init(map, { bounds: b, startVisible }) {
+  function init(map, { bounds: b, startVisible, mapDataMaxAgeHours, mode }) {
     bounds = b;
+    maxAgeMs = (Number.isFinite(mapDataMaxAgeHours) && mapDataMaxAgeHours > 0 ? mapDataMaxAgeHours : 12) * 60 * 60 * 1000;
+    testMode = mode === "test";
+    showStaleOverride = testMode && MaynardUtils.showStaleMapDataTestOverride();
     layer = L.featureGroup();
     visible = startVisible === true;
     if (visible) { layer.addTo(map); start(); }
   }
+
+  global.addEventListener("storage", (event) => {
+    if (!testMode || event.key !== MaynardUtils.STALE_MAP_DATA_TEST_OVERRIDE_KEY || !layer) return;
+    showStaleOverride = MaynardUtils.showStaleMapDataTestOverride();
+    if (stations.length && Object.keys(readings).length) render(++loadSeq);
+  });
 
   function setVisible(v, map) {
     visible = v;

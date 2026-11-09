@@ -8,6 +8,19 @@
   let markerPalette = MaynardUtils.sanitizePalette();
   let pollTimer = null;
   let lastRawKml = null;
+  let latestFeatures = [];
+  let maxAgeMs = 12 * 60 * 60 * 1000;
+  let testMode = false;
+  let showStaleOverride = false;
+
+  function featureIsVisible(feature) {
+    if (testMode && showStaleOverride) return true;
+    const props = feature.properties || {};
+    const timestamp = props._isMessage
+      ? Number(props.timeMs) || parseKmlTime(props.time)
+      : kmlTimeMs(props);
+    return timestamp <= 0 || Date.now() - timestamp <= maxAgeMs;
+  }
 
   function markerKey(feature) {
     const p = (feature && feature.properties) || {};
@@ -27,7 +40,7 @@
     const colours = MaynardUtils.assignColours(keys, markerPalette);
     const keyed = {};
     const geo = L.geoJson(geojson, {
-      filter: (f) => !(f.properties && f.properties._isMessage),
+      filter: (f) => !(f.properties && f.properties._isMessage) && featureIsVisible(f),
       pointToLayer(feature, latlng) {
         const c = colours.get(markerKey(feature));
         const em = String((feature.properties || {})["In Emergency"]).toLowerCase() === "true";
@@ -52,7 +65,7 @@
     const group = L.featureGroup([geo]);
     geojson.features.forEach((f) => {
       const p = f.properties || {};
-      if (!p._isMessage || !f.geometry) return;
+      if (!p._isMessage || !f.geometry || !featureIsVisible(f)) return;
       const type = p.type;
       const name = markerKey(f);
       const sos = type === "sos";
@@ -60,17 +73,21 @@
       const urgent = type === "urgent";
       const [lng, lat] = f.geometry.coordinates;
       const label = sos ? "SOS" : cancelled ? "SOS cancelled" : type === "ok" || type === "assist" || urgent ? "Puck message" : "Text message";
-      const rows = [["Message", p.text || (sos ? "SOS" : "")], ["Type", label], ["Received", p.time], ["Latitude", lat], ["Longitude", lng],
+      const rows = [["Message", p.text || (sos ? "SOS" : "")], ["Type", label], ["Received", p.time], ["Latitude", formatCoordinate(lat)], ["Longitude", formatCoordinate(lng)],
         ["Elevation", p.elevation], ["Speed", p.speed], ["Course", p.course], ["Source", p.source]]
         .filter(([, v]) => v !== "" && v != null);
       const gr = gridRef(lat, lng);
+      const location = gr ? `<div class="kml-popup-grid">Grid ref: ${escapeHtml(gr)}</div>` :
+        `<div class="kml-popup-grid">Location: ${formatCoordinate(lat)}, ${formatCoordinate(lng)}</div>`;
       const messageTime = Number.isFinite(p.timeMs) ? p.timeMs : parseKmlTime(p.time);
       const messageAge = MaynardUtils.timeSince(messageTime);
-      const html = `<div class="kml-popup"><strong>${escapeHtml(name)} - last message${messageAge ? ` ${escapeHtml(messageAge)}` : ""}</strong>` +
+      const html = `<div class="kml-popup"><strong>${escapeHtml(name)} - last message</strong>` +
+        (messageAge ? `<div class="kml-popup-age">${escapeHtml(messageAge)}</div>` : "") +
+        location +
+        `<div class="kml-popup-emergency${sos ? "" : " kml-popup-emergency-clear"}">${sos ? "EMERGENCY: SOS" : "No emergency"}</div>` +
+        '<details class="kml-popup-details"><summary>More details</summary>' +
         '<table class="kml-popup-table">' + rows.map(([l, v]) => `<tr><th>${escapeHtml(l)}</th><td>${l === "Message" ? `<strong>${escapeHtml(String(v))}</strong>` : escapeHtml(String(v))}</td></tr>`).join("") + "</table>" +
-        (sos ? '<div class="kml-popup-emergency">SOS</div>' : "") +
-        (gr ? `<div class="kml-popup-grid">Grid ref: ${gr}</div>` : "") +
-        `<div class="kml-popup-map"><a href="${escapeHtml(mapAppUrl(lat, lng, name + " message"))}" target="_blank" rel="noopener">&#128506; Map</a></div></div>`;
+        `<div class="kml-popup-map"><a href="${escapeHtml(mapAppUrl(lat, lng, name + " message"))}" target="_blank" rel="noopener">&#128506; Map</a></div></details></div>`;
       const iconSize = sos ? [34, 20] : [22, 16];
       const iconAnchor = sos ? [17, 26] : [11, 22];
       const m = L.marker([lat, lng], {
@@ -140,38 +157,56 @@
     const has = (k) => props[k] != null && String(props[k]).trim() !== "";
     const title = has("Map Display Name") ? props["Map Display Name"] : props.name || "Marker";
     const positionAge = MaynardUtils.timeSince(kmlTimeMs(props));
+    const lat = coords && Number.isFinite(Number(coords[1])) ? Number(coords[1]) :
+      (has("Latitude") && Number.isFinite(Number(props.Latitude)) ? Number(props.Latitude) : null);
+    const lng = coords && Number.isFinite(Number(coords[0])) ? Number(coords[0]) :
+      (has("Longitude") && Number.isFinite(Number(props.Longitude)) ? Number(props.Longitude) : null);
+    const hasCoordinates = lat !== null && lng !== null;
+    const gr = hasCoordinates ? gridRef(lat, lng) : null;
     const rows = [];
     const shown = new Set();
     const add = (key, label) => {
       shown.add(key);
+      if ((key === "Latitude" || key === "Longitude") && hasCoordinates) return;
       if (has(key)) rows.push([label, String(props[key]).trim()]);
     };
     POPUP_FIELDS.forEach(([k, l]) => add(k, l));
     Object.keys(props).forEach((k) => {
       if (!shown.has(k) && !POPUP_HIDDEN.has(k) && !EXCLUDED_PROPS.has(k) && k[0] !== "_") add(k, k);
     });
+    if (hasCoordinates) {
+      rows.push(["Latitude", formatCoordinate(lat)], ["Longitude", formatCoordinate(lng)]);
+    }
 
     const emergency = String(props["In Emergency"]).toLowerCase() === "true";
-    let html = `<div class="kml-popup"><strong>${escapeHtml(title)}${positionAge ? ` ${escapeHtml(positionAge)}` : ""}</strong>`;
-    if (emergency) html += '<div class="kml-popup-emergency">EMERGENCY</div>';
+    let html = `<div class="kml-popup"><strong>${escapeHtml(title)}</strong>`;
+    if (positionAge) html += `<div class="kml-popup-age">${escapeHtml(positionAge)}</div>`;
+    if (gr) html += `<div class="kml-popup-grid">Grid ref: ${escapeHtml(gr)}</div>`;
+    else if (hasCoordinates) html += `<div class="kml-popup-grid">Location: ${formatCoordinate(lat)}, ${formatCoordinate(lng)}</div>`;
+    html += `<div class="kml-popup-emergency${emergency ? "" : " kml-popup-emergency-clear"}">${emergency ? "EMERGENCY" : "No emergency"}</div>`;
+    let details = "";
     if (has("description") && !has("Time")) {
-      html += `<div class="kml-popup-desc">${escapeHtml(props.description)}</div>`;
+      details += `<div class="kml-popup-desc">${escapeHtml(props.description)}</div>`;
     }
     if (rows.length) {
-      html +=
+      details +=
         '<table class="kml-popup-table">' +
         rows
           .map(([l, v]) => `<tr><th>${escapeHtml(l)}</th><td>${escapeHtml(v)}</td></tr>`)
           .join("") +
         "</table>";
     }
-    if (coords && isFinite(coords[0]) && isFinite(coords[1])) {
-      const gr = gridRef(coords[1], coords[0]);
-      if (gr) html += `<div class="kml-popup-grid">Grid ref: ${gr}</div>`;
-      const href = mapAppUrl(coords[1], coords[0], title);
-      html += `<div class="kml-popup-map"><a href="${escapeHtml(href)}" title="Open in maps app" aria-label="Open in maps app" target="_blank" rel="noopener">&#128506; Map</a></div>`;
+    if (hasCoordinates) {
+      const href = mapAppUrl(lat, lng, title);
+      details += `<div class="kml-popup-map"><a href="${escapeHtml(href)}" title="Open in maps app" aria-label="Open in maps app" target="_blank" rel="noopener">&#128506; Map</a></div>`;
     }
+    if (details) html += `<details class="kml-popup-details"><summary>More details</summary>${details}</details>`;
     return html + "</div>";
+  }
+
+  function formatCoordinate(value) {
+    const number = Number(value);
+    return Number.isFinite(number) ? number.toFixed(5) : "";
   }
 
   // Standard KML/GeoJSON properties that aren't Garmin ExtendedData fields.
@@ -218,7 +253,7 @@
         "Battery": l.lowBattery ? "Low" : "",
         "Unregistered": known ? "false" : "true",
         "_posTime": Date.parse(l.timestamp) || 0,
-        "_msgTime": l.textTime || 0,
+        "_msgTime": typeof l.textTime === "number" ? l.textTime : (Date.parse(l.textTime) || 0),
         "_msgPos": l.messagePosition || null
       };
       (known ? registered : unregistered).push({
@@ -328,6 +363,30 @@
   // often so every position report shows; the MapShare KML is fetched on the
   // slower garminPollIntervalMs and its last result reused in between.
   let curMap = null;
+  function renderLatestFeatures() {
+    if (!curMap) return;
+    rebuilding = true;
+    if (layerGroup && curMap.hasLayer(layerGroup)) curMap.removeLayer(layerGroup);
+    layerGroup = buildLayer({ type: "FeatureCollection", features: latestFeatures });
+    layerGroup.on("popupopen", (e) => { if (!rebuilding) openKey = Object.keys(layerGroup._keyed).find((k) => layerGroup._keyed[k] === e.popup._source) || null; });
+    layerGroup.on("popupclose", () => { if (!rebuilding) openKey = null; });
+    if (visible) layerGroup.addTo(curMap);
+    rebuilding = false;
+    if (visible && openKey && layerGroup._keyed[openKey]) {
+      rebuilding = true;
+      layerGroup._keyed[openKey].openPopup();
+      rebuilding = false;
+    }
+  }
+
+  function renderIfVisibilityChanged() {
+    if (!layerGroup && !latestFeatures.length) return;
+    const sig = JSON.stringify(latestFeatures) + "|" + latestFeatures.map((f) => featureIsVisible(f) ? "1" : "0").join("");
+    if (sig === lastRawKml) return;
+    lastRawKml = sig;
+    renderLatestFeatures();
+  }
+
   async function refresh(m0, relayUrl, devices, kmlEveryMs) {
     let ipc = { registered: [], unregistered: [] };
     let ipcError = null;
@@ -355,6 +414,7 @@
       console.warn("Team position refresh failed (will retry)", ipcError, kmlError);
       MaynardUtils.diag("Garmin", false, "all sources failed: push feed: " + ipcError + "; MapShare KML: " + kmlError);
       MaynardUtils.setStatus("garmin", layerGroup ? "Team positions could not be updated (showing last known)" : "Team positions unavailable");
+      renderIfVisibilityChanged();
       return;
     }
     MaynardUtils.setStatus("garmin", null);
@@ -364,27 +424,16 @@
       `newest data per team: ${merged.fromIpc} from push feed, ${merged.fromKml} from MapShare KML` +
       (ipcError ? "; push feed failed: " + ipcError : "") + (kmlError ? "; MapShare KML failed: " + kmlError : "") +
       (ipc.unregistered.length ? "; " + ipc.unregistered.length + " unregistered device(s)" : ""));
-    const sig = JSON.stringify(features);
-    if (sig === lastRawKml) return; // unchanged
-    lastRawKml = sig;
-    const map = curMap;
-    rebuilding = true;
-    if (layerGroup && map.hasLayer(layerGroup)) map.removeLayer(layerGroup);
-    layerGroup = buildLayer({ type: "FeatureCollection", features });
-    layerGroup.on("popupopen", (e) => { if (!rebuilding) openKey = Object.keys(layerGroup._keyed).find((k) => layerGroup._keyed[k] === e.popup._source) || null; });
-    layerGroup.on("popupclose", () => { if (!rebuilding) openKey = null; });
-    if (visible) layerGroup.addTo(map);
-    rebuilding = false;
-    if (visible && openKey && layerGroup._keyed[openKey]) {
-      rebuilding = true;
-      layerGroup._keyed[openKey].openPopup();
-      rebuilding = false;
-    }
+    latestFeatures = features;
+    renderIfVisibilityChanged();
   }
 
-  function start(map, { relayUrl, pollIntervalMs, pushPollIntervalMs, palette, startVisible, devices }) {
+  function start(map, { relayUrl, pollIntervalMs, pushPollIntervalMs, palette, startVisible, devices, mapDataMaxAgeHours, mode }) {
     markerPalette = MaynardUtils.sanitizePalette(palette);
     curMap = map;
+    maxAgeMs = (Number.isFinite(mapDataMaxAgeHours) && mapDataMaxAgeHours > 0 ? mapDataMaxAgeHours : 12) * 60 * 60 * 1000;
+    testMode = mode === "test";
+    showStaleOverride = testMode && MaynardUtils.showStaleMapDataTestOverride();
     visible = startVisible !== false;
     kmlFetchedAt = 0;
     refresh(map, relayUrl, devices, pollIntervalMs);
@@ -392,6 +441,11 @@
     const fast = Math.max(5000, Math.min(pushPollIntervalMs || 10000, pollIntervalMs));
     pollTimer = setInterval(() => refresh(map, relayUrl, devices, pollIntervalMs), fast);
   }
+  global.addEventListener("storage", (event) => {
+    if (!testMode || event.key !== MaynardUtils.STALE_MAP_DATA_TEST_OVERRIDE_KEY) return;
+    showStaleOverride = MaynardUtils.showStaleMapDataTestOverride();
+    renderIfVisibilityChanged();
+  });
   function stop() {
     if (pollTimer) clearInterval(pollTimer);
     pollTimer = null;

@@ -9,6 +9,8 @@ Pages with **no backend**. It shows:
 - GPX/KML routes, loaded from subfolders under `routes/`, auto-coloured and
   individually toggleable.
 - Live team positions and messages from two sources used together: Garmin IPC Outbound pushes (received by the Worker) and the MapShare KML feed. Position reports are compared by position timestamp; messages by message timestamp (not the timestamp of a later KML position update). Garmin popup headers and tracker information show a rounded relative age, with reports under one minute labeled "less than a minute ago". Position and message are separate markers; a message marker stays where the message was received (envelope, or a red pulsing SOS badge).
+- Garmin position and message popups keep the team name, relative age, location and emergency state visible; a dropdown expands to show the remaining tracker and message details, including coordinates to five decimal places.
+- Garmin and river-level map icons older than the configurable 12-hour default are hidden, while configuration-page history remains available. In Test mode, the test tool can temporarily override the age filter to inspect older feed data.
 - A Met Office precipitation radar/forecast overlay.
 - A static "birds and rivers" KML overlay (points and polygons) loaded once
   from every KML file in the version-controlled `data/` folder.
@@ -124,6 +126,7 @@ From there you can set:
 - Device management: team names and 15-digit inReach IMEIs.
 - Messaging: last 3 messages per team, send text messages, force start/stop tracking (see below).
 - Diagnostics: show a panel at the bottom of the map menu with the Garmin retrieval method and any data-source failures.
+- Map icon age limit: hide Garmin position/message pins and river-level markers older than the configured number of hours (1-720; default 12), set in the Location history section. Older records remain in configuration history.
 - Which base map sources are offered, their display names/URLs, and you can
   add your own XYZ tile sources.
 - The GitHub owner/repo/branch (read-only; fixed in the Worker).

@@ -178,7 +178,12 @@
 
       <details class="config-section" id="location-history-section">
         <summary>Location history</summary>
-        <p class="status-msg">The last five received position reports or messages per tracker, including the reported location and raw event payload. Diagnostic data is only available after unlocking this page.</p>
+        <p class="status-msg">The last five received position reports or messages per tracker, including the reported location and raw event payload. The map icon age limit does not delete or filter this history. Diagnostic data is only available after unlocking this page.</p>
+        <div class="field-row">
+          <label class="field-label" for="map-data-max-age-hours">Hide map icons older than (hours)</label>
+          <input type="number" id="map-data-max-age-hours" min="1" max="720" step="1" />
+        </div>
+        <p class="status-msg">Applies to Garmin position/message pins and river-level markers. Choose 1–720 hours; the default is 12 hours.</p>
         <button type="button" class="secondary" id="location-history-refresh">Refresh history</button>
         <p id="location-history-status" class="status-msg" aria-live="polite"></p>
         <div id="location-history-list"></div>
