@@ -113,7 +113,7 @@ select#route-folder-select {
   font-size: 1rem;
 }
 
-.kml-popup { max-width: 300px; }
+.kml-popup { max-width: min(480px, calc(100vw - 48px)); }
 .kml-popup-emergency { background: #c62828; color: #fff; font-weight: bold; padding: 0.1rem 0.4rem; margin-top: 0.25rem; border-radius: 3px; display: inline-block; }
 .kml-popup-emergency-clear { background: #e8f5e9; color: #256029; }
 .kml-popup-age { margin-top: 0.1rem; color: var(--muted); }
@@ -122,8 +122,10 @@ select#route-folder-select {
 .kml-popup-details > summary::-webkit-details-marker { display: none; }
 .kml-popup-details > summary::before { content: "\25B8"; display: inline-block; width: 1em; }
 .kml-popup-details[open] > summary::before { content: "\25BE"; }
-.kml-popup-table { border-collapse: collapse; margin-top: 0.35rem; font-size: 0.85rem; }
-.kml-popup-table th { text-align: left; font-weight: 600; padding: 0.1rem 0.6rem 0.1rem 0; vertical-align: top; white-space: nowrap; }
+.kml-popup-details[open] { width: min(480px, calc(100vw - 48px)); max-height: min(65vh, 480px); overflow: auto; }
+.kml-popup-details[open] > summary { position: sticky; top: 0; z-index: 1; padding: 0.25rem 0; background: #fff; }
+.kml-popup-table { width: 100%; table-layout: fixed; border-collapse: collapse; margin-top: 0.35rem; font-size: 0.9rem; }
+.kml-popup-table th { width: 30%; text-align: left; font-weight: 600; padding: 0.1rem 0.6rem 0.1rem 0; vertical-align: top; white-space: nowrap; }
 .kml-popup-table td { padding: 0.1rem 0; word-break: break-word; }
 .kml-popup-desc { font-size: 0.85rem; margin-top: 0.25rem; color: var(--muted); }
 

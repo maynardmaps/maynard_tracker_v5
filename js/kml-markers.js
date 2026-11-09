@@ -61,7 +61,7 @@
           : { status: "disabled" };
         layer._etaInfo = etaInfo;
         layer._etaTeam = markerKey(feature);
-        layer.bindPopup(buildPopupHtml(props, coords, MaynardEta ? MaynardEta.popupHtml(etaInfo) : ""), { maxWidth: 320 });
+        layer.bindPopup(buildPopupHtml(props, coords, MaynardEta ? MaynardEta.popupHtml(etaInfo) : ""), { maxWidth: 520 });
         if (feature.geometry && feature.geometry.type === "Point") {
           MaynardNearbyPicker.register(layer, "Team position", markerKey(feature));
         }
@@ -106,7 +106,7 @@
         }),
         alt: "Last message from " + name,
         zIndexOffset: sos ? 1000 : 0
-      }).bindPopup(html, { maxWidth: 320 }).addTo(group);
+      }).bindPopup(html, { maxWidth: 520 }).addTo(group);
       MaynardNearbyPicker.register(m, "Team message", name);
       keyed["msg:" + name] = m;
     });
