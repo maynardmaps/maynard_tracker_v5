@@ -30,6 +30,12 @@
   const isUnregistered = (f) => !!(f.properties && f.properties.Unregistered === "true");
   const NAV_ICON = '<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 2 4.5 21 12 17l7.5 4L12 2Zm0 5.2 4.2 10.1-4.2-2.2-4.2 2.2L12 7.2Z"/></svg>';
 
+  function popupContent(html) {
+    const container = document.createElement("div");
+    container.innerHTML = html;
+    return container.firstElementChild || container;
+  }
+
   function buildLayer(geojson) {
     // Each point marker gets the next palette slot in alphanumerical order of
     // its display name; slots repeat after the palette is exhausted.
@@ -62,7 +68,7 @@
           : { status: "disabled" };
         layer._etaInfo = etaInfo;
         layer._etaTeam = markerKey(feature);
-        layer.bindPopup(buildPopupHtml(props, coords, MaynardEta ? MaynardEta.popupHtml(etaInfo) : ""), { maxWidth: 520 });
+        layer.bindPopup(popupContent(buildPopupHtml(props, coords, MaynardEta ? MaynardEta.popupHtml(etaInfo) : "")), { maxWidth: 520 });
         if (feature.geometry && feature.geometry.type === "Point") {
           MaynardNearbyPicker.register(layer, "Team position", markerKey(feature));
         }
@@ -108,7 +114,7 @@
         }),
         alt: "Last message from " + name,
         zIndexOffset: sos ? 1000 : 0
-      }).bindPopup(html, { maxWidth: 520 }).addTo(group);
+      }).bindPopup(popupContent(html), { maxWidth: 520 }).addTo(group);
       MaynardNearbyPicker.register(m, "Team message", name);
       keyed["msg:" + name] = m;
     });
@@ -375,6 +381,14 @@
   // often so every position report shows; the MapShare KML is fetched on the
   // slower garminPollIntervalMs and its last result reused in between.
   let curMap = null;
+  function resizePopupOnDetailsToggle(popup) {
+    const element = popup.getElement();
+    if (!element) return;
+    element.querySelectorAll("details").forEach((details) => {
+      details.addEventListener("toggle", () => requestAnimationFrame(() => popup.update()));
+    });
+  }
+
   function renderLatestFeatures() {
     if (!curMap) return;
     rebuilding = true;
@@ -385,6 +399,7 @@
         openKey = Object.keys(layerGroup._keyed).find((k) => layerGroup._keyed[k] === e.popup._source) || null;
       }
       const source = e.popup._source;
+      resizePopupOnDetailsToggle(e.popup);
       if (source && source._etaInfo && MaynardEta) MaynardEta.popupOpened(source._etaTeam, source._etaInfo, e.popup);
     });
     layerGroup.on("popupclose", (e) => {
