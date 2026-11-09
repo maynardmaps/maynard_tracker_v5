@@ -307,10 +307,18 @@
       arrival: timezone ? new Intl.DateTimeFormat("en-GB", {
         timeZone: timezone, dateStyle: "medium", timeStyle: "short"
       }).format(arrival) : "Local arrival time unavailable",
+      arrivalTime: timezone ? new Intl.DateTimeFormat("en-GB", {
+        timeZone: timezone, hour: "2-digit", minute: "2-digit", hourCycle: "h23"
+      }).format(arrival) : "Local time unavailable",
       lunchIncluded: lunchMinutes > 0, timezone
     };
     history.lastInfo = info;
     return info;
+  }
+
+  function headlineHtml(info) {
+    if (!info || info.status !== "available") return "";
+    return `<div class="eta-headline"><strong>ETA</strong> ${MaynardUtils.escapeHtml(info.arrivalTime)} · ${MaynardUtils.escapeHtml(info.duration)}</div>`;
   }
 
   function popupHtml(info) {
@@ -365,5 +373,5 @@
     map = mapInstance;
   }
 
-  global.MaynardEta = { discoverRoutes, init, reattach, getInfo, popupHtml, popupOpened, popupClosed, getRouteDefinitions };
+  global.MaynardEta = { discoverRoutes, init, reattach, getInfo, headlineHtml, popupHtml, popupOpened, popupClosed, getRouteDefinitions };
 })(window);

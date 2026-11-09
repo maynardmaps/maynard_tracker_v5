@@ -69,7 +69,11 @@
           : { status: "disabled" };
         layer._etaInfo = etaInfo;
         layer._etaTeam = markerKey(feature);
-        layer.bindPopup(popupContent(buildPopupHtml(props, coords, MaynardEta ? MaynardEta.popupHtml(etaInfo) : "")), { maxWidth: 520 });
+        layer.bindPopup(popupContent(buildPopupHtml(
+          props, coords,
+          MaynardEta ? MaynardEta.headlineHtml(etaInfo) : "",
+          MaynardEta ? MaynardEta.popupHtml(etaInfo) : ""
+        )), { maxWidth: 520 });
         if (feature.geometry && feature.geometry.type === "Point") {
           MaynardNearbyPicker.register(layer, "Team position", markerKey(feature));
         }
@@ -170,7 +174,7 @@
     const pad = (v) => String(Math.floor((v % 100000) / 100)).padStart(3, "0");
     return `${A(l1)}${A(l2)} ${pad(e)} ${pad(n)}`;
   }
-  function buildPopupHtml(props, coords, etaHtml) {
+  function buildPopupHtml(props, coords, etaHeadlineHtml, etaHtml) {
     const has = (k) => props[k] != null && String(props[k]).trim() !== "";
     const title = has("Map Display Name") ? props["Map Display Name"] : props.name || "Marker";
     const positionAge = MaynardUtils.timeSince(kmlTimeMs(props));
@@ -198,6 +202,7 @@
     const emergency = String(props["In Emergency"]).toLowerCase() === "true";
     let html = `<div class="kml-popup"><strong>${escapeHtml(title)}</strong>`;
     if (positionAge) html += `<div class="kml-popup-age">${escapeHtml(positionAge)}</div>`;
+    if (etaHeadlineHtml) html += etaHeadlineHtml;
     if (gr) html += `<div class="kml-popup-grid">Grid ref: ${escapeHtml(gr)}</div>`;
     else if (hasCoordinates) html += `<div class="kml-popup-grid">Location: ${formatCoordinate(lat)}, ${formatCoordinate(lng)}</div>`;
     html += `<div class="kml-popup-emergency${emergency ? "" : " kml-popup-emergency-clear"}">${emergency ? "EMERGENCY" : "No emergency"}</div>`;

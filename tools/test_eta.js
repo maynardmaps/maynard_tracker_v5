@@ -43,6 +43,9 @@ assert.equal(info.speedSource, "measured");
 assert.ok(info.speedKmh > 0 && info.speedKmh <= 160);
 assert.equal(info.legIndex, 0);
 assert.match(eta.popupHtml(info), /Distance remaining:/);
+const etaHeadline = eta.headlineHtml(info);
+assert.match(etaHeadline, /ETA<\/strong> \d{2}:\d{2} · .+/);
+assert.doesNotMatch(etaHeadline, /\d{4}|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec/);
 
 const localTime = new Intl.DateTimeFormat("en-GB", {
   timeZone: "Europe/London", hour: "2-digit", minute: "2-digit", hourCycle: "h23"
