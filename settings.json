@@ -91,7 +91,7 @@
     }
   ],
   "weatherEnabledByDefault": false,
-  "mapDataMaxAgeHours": 12,
+  "mapDataMaxAgeHours": 36,
   "eta": {
     "enabled": false,
     "staleMinutes": 30,
