@@ -8,6 +8,7 @@
 
   let settings, manifest, etaRoutes = [];
   let pickerMap, pickerMarker;
+  let deviceCounter = 0;
 
   async function main() {
     settings = await MaynardSettings.load();
@@ -29,7 +30,7 @@
     });
     document.getElementById("add-map-source-btn").addEventListener("click", addMapSourceRow);
     document.getElementById("add-device-btn").addEventListener("click", () => {
-      document.getElementById("device-list").appendChild(deviceRow({ imei: "", name: "" }));
+      appendTracker({ imei: "", name: "" });
     });
 
     populateForm();
@@ -308,25 +309,56 @@
     buildMapSourceList();
 
     // Devices
-    const deviceList = document.getElementById("device-list");
-    deviceList.innerHTML = "";
-    (settings.devices || []).forEach((d) => deviceList.appendChild(deviceRow(d)));
+    document.getElementById("device-list").replaceChildren();
+    document.getElementById("tracker-route-list").replaceChildren();
+    (settings.devices || []).forEach(appendTracker);
   }
 
-  function deviceRow(device) {
+  function appendTracker(device) {
+    const key = `tracker-${++deviceCounter}`;
+    const deviceList = document.getElementById("device-list");
+    const assignmentList = document.getElementById("tracker-route-list");
+    const row = deviceRow(device, key);
+    const assignment = trackerRouteRow(device, key);
+    const nameInput = row.querySelector(".dev-name");
+    const nameLabel = assignment.querySelector(".tracker-route-name");
+    nameInput.addEventListener("input", () => {
+      nameLabel.textContent = nameInput.value.trim() || "Unconfigured tracker";
+    });
+    row.querySelector(".dev-remove").addEventListener("click", () => {
+      if (confirm("Delete this device?")) {
+        row.remove();
+        assignment.remove();
+      }
+    });
+    deviceList.appendChild(row);
+    assignmentList.appendChild(assignment);
+  }
+
+  function deviceRow(device, key) {
+    const row = document.createElement("div");
+    row.className = "map-source-row device-row";
+    row.dataset.deviceKey = key;
+    row.innerHTML =
+      `<input type="text" class="dev-imei" inputmode="numeric" maxlength="15" value="${escapeAttr(device.imei)}" placeholder="IMEI (15 digits)" />` +
+      `<input type="text" class="dev-name" value="${escapeAttr(device.name)}" placeholder="Device name, e.g. TT1" />` +
+      `<button type="button" class="secondary dev-remove">Delete</button>`;
+    return row;
+  }
+
+  function trackerRouteRow(device, key) {
     const routeOptions = ['<option value="">No route assigned</option>'].concat(etaRoutes.map((route) =>
       `<option value="${escapeAttr(route.id)}"${route.id === device.etaRouteId ? " selected" : ""}>${escapeAttr(route.label)}</option>`
     )).join("");
     const row = document.createElement("div");
-    row.className = "map-source-row device-row";
+    row.className = "tracker-route-row";
+    row.dataset.deviceKey = key;
     row.innerHTML =
-      `<input type="text" class="dev-imei" inputmode="numeric" maxlength="15" value="${escapeAttr(device.imei)}" placeholder="IMEI (15 digits)" />` +
-      `<input type="text" class="dev-name" value="${escapeAttr(device.name)}" placeholder="Device name, e.g. TT1" />` +
+      `<strong class="tracker-route-name">${escapeAttr(device.name || "Unconfigured tracker")}</strong>` +
       `<label>ETA route <select class="dev-eta-route">${routeOptions}</select></label>` +
       `<label>Direction <select class="dev-eta-direction"><option value="forward">Front to back</option><option value="reverse">Back to front</option></select></label>` +
       `<label>Fallback speed (km/h) <input type="number" class="dev-eta-speed" min="0.1" max="160" step="0.1" value="${Number(device.etaFallbackSpeedKmh) > 0 ? Number(device.etaFallbackSpeedKmh) : 5}" /></label>` +
-      `<span class="eta-route-bearing"></span>` +
-      `<button type="button" class="secondary dev-remove">Delete</button>`;
+      `<span class="eta-route-bearing"></span>`;
     row.querySelector(".dev-eta-direction").value = device.etaDirection === "reverse" ? "reverse" : "forward";
     const routeSelect = row.querySelector(".dev-eta-route");
     const updateBearing = () => {
@@ -339,9 +371,6 @@
     routeSelect.addEventListener("change", updateBearing);
     row.querySelector(".dev-eta-direction").addEventListener("change", updateBearing);
     updateBearing();
-    row.querySelector(".dev-remove").addEventListener("click", () => {
-      if (confirm("Delete this device?")) row.remove();
-    });
     return row;
   }
 
@@ -360,13 +389,17 @@
   function collectDevices() {
     const devices = [];
     const seen = new Set();
+    const assignments = new Map([...document.querySelectorAll("#tracker-route-list .tracker-route-row")]
+      .map((row) => [row.dataset.deviceKey, row]));
     for (const row of document.querySelectorAll("#device-list .device-row")) {
       const imei = row.querySelector(".dev-imei").value.trim();
       const name = row.querySelector(".dev-name").value.trim();
-      const etaRouteId = row.querySelector(".dev-eta-route").value;
-      const etaDirection = row.querySelector(".dev-eta-direction").value;
-      const etaFallbackSpeedKmh = Number(row.querySelector(".dev-eta-speed").value);
       if (!imei && !name) continue;
+      const assignment = assignments.get(row.dataset.deviceKey);
+      if (!assignment) return null;
+      const etaRouteId = assignment.querySelector(".dev-eta-route").value;
+      const etaDirection = assignment.querySelector(".dev-eta-direction").value;
+      const etaFallbackSpeedKmh = Number(assignment.querySelector(".dev-eta-speed").value);
       if (!/^\d{15}$/.test(imei) || !name || seen.has(imei) ||
           !Number.isFinite(etaFallbackSpeedKmh) || etaFallbackSpeedKmh < 0.1 || etaFallbackSpeedKmh > 160 ||
           (etaRouteId && !etaRoutes.some((route) => route.id === etaRouteId)) ||

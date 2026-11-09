@@ -22,13 +22,108 @@
     </div>
 
     <div id="config-form" style="display:none;">
+      <details class="config-section" id="expedition-setup-section">
+        <summary>Expedition setup</summary>
+        <h3>Default route folder</h3>
+        <div class="field-row">
+          <label class="field-label" for="default-route-folder">Default folder</label>
+          <select id="default-route-folder"></select>
+        </div>
+        <h3>Tracker route assignments</h3>
+        <p class="status-msg">Choose the route and direction for each tracker. The fallback speed is used until enough valid position reports are available to estimate speed.</p>
+        <div id="tracker-route-list"></div>
+        <h3>Map start point</h3>
+        <p class="section-desc">Set the location of the home icon on the map</p>
+        <div class="field-row">
+          <label class="field-label" for="start-lat">Latitude</label>
+          <input type="number" step="0.000001" id="start-lat" />
+        </div>
+        <div class="field-row">
+          <label class="field-label" for="start-lng">Longitude</label>
+          <input type="number" step="0.000001" id="start-lng" />
+        </div>
+        <div class="field-row">
+          <label class="field-label" for="start-zoom">Start zoom</label>
+          <input type="number" min="1" max="18" id="start-zoom" />
+        </div>
+        <p class="status-msg">Click the map, or drag the marker, to set the start point.</p>
+        <div id="pick-start-map"></div>
+      </details>
+
       <details class="config-section" id="messaging-section">
-        <summary>Messaging</summary>
+        <summary>Messaging &amp; tracking</summary>
         <div id="messaging-root"></div>
       </details>
 
+      <details class="config-section">
+        <summary>Map defaults</summary>
+        <h3>Map source</h3>
+        <p class="status-msg">Choose which base layers are available and the default shown when the map opens.</p>
+        <div id="map-source-list"></div>
+        <button type="button" class="secondary" id="add-map-source-btn" style="margin-top:0.6rem;">+ Add map source</button>
+        <h3>Overlays</h3>
+        <label class="switch-row">
+          <input type="checkbox" id="weather-default" />
+          Precipitation overlay enabled by default
+        </label>
+        <label class="switch-row">
+          <input type="checkbox" id="birds-rivers-default" />
+          Birds and rivers overlay enabled by default
+        </label>
+        <p class="status-msg">Environment Agency river level stations (England). Only stations inside the box below are shown. Click the map twice to draw a new box (two opposite corners).</p>
+        <label class="switch-row">
+          <input type="checkbox" id="river-default" />
+          River levels overlay enabled by default
+        </label>
+        <div class="field-row">
+          <label class="field-label" for="map-data-max-age-hours">Hide map icons older than (hours)</label>
+          <input type="number" id="map-data-max-age-hours" min="1" max="720" step="1" />
+        </div>
+        <p class="status-msg">Applies to Garmin position/message pins and river-level markers. Choose 1–720 hours; the default is 12 hours.</p>
+        <div class="field-row"><label class="field-label" for="river-north">North</label><input type="number" step="0.001" id="river-north" /></div>
+        <div class="field-row"><label class="field-label" for="river-south">South</label><input type="number" step="0.001" id="river-south" /></div>
+        <div class="field-row"><label class="field-label" for="river-west">West</label><input type="number" step="0.001" id="river-west" /></div>
+        <div class="field-row"><label class="field-label" for="river-east">East</label><input type="number" step="0.001" id="river-east" /></div>
+        <div class="field-row">
+          <button type="button" class="secondary" id="river-reset">Dartmoor area</button>
+          <button type="button" class="secondary" id="river-england">Whole of England</button>
+        </div>
+        <div id="pick-river-map"></div>
+      </details>
 
-            <details class="config-section">
+      <details class="config-section">
+        <summary>Map appearance</summary>
+        <h3>Route colours</h3>
+        <p class="status-msg">Generic palette: the 1st route listed gets colour 1, and so on. Colours repeat when a folder has more than 8 routes.</p>
+        <div id="route-colour-list" class="palette-grid"></div>
+        <h3>Garmin marker colours</h3>
+        <p class="status-msg">Generic palette for Garmin feed markers, applied in order; repeats after 8 markers.</p>
+        <div id="marker-colour-list" class="palette-grid"></div>
+      </details>
+
+      <details class="config-section">
+        <summary>Diagnostics &amp; test mode</summary>
+        <label class="switch-row">
+          <input type="checkbox" id="diagnostics-enabled" />
+          Show diagnostics panel on the map page
+        </label>
+        <p class="status-msg">Normal mode accepts authenticated Garmin reports for registered devices. Test mode also accepts unregistered IMEIs and test-tool-injected tracks. Save after changing the mode.</p>
+        <label class="switch-row">
+          <input type="checkbox" id="test-mode" />
+          Test mode (off = normal mode)
+        </label>
+        <p class="status-msg"><a href="test.html">Open the test tool</a> (also shows the Garmin delivery log).</p>
+      </details>
+
+      <details class="config-section" id="location-history-section">
+        <summary>Location history</summary>
+        <p class="status-msg">The last five received position reports or messages per tracker, including the reported location and raw event payload. The map icon age limit does not delete or filter this history. Diagnostic data is only available after unlocking this page.</p>
+        <button type="button" class="secondary" id="location-history-refresh">Refresh history</button>
+        <p id="location-history-status" class="status-msg" aria-live="polite"></p>
+        <div id="location-history-list"></div>
+      </details>
+
+      <details class="config-section">
         <summary>Route management</summary>
         <p class="status-msg">Changes here are committed straight to the GitHub repository and apply immediately (no Save needed).</p>
         <h3>Route folders</h3>
@@ -48,133 +143,6 @@
         </div>
         <p id="rm-status" class="status-msg"></p>
       </details>
-      <details class="config-section">
-        <summary>Map start point</summary>
-        <p class="section-desc">Set the location of the home icon on the map</p>
-        <div class="field-row">
-          <label class="field-label" for="start-lat">Latitude</label>
-          <input type="number" step="0.000001" id="start-lat" />
-        </div>
-        <div class="field-row">
-          <label class="field-label" for="start-lng">Longitude</label>
-          <input type="number" step="0.000001" id="start-lng" />
-        </div>
-        <div class="field-row">
-          <label class="field-label" for="start-zoom">Start zoom</label>
-          <input type="number" min="1" max="18" id="start-zoom" />
-        </div>
-        <p class="status-msg">Click the map, or drag the marker, to set the start point.</p>
-        <div id="pick-start-map"></div>
-      </details>
-
-      <details class="config-section">
-        <summary>Default route folder</summary>
-        <div class="field-row">
-          <label class="field-label" for="default-route-folder">Default folder</label>
-          <select id="default-route-folder"></select>
-        </div>
-      </details>
-
-      <details class="config-section">
-        <summary>Route colours</summary>
-        <p class="status-msg">Generic palette: the 1st route listed gets colour 1, and so on. Colours repeat when a folder has more than 8 routes.</p>
-        <div id="route-colour-list" class="palette-grid"></div>
-      </details>
-
-      <details class="config-section">
-        <summary>KML marker colours</summary>
-        <p class="status-msg">Generic palette for Garmin feed markers, applied in order; repeats after 8 markers.</p>
-        <div id="marker-colour-list" class="palette-grid"></div>
-      </details>
-
-      <details class="config-section">
-        <summary>Weather overlay</summary>
-        <label class="switch-row">
-          <input type="checkbox" id="weather-default" />
-          Precipitation overlay enabled by default
-        </label>
-      </details>
-
-      <details class="config-section">
-        <summary>Birds and rivers overlay</summary>
-        <p class="status-msg">Static KML file (data/birdsrivers.kml) with bird-sighting points and river/wetland polygons.</p>
-        <label class="switch-row">
-          <input type="checkbox" id="birds-rivers-default" />
-          Birds and rivers overlay enabled by default
-        </label>
-      </details>
-
-      <details class="config-section">
-        <summary>River levels overlay</summary>
-        <p class="status-msg">Environment Agency river level stations (England). Only stations inside the box below are shown. Click the map twice to draw a new box (two opposite corners).</p>
-        <label class="switch-row">
-          <input type="checkbox" id="river-default" />
-          River levels overlay enabled by default
-        </label>
-        <div class="field-row"><label class="field-label" for="river-north">North</label><input type="number" step="0.001" id="river-north" /></div>
-        <div class="field-row"><label class="field-label" for="river-south">South</label><input type="number" step="0.001" id="river-south" /></div>
-        <div class="field-row"><label class="field-label" for="river-west">West</label><input type="number" step="0.001" id="river-west" /></div>
-        <div class="field-row"><label class="field-label" for="river-east">East</label><input type="number" step="0.001" id="river-east" /></div>
-        <div class="field-row">
-          <button type="button" class="secondary" id="river-reset">Dartmoor area</button>
-          <button type="button" class="secondary" id="river-england">Whole of England</button>
-        </div>
-        <div id="pick-river-map"></div>
-      </details>
-      <details class="config-section">
-        <summary>Operating mode</summary>
-        <p class="status-msg"><strong>Normal</strong>: the server accepts only authenticated Garmin IPC Outbound traffic for registered devices; the MapShare feed, river levels, rainfall radar and other data are polled as usual. <strong>Test</strong>: also accepts unregistered IMEIs and allows the test tool to inject false team tracks. Applies when settings are saved.</p>
-        <label class="switch-row">
-          <input type="checkbox" id="test-mode" />
-          Test mode (off = normal mode)
-        </label>
-        <p class="status-msg"><a href="test.html">Open the test tool</a> (also shows the Garmin delivery log).</p>
-      </details>
-
-      <details class="config-section">
-        <summary>Device management</summary>
-        <p class="status-msg">inReach devices (IMEI and display name) used for the direct Garmin API source. IMEIs are 15 digits. Optional ETA route, direction and fallback speed are configured per tracker.</p>
-        <div id="device-list"></div>
-        <button type="button" class="secondary" id="add-device-btn" style="margin-top:0.6rem;">+ Add device</button>
-      </details>
-
-      <details class="config-section">
-        <summary>Tracker ETA</summary>
-        <p class="status-msg">Optional route ETA display. ETA uses route geometry and position timestamps; sparse or ambiguous data can make the estimate unavailable. Disabling this feature stops its calculations and display.</p>
-        <label class="switch-row">
-          <input type="checkbox" id="eta-enabled" />
-          Enable tracker ETA
-        </label>
-        <div class="field-row">
-          <label class="field-label" for="eta-stale-minutes">Position stale after (minutes)</label>
-          <input type="number" id="eta-stale-minutes" min="10" max="720" step="1" />
-        </div>
-        <div class="field-row">
-          <label class="field-label" for="eta-lunch-time">Planned lunch time (destination local time)</label>
-          <input type="time" id="eta-lunch-time" />
-        </div>
-        <div class="field-row">
-          <label class="field-label" for="eta-lunch-duration">Lunch duration (minutes)</label>
-          <input type="number" id="eta-lunch-duration" min="0" max="240" step="1" />
-        </div>
-        <p id="eta-route-status" class="status-msg" aria-live="polite"></p>
-      </details>
-
-      <details class="config-section">
-        <summary>Diagnostics</summary>
-        <p class="status-msg">Shows a small panel at the bottom of the map menu with the Garmin retrieval method and any data-source failures.</p>
-        <label class="switch-row">
-          <input type="checkbox" id="diagnostics-enabled" />
-          Show diagnostics panel on the map page
-        </label>
-      </details>
-
-      <details class="config-section">
-        <summary>Map sources</summary>
-        <p class="status-msg">Toggle which base layers are offered to map users, tick Default for the map shown on opening, or add your own XYZ tile source.</p>
-        <div id="map-source-list"></div>
-        <button type="button" class="secondary" id="add-map-source-btn" style="margin-top:0.6rem;">+ Add map source</button>
-      </details>
 
       <details class="config-section">
         <summary>GitHub integration</summary>
@@ -193,23 +161,39 @@
         <p><a id="github-link" href="#" target="_blank" rel="noopener">View this project on GitHub &rarr;</a></p>
       </details>
 
+      <details class="config-section">
+        <summary>ETA management</summary>
+        <p class="status-msg">Optional route ETA display. ETA uses route geometry and position timestamps; sparse or ambiguous data can make the estimate unavailable. Per-tracker route, direction, and fallback speed are set in Expedition setup.</p>
+        <label class="switch-row">
+          <input type="checkbox" id="eta-enabled" />
+          Enable tracker ETA
+        </label>
+        <div class="field-row">
+          <label class="field-label" for="eta-lunch-time">Planned lunch time (destination local time)</label>
+          <input type="time" id="eta-lunch-time" />
+        </div>
+        <div class="field-row">
+          <label class="field-label" for="eta-lunch-duration">Lunch duration (minutes)</label>
+          <input type="number" id="eta-lunch-duration" min="0" max="240" step="1" />
+        </div>
+        <div class="field-row">
+          <label class="field-label" for="eta-stale-minutes">Position stale after (minutes)</label>
+          <input type="number" id="eta-stale-minutes" min="10" max="720" step="1" />
+        </div>
+        <p id="eta-route-status" class="status-msg" aria-live="polite"></p>
+      </details>
+
+      <details class="config-section">
+        <summary>Device management</summary>
+        <p class="status-msg">Configure the inReach IMEI and display name used for the direct Garmin API source. IMEIs are 15 digits. Route assignments and ETA speed settings are in Expedition setup.</p>
+        <div id="device-list"></div>
+        <button type="button" class="secondary" id="add-device-btn" style="margin-top:0.6rem;">+ Add device</button>
+      </details>
+
       <div class="save-bar">
         <button id="save-btn">Save settings</button>
         <span id="save-status" class="status-msg"></span>
       </div>
-
-      <details class="config-section" id="location-history-section">
-        <summary>Location history</summary>
-        <p class="status-msg">The last five received position reports or messages per tracker, including the reported location and raw event payload. The map icon age limit does not delete or filter this history. Diagnostic data is only available after unlocking this page.</p>
-        <div class="field-row">
-          <label class="field-label" for="map-data-max-age-hours">Hide map icons older than (hours)</label>
-          <input type="number" id="map-data-max-age-hours" min="1" max="720" step="1" />
-        </div>
-        <p class="status-msg">Applies to Garmin position/message pins and river-level markers. Choose 1–720 hours; the default is 12 hours.</p>
-        <button type="button" class="secondary" id="location-history-refresh">Refresh history</button>
-        <p id="location-history-status" class="status-msg" aria-live="polite"></p>
-        <div id="location-history-list"></div>
-      </details>
     </div>
   </div>
 

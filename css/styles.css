@@ -244,8 +244,10 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 }
 .device-row { display: flex; flex-wrap: wrap; align-items: center; }
 .device-row > input { min-width: 10rem; flex: 1 1 10rem; }
-.device-row > label { display: flex; flex: 1 1 13rem; flex-direction: column; gap: 0.2rem; font-size: 0.8rem; }
-.device-row .eta-route-bearing { flex: 1 1 100%; color: var(--muted); font-size: 0.85rem; }
+.tracker-route-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; padding: 0.5rem 0; border-bottom: 1px solid #eee; }
+.tracker-route-name { flex: 1 1 100%; }
+.tracker-route-row > label { display: flex; flex: 1 1 13rem; flex-direction: column; gap: 0.2rem; font-size: 0.8rem; }
+.tracker-route-row .eta-route-bearing { flex: 1 1 100%; color: var(--muted); font-size: 0.85rem; }
 .eta-popup { border-top: 1px solid #ddd; margin-top: 0.4rem; padding-top: 0.35rem; font-size: 0.85rem; }
 .eta-popup > div { margin-top: 0.15rem; }
 .eta-low-confidence { color: #8a4b00; font-weight: 600; }
