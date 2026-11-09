@@ -4,6 +4,7 @@
   const $ = (id) => document.getElementById(id);
   let passphrase = "";
   let walkTimer = null;
+  let appSettings = null;
 
   function logLine(text) {
     const el = $("t-session-log");
@@ -19,13 +20,16 @@
     }
   }
 
-  function makeEvent(imei, lat, lon, code, text, low, eventTimeMs) {
+  function makeEvent(imei, lat, lon, code, text, low, eventTimeMs, simulationTimeMs) {
+    const simulated = Number.isFinite(simulationTimeMs);
     const ev = {
       imei, messageCode: code,
-      timeStamp: (Number.isFinite(eventTimeMs) ? eventTimeMs : Date.now()) - Math.max(0, Number($("t-age").value) || 0) * 60000,
+      timeStamp: simulated ? Date.now() :
+        (Number.isFinite(eventTimeMs) ? eventTimeMs : Date.now()) - Math.max(0, Number($("t-age").value) || 0) * 60000,
       point: { latitude: lat, longitude: lon, altitude: 100, gpsFix: 2, course: 0, speed: 0 },
       status: { autonomous: 0, lowBattery: low ? 1 : 0, intervalChange: 0, resetDetected: 0 }
     };
+    if (simulated) ev.simulationTimeStamp = simulationTimeMs;
     if (code === 3 || code === 4) ev.freeText = text;
     return ev;
   }
@@ -79,6 +83,7 @@
   async function loadDevices() {
     try {
       const s = await MaynardSettings.load();
+      appSettings = s;
       $("t-imei").innerHTML = (s.devices || []).map((d) => `<option value="${d.imei}">${String(d.name).replace(/</g, "&lt;")} (${d.imei})</option>`).join("");
       if (s.mode !== "test") {
         logLine("Settings say mode is NORMAL - injection and the stale-icon override require Test mode to be saved.");
@@ -224,11 +229,19 @@
       logLine(`Route ${decodeURIComponent(path)}: ${(a.total / 1000).toFixed(2)} km, ${sim.steps.length} reports every ${stepSeconds / 60} min, ${a.turns.length} turn(s) detected`);
       if (sim.turnsFound < 4) logLine(`Only ${sim.turnsFound} of the 4 turn messages can be sent on this route`);
       sim.stepSeconds = stepSeconds;
+      const device = (appSettings && appSettings.devices || []).find((d) => d.imei === imei);
+      if (!appSettings || !appSettings.eta || !appSettings.eta.enabled) {
+        logLine("ETA is disabled in Configuration; enable Tracker ETA to see ETA during this simulation.");
+      } else if (!device || !device.etaRouteId) {
+        logLine("No ETA route is assigned to this tracker; assign the selected route in Configuration to see ETA.");
+      } else if (!device.etaRouteId.startsWith(decodeURIComponent(path) + "#")) {
+        logLine("The selected simulation route differs from this tracker's ETA route assignment; assign the selected route to calculate ETA.");
+      }
     } catch (e) { $("r-status").textContent = "Could not load route: " + e.message; return; }
 
     const speedup = Number($("r-speedup").value || 1);
     const interval = sim.stepSeconds * 1000 / speedup;
-    const simulationStart = Date.now() - (sim.steps.length - 1) * (sim.stepSeconds * 1000 - interval);
+    const simulationStart = Date.now();
     let n = 0;
     $("r-start").disabled = true;
     $("r-stop").disabled = false;
@@ -238,8 +251,8 @@
       const s = sim.steps[n++];
       $("r-status").textContent = `Step ${n} of ${sim.steps.length}`;
       try {
-        const eventTimeMs = simulationStart + (n - 1) * sim.stepSeconds * 1000;
-        await call({ action: "inject", events: [makeEvent(imei, s.lat, s.lon, s.code, s.text, false, eventTimeMs)] });
+        const simulationTimeMs = simulationStart + (n - 1) * sim.stepSeconds * 1000;
+        await call({ action: "inject", events: [makeEvent(imei, s.lat, s.lon, s.code, s.text, false, null, simulationTimeMs)] });
         logLine(`Route step ${n}/${sim.steps.length}: code ${s.code}${s.text ? ' "' + s.text + '"' : ""} at ${s.lat.toFixed(5)}, ${s.lon.toFixed(5)}`);
       } catch (e) { stopRoute("Stopped: " + e.message); return; }
       if (n >= sim.steps.length) stopRoute("Route simulation finished (SOS sent).");

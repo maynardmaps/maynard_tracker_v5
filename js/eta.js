@@ -227,7 +227,7 @@
     return settings && settings.eta ? settings.eta : {};
   }
 
-  function getInfo(team, lat, lng, timestamp, accuracy) {
+  function getInfo(team, lat, lng, timestamp, accuracy, receivedTimestamp) {
     const etaSettings = configuration();
     if (!etaSettings.enabled) return { status: "disabled" };
     const device = (settings.devices || []).find((d) => d.name === team);
@@ -235,7 +235,10 @@
     const definition = routes.get(device.etaRouteId);
     if (!definition) return { status: "unavailable", reason: "route" };
     const time = Number(timestamp);
-    if (!Number.isFinite(time) || time <= 0 || Date.now() - time > (etaSettings.staleMinutes || 30) * 60000) {
+    const receivedTime = Number(receivedTimestamp);
+    const freshnessTime = Number.isFinite(receivedTime) && receivedTime > 0 ? receivedTime : time;
+    if (!Number.isFinite(time) || time <= 0 ||
+        !Number.isFinite(freshnessTime) || Date.now() - freshnessTime > (etaSettings.staleMinutes || 30) * 60000) {
       return { status: "unavailable", reason: "stale" };
     }
     const route = prepareRoute(definition, device.etaDirection === "reverse" ? "reverse" : "forward");
@@ -266,7 +269,7 @@
       }
     }
     const current = history.samples[history.samples.length - 1];
-    const ageMinutes = Math.max(0, (Date.now() - current.time) / 60000);
+    const ageMinutes = Math.max(0, (Date.now() - freshnessTime) / 60000);
     const remainingM = Math.max(0, route.total - current.progress);
     const intervalSpeeds = [];
     for (let i = 1; i < history.samples.length; i++) {

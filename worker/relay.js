@@ -336,6 +336,7 @@ async function ipcApply(events, env, cfg, testMode) {
     const code = Number(ev.messageCode);
     const parsedTs = ipcTimestamp(ev.timeStamp);
     const ts = parsedTs === null && testMode ? Date.now() : parsedTs;
+    const simulationTs = testMode ? ipcTimestamp(ev.simulationTimeStamp) : null;
     const p = ev.point || {};
     const st = ev.status || {};
     for (const imei of String(ev.imei || "").split(",").map((s) => s.trim())) {
@@ -353,6 +354,8 @@ async function ipcApply(events, env, cfg, testMode) {
         rec.speed = Number.isFinite(p.speed) ? p.speed : null;
         rec.course = Number.isFinite(p.course) ? p.course : null;
         rec.gpsFix = Number.isFinite(p.gpsFix) ? p.gpsFix : null;
+        if (Number.isFinite(simulationTs) && simulationTs > 0) rec.simulationTimestamp = simulationTs;
+        else delete rec.simulationTimestamp;
       }
       if (st.lowBattery === 0 || st.lowBattery === 1) rec.lowBattery = st.lowBattery === 1;
       if (IPC_EMERGENCY_ON.has(code)) rec.inEmergency = true;
@@ -603,6 +606,7 @@ async function ipcLocations(url, env) {
     return {
       imei: i,
       timestamp: r.timestamp ? new Date(r.timestamp).toISOString() : null,
+      simulationTimestamp: cfg.mode === "test" && Number.isFinite(r.simulationTimestamp) ? r.simulationTimestamp : null,
       coordinate: r.timestamp ? { latitude: r.latitude, longitude: r.longitude } : null,
       altitude: r.altitude, speed: r.speed, course: r.course, gpsFixStatus: r.gpsFix,
       lowBattery: r.lowBattery === true, inEmergency: r.inEmergency === true,

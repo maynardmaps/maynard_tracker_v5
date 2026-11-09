@@ -64,7 +64,8 @@
         const coords = feature.geometry && feature.geometry.coordinates;
         const etaInfo = coords && MaynardEta
           ? MaynardEta.getInfo(markerKey(feature), coords[1], coords[0],
-            Number(props._positionTimeMs) || kmlTimeMs(props), Number(props["GPS Accuracy"]))
+            Number(props._simulationTimeMs) || Number(props._positionTimeMs) || kmlTimeMs(props),
+            Number(props["GPS Accuracy"]), Number(props._positionTimeMs) || kmlTimeMs(props))
           : { status: "disabled" };
         layer._etaInfo = etaInfo;
         layer._etaTeam = markerKey(feature);
@@ -270,6 +271,7 @@
         "Battery": l.lowBattery ? "Low" : "",
         "Unregistered": known ? "false" : "true",
         "_posTime": Date.parse(l.timestamp) || 0,
+        "_simulationTimeMs": Number(l.simulationTimestamp) || 0,
         "_msgTime": typeof l.textTime === "number" ? l.textTime : (Date.parse(l.textTime) || 0),
         "_msgPos": l.messagePosition || null
       };
@@ -338,6 +340,7 @@
         : hasIpc ? i : hasKml ? k : null;
       const props = Object.assign({}, posSrc.properties, { "Map Display Name": key });
       props._positionTimeMs = iPos >= kPos ? iPos : kPos;
+      props._simulationTimeMs = posSrc === i ? Number(ip._simulationTimeMs) || 0 : 0;
       delete props._posTime; delete props._msgTime; delete props._msgPos;
       const mp = msgSrc && msgSrc.properties;
       props.Text = ""; props["Message Time"] = ""; props["Message Type"] = "";

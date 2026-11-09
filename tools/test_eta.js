@@ -117,7 +117,15 @@ info = eta.getInfo("Team A", 50, -2.999, now);
 assert.equal(info.status, "available");
 assert.equal(info.speedSource, "fallback");
 
+eta.init([route], null, config);
+info = eta.getInfo("Team A", 50, -2.9995, now - 60 * 60000, undefined, now);
+assert.equal(info.status, "available");
+assert.ok(info.ageMinutes < 1);
+info = eta.getInfo("Team A", 50, -2.999, now - 50 * 60000, undefined, now + 1000);
+assert.equal(info.status, "available");
+assert.equal(info.speedSource, "measured");
+
 eta.init([route], null, { ...config, eta: { ...config.eta, enabled: false } });
 assert.equal(eta.getInfo("Team A", 50, -2.999, now).status, "disabled");
 
-console.log("ETA calculations: fallback/measured speed, lunch handling, route matching, deviations, reverse travel, ambiguity, stale recovery and feature toggle passed.");
+console.log("ETA calculations: fallback/measured speed, lunch handling, route matching, deviations, reverse travel, ambiguity, stale recovery, simulated observation timestamps and feature toggle passed.");

@@ -51,7 +51,7 @@
 
       <div class="config-section">
         <h2>Route simulation</h2>
-        <p class="status-msg">The selected team drives the chosen route at the configured speed and sends reports at the selected interval. Choose 10 minutes to test ETA behavior with sparse Garmin-like pings, or 10 seconds for the faster route demonstration. Simulated timestamps preserve the selected travel speed at any speed-up. "First turn" (free text), puck messages 1–3, and an SOS are sent at the corresponding route points.</p>
+        <p class="status-msg">The selected team drives the chosen route at the configured speed and sends reports at the selected interval. Choose 10 minutes to test ETA behavior with sparse Garmin-like pings, or 10 seconds for the faster route demonstration. Test reports are received at the current time while a separate simulated clock preserves the selected travel speed at any speed-up. Enable ETA and assign this tracker to the selected route in Configuration to see ETA calculations. "First turn" (free text), puck messages 1–3, and an SOS are sent at the corresponding route points.</p>
         <div class="field-row"><label class="field-label" for="r-route">Route</label><select id="r-route"></select></div>
         <div class="field-row"><label class="field-label" for="r-speed-kmh">Travel speed (km/h)</label><input type="number" id="r-speed-kmh" min="0.1" max="160" step="0.1" value="96.6" /></div>
         <label class="switch-row"><input type="checkbox" id="r-vary-speed" /> Vary speed during simulation</label>
