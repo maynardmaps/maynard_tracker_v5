@@ -64,7 +64,7 @@
     {
       "imei": "300434031477230",
       "name": "TT1",
-      "etaRouteId": "",
+      "etaRouteId": "TT1/TT1.kml#0",
       "etaDirection": "forward",
       "etaFallbackSpeedKmh": 5
     },
