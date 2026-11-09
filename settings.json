@@ -93,7 +93,7 @@
   "weatherEnabledByDefault": false,
   "mapDataMaxAgeHours": 36,
   "eta": {
-    "enabled": false,
+    "enabled": true,
     "staleMinutes": 30,
     "lunchTime": "12:00",
     "lunchDurationMinutes": 30
