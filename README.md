@@ -11,6 +11,7 @@ Pages with **no backend**. It shows:
 - Live team positions and messages from two sources used together: Garmin IPC Outbound pushes (received by the Worker) and the MapShare KML feed. Position reports are compared by position timestamp; messages by message timestamp (not the timestamp of a later KML position update). Garmin popup headers and tracker information show a rounded relative age, with reports under one minute labeled "less than a minute ago". Position and message are separate markers; a message marker stays where the message was received (envelope, or a red pulsing SOS badge).
 - Garmin position and message popups keep the team name, relative age, location and emergency state visible; a dropdown expands to show the remaining tracker and message details, including coordinates to five decimal places.
 - Garmin and river-level map icons older than the configurable 12-hour default are hidden, while configuration-page history remains available. In Test mode, the test tool can temporarily override the age filter to inspect older feed data.
+- Optional tracker ETA is isolated in `js/eta.js`, disabled by default, and configured per tracker (route, direction and fallback speed). It matches positions to route geometry, estimates progress and speed from timestamped fixes, and marks a single invalid fix as low confidence before withholding ETA after repeated unusable matches. Lunch time/duration are configurable; offline local-arrival formatting is currently supported for UK routes.
 - A Met Office precipitation radar/forecast overlay.
 - A static "birds and rivers" KML overlay (points and polygons) loaded once
   from every KML file in the version-controlled `data/` folder.
@@ -105,6 +106,12 @@ station's typical range. It is separate from the birds and rivers overlay, off b
 every 15 minutes. The area is a box set on the config page (default: around Dartmoor; "Whole of England"
 is available).
 
+## Optional tracker ETA
+
+Tracker ETA is disabled by default and isolated in `js/eta.js`. When enabled, assign a route and direction and fallback speed to each tracker under Device management. ETA uses cumulative route distance and time-stamped positions, smoothing the latest three valid speed intervals; a single off-route/ambiguous fix preserves the last estimate with a low-confidence warning, while repeated unusable matches or stale data make ETA unavailable. The test tool offers 10-minute sparse-ping simulation with an accelerated clock, as well as a faster 10-second demonstration. Lunch time and duration are configured in the Tracker ETA section. Destination-local arrival formatting is available for UK routes; outside the supported area the duration remains available and local time is reported unavailable.
+
+To remove ETA if it proves unsuitable, remove the `js/eta.js` script includes from `index.html` and `config.html`, remove its map hooks from `js/map-page.js` and `js/kml-markers.js`, remove ETA controls/fields from `config.html` and `js/config-page.js`, and remove the `eta` and per-device ETA fields from `settings.json` and the Worker settings allowlist/validation in `worker/relay.js`. Remove `tools/test_eta.js` and the ETA-specific test controls from `test.html` and `js/test-page.js`. Garmin data ingestion, route rendering and messaging do not depend on the ETA module.
+
 ## Configuration page
 
 **Route management:** the config page lists the folders in `routes/` (scrollable) and lets you add/rename/delete folders and add/rename/delete GPX/KML files. Changes are committed to GitHub by the Worker (`POST /routes/manage`, passphrase-protected, needs the `GITHUB_TOKEN` secret). Empty folders are kept with a `.gitkeep`.
@@ -127,6 +134,7 @@ From there you can set:
 - Messaging: last 3 messages per team, send text messages, force start/stop tracking (see below).
 - Diagnostics: show a panel at the bottom of the map menu with the Garmin retrieval method and any data-source failures.
 - Map icon age limit: hide Garmin position/message pins and river-level markers older than the configured number of hours (1-720; default 12), set in the Location history section. Older records remain in configuration history.
+- Tracker ETA: enable/disable ETA, set stale-position threshold and planned lunch time/duration. Device management stores each tracker’s assigned route, direction and fallback speed.
 - Which base map sources are offered, their display names/URLs, and you can
   add your own XYZ tile sources.
 - The GitHub owner/repo/branch (read-only; fixed in the Worker).
@@ -193,7 +201,7 @@ when opened and can be refreshed on demand. The Garmin delivery log in the passp
 payload alongside its HTTP response; payloads are size-capped and marked when truncated, and auth header values are never logged.
 
 **Test tool** (`test.html`, passphrase-protected, Test mode only for injection): inject any event type
-with an age offset, a 20-step walk, route simulation (60 mph, a report every 10 s, messages at turns, SOS at the
+with an age offset, a 20-step walk, route simulation (60 mph, configurable 10-minute ETA or 10-second demonstration reports, messages at turns, SOS at the
 end), clear stored positions to test KML fallback, a messaging and tracking panel with failure simulation and
 command log, and the Garmin delivery log (last 30 requests to `/ipc/outbound`).
 
@@ -259,6 +267,7 @@ css/styles.css          Shared responsive styles
 js/
   app-config.js          Non-secret config (relay URL, poll intervals, GitHub defaults)
   utils.js               Shared helpers (fetch w/ timeout, colours)
+  eta.js                 Optional route matching and tracker ETA calculations
   settings-store.js       Loads/merges/saves settings.json + localStorage override
   github-save.js          Commits settings.json via GitHub Contents API
   map-core.js             Leaflet map lifecycle + CRS switching

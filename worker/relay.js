@@ -658,7 +658,7 @@ const ALLOWED_KEYS = new Set([
   "_comment", "github", "defaultRouteFolder", "startPoint", "startZoom",
   "mapSources", "routeColours", "markerColours", "weatherEnabledByDefault",
   "birdsRiversEnabledByDefault", "diagnosticsEnabled", "riverLevels", "devices",
-  "mapDataMaxAgeHours", "mode"
+  "mapDataMaxAgeHours", "eta", "mode"
 ]);
 
 // Fallback used only if the RATE_LIMIT KV binding is missing.
@@ -770,6 +770,24 @@ function settingsError(s) {
       (!Number.isInteger(s.mapDataMaxAgeHours) || s.mapDataMaxAgeHours < 1 || s.mapDataMaxAgeHours > 720)) {
     return "mapDataMaxAgeHours must be a whole number from 1 to 720";
   }
+  if (s.eta !== undefined) {
+    const eta = s.eta;
+    if (!eta || typeof eta !== "object" || Array.isArray(eta) ||
+        !Object.keys(eta).every((k) => ["enabled", "staleMinutes", "lunchTime", "lunchDurationMinutes"].includes(k))) {
+      return "eta invalid";
+    }
+    if (eta.enabled !== undefined && !isBool(eta.enabled)) return "eta.enabled invalid";
+    if (eta.staleMinutes !== undefined && (!Number.isInteger(eta.staleMinutes) || eta.staleMinutes < 10 || eta.staleMinutes > 720)) {
+      return "eta.staleMinutes must be a whole number from 10 to 720";
+    }
+    if (eta.lunchTime !== undefined && (typeof eta.lunchTime !== "string" || !/^([01]\d|2[0-3]):[0-5]\d$/.test(eta.lunchTime))) {
+      return "eta.lunchTime must be HH:MM";
+    }
+    if (eta.lunchDurationMinutes !== undefined &&
+        (!Number.isInteger(eta.lunchDurationMinutes) || eta.lunchDurationMinutes < 0 || eta.lunchDurationMinutes > 240)) {
+      return "eta.lunchDurationMinutes must be a whole number from 0 to 240";
+    }
+  }
   for (const k of ["weatherEnabledByDefault", "birdsRiversEnabledByDefault", "diagnosticsEnabled"]) {
     if (s[k] !== undefined && !isBool(s[k])) return `${k} must be true or false`;
   }
@@ -792,9 +810,13 @@ function settingsError(s) {
     if (!Array.isArray(s.devices) || s.devices.length > 50) return "devices must be a list of at most 50";
     const seen = new Set();
     for (const d of s.devices) {
-      if (!d || typeof d !== "object" || !Object.keys(d).every((k) => k === "imei" || k === "name") ||
+      if (!d || typeof d !== "object" || !Object.keys(d).every((k) =>
+        ["imei", "name", "etaRouteId", "etaDirection", "etaFallbackSpeedKmh"].includes(k)) ||
           typeof d.imei !== "string" || !/^\d{15}$/.test(d.imei) || !isStr(d.name, 40) || !d.name.trim() ||
           seen.has(d.imei)) return "devices invalid";
+      if (d.etaRouteId !== undefined && !isStr(d.etaRouteId, 500)) return "devices etaRouteId invalid";
+      if (d.etaDirection !== undefined && d.etaDirection !== "forward" && d.etaDirection !== "reverse") return "devices etaDirection invalid";
+      if (d.etaFallbackSpeedKmh !== undefined && !inRange(d.etaFallbackSpeedKmh, 0.1, 160)) return "devices etaFallbackSpeedKmh invalid";
       seen.add(d.imei);
     }
   }

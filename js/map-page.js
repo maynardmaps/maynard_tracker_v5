@@ -32,6 +32,12 @@
     buildGeolocationControl();
 
     await loadRouteFolder(settings.defaultRouteFolder);
+    if (settings.eta && settings.eta.enabled) {
+      const etaRoutes = await MaynardEta.discoverRoutes(manifest);
+      MaynardEta.init(etaRoutes, map, settings);
+      MaynardUtils.diag("ETA", etaRoutes.length > 0,
+        etaRoutes.length ? `${etaRoutes.length} routes available` : "no route geometries available");
+    }
 
     if (settings.mode === "test") {
       const banner = document.createElement("div");
@@ -87,6 +93,7 @@
     MaynardMapCore.onMapReady((newMap) => {
       map = newMap;
       MaynardRoutes.attachToMap(map);
+      if (MaynardEta) MaynardEta.reattach(map);
       MaynardKmlMarkers.reattach(map);
       MaynardWeather.reattach(map);
       MaynardBirdsRivers.reattach(map);

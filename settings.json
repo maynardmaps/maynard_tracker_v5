@@ -63,23 +63,41 @@
   "devices": [
     {
       "imei": "300434031477230",
-      "name": "TT1"
+      "name": "TT1",
+      "etaRouteId": "",
+      "etaDirection": "forward",
+      "etaFallbackSpeedKmh": 5
     },
     {
       "imei": "300434031379170",
-      "name": "TT2"
+      "name": "TT2",
+      "etaRouteId": "",
+      "etaDirection": "forward",
+      "etaFallbackSpeedKmh": 5
     },
     {
       "imei": "300434031470000",
-      "name": "TT3"
+      "name": "TT3",
+      "etaRouteId": "",
+      "etaDirection": "forward",
+      "etaFallbackSpeedKmh": 5
     },
     {
       "imei": "300434031375980",
-      "name": "TT4"
+      "name": "TT4",
+      "etaRouteId": "",
+      "etaDirection": "forward",
+      "etaFallbackSpeedKmh": 5
     }
   ],
   "weatherEnabledByDefault": false,
   "mapDataMaxAgeHours": 12,
+  "eta": {
+    "enabled": false,
+    "staleMinutes": 30,
+    "lunchTime": "12:00",
+    "lunchDurationMinutes": 30
+  },
   "mode": "normal",
   "birdsRiversEnabledByDefault": false,
   "riverLevels": {

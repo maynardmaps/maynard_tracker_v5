@@ -133,9 +133,31 @@
 
       <details class="config-section">
         <summary>Device management</summary>
-        <p class="status-msg">inReach devices (IMEI and display name) used for the direct Garmin API source. IMEIs are 15 digits.</p>
+        <p class="status-msg">inReach devices (IMEI and display name) used for the direct Garmin API source. IMEIs are 15 digits. Optional ETA route, direction and fallback speed are configured per tracker.</p>
         <div id="device-list"></div>
         <button type="button" class="secondary" id="add-device-btn" style="margin-top:0.6rem;">+ Add device</button>
+      </details>
+
+      <details class="config-section">
+        <summary>Tracker ETA</summary>
+        <p class="status-msg">Optional route ETA display. ETA uses route geometry and position timestamps; sparse or ambiguous data can make the estimate unavailable. Disabling this feature stops its calculations and display.</p>
+        <label class="switch-row">
+          <input type="checkbox" id="eta-enabled" />
+          Enable tracker ETA
+        </label>
+        <div class="field-row">
+          <label class="field-label" for="eta-stale-minutes">Position stale after (minutes)</label>
+          <input type="number" id="eta-stale-minutes" min="10" max="720" step="1" />
+        </div>
+        <div class="field-row">
+          <label class="field-label" for="eta-lunch-time">Planned lunch time (destination local time)</label>
+          <input type="time" id="eta-lunch-time" />
+        </div>
+        <div class="field-row">
+          <label class="field-label" for="eta-lunch-duration">Lunch duration (minutes)</label>
+          <input type="number" id="eta-lunch-duration" min="0" max="240" step="1" />
+        </div>
+        <p id="eta-route-status" class="status-msg" aria-live="polite"></p>
       </details>
 
       <details class="config-section">
@@ -195,6 +217,8 @@
     <script src="js/app-config.js"></script>
   <script src="js/utils.js"></script>
   <script src="js/settings-store.js"></script>
+  <script src="https://unpkg.com/togeojson@0.16.0/togeojson.js" integrity="sha384-dlcQC0RqbD5hkW9dIHtouEHEP0tHnSuyKco85aJB5jdtbDseEsx4T3Jaa0lHs5ae" crossorigin="anonymous"></script>
+  <script src="js/eta.js"></script>
     <script src="js/github-save.js"></script>
   <script src="js/messaging-panel.js"></script>
   <script src="js/config-page.js"></script>

@@ -41,7 +41,7 @@
   // placemark, GPX track or route) becomes its own entry. Point features are
   // attached to the route whose name prefixes theirs ("X SP" -> "X Path"),
   // otherwise they are grouped as "<file> (points)".
-  function splitFile(filename, fileLayer) {
+  function splitFile(folder, filename, fileLayer) {
     const lines = [];
     const points = [];
     fileLayer.eachLayer((l) => (isLine(l) ? lines : points).push(l));
@@ -52,7 +52,7 @@
       let key = lines.length === 1 ? filename : `${filename}: ${nameOf(l) || `route ${i + 1}`}`;
       while (usedKeys.has(key)) key += "'";
       usedKeys.add(key);
-      groups.set(key, { layers: [l], base: nameOf(l).replace(/\s+(path|route|track)$/i, "") });
+      groups.set(key, { layers: [l], base: nameOf(l).replace(/\s+(path|route|track)$/i, ""), id: `${folder}/${filename}#${i}` });
     });
     const orphans = [];
     points.forEach((p) => {
@@ -65,9 +65,9 @@
       else orphans.push(p);
     });
     if (orphans.length) {
-      groups.set(lines.length ? `${filename} (points)` : filename, { layers: orphans });
+      groups.set(lines.length ? `${filename} (points)` : filename, { layers: orphans, id: null });
     }
-    return [...groups.entries()].map(([key, g]) => [key, L.featureGroup(g.layers)]);
+    return [...groups.entries()].map(([key, g]) => [key, L.featureGroup(g.layers), g.id]);
   }
 
   // Loads every file in `folder`, splits multi-route files into separate
@@ -88,15 +88,15 @@
         console.error(`Route "${filenames[i]}" failed to load`, result.reason);
         return;
       }
-      entries.push(...splitFile(filenames[i], result.value));
+      entries.push(...splitFile(folder, filenames[i], result.value));
     });
 
     const colours = MaynardUtils.assignColours(entries.map(([k]) => k), routePalette);
-    entries.forEach(([key, layer]) => {
+    entries.forEach(([key, layer, id]) => {
       const colour = colours.get(key);
       layer.setStyle({ color: colour, weight: 4, opacity: 0.85, fillColor: colour });
       layer.eachLayer((l) => { if (l instanceof L.CircleMarker) l.setStyle({ color: "#fff", weight: 1, fillColor: colour, fillOpacity: 1 }); });
-      routeLayers.set(key, { layer, colour, visible: true });
+      routeLayers.set(key, { layer, colour, visible: true, id });
     });
 
     return routeLayers;

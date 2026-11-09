@@ -6,12 +6,13 @@
   let passphrase = "";
   // The passphrase is verified and enforced by the Cloudflare Worker.
 
-  let settings, manifest;
+  let settings, manifest, etaRoutes = [];
   let pickerMap, pickerMarker;
 
   async function main() {
     settings = await MaynardSettings.load();
     manifest = await MaynardUtils.loadRoutesManifest();
+    etaRoutes = await MaynardEta.discoverRoutes(manifest);
 
     document.getElementById("github-link").href =
       `https://github.com/${(settings.github || window.MAYNARD_CONFIG.github).owner}/` +
@@ -266,6 +267,14 @@
   function populateForm() {
     fillDefaultFolderSelect();
     document.getElementById("map-data-max-age-hours").value = settings.mapDataMaxAgeHours || 12;
+    const eta = settings.eta || {};
+    document.getElementById("eta-enabled").checked = eta.enabled === true;
+    document.getElementById("eta-stale-minutes").value = eta.staleMinutes || 30;
+    document.getElementById("eta-lunch-time").value = eta.lunchTime || "12:00";
+    document.getElementById("eta-lunch-duration").value = eta.lunchDurationMinutes == null ? 30 : eta.lunchDurationMinutes;
+    document.getElementById("eta-route-status").textContent = etaRoutes.length
+      ? `${etaRoutes.length} route geometries available for assignment.`
+      : "No route geometries loaded; check route files and reload this page.";
 
     // Start point
     document.getElementById("start-lat").value = settings.startPoint.lat;
@@ -305,16 +314,46 @@
   }
 
   function deviceRow(device) {
+    const routeOptions = ['<option value="">No route assigned</option>'].concat(etaRoutes.map((route) =>
+      `<option value="${escapeAttr(route.id)}"${route.id === device.etaRouteId ? " selected" : ""}>${escapeAttr(route.label)}</option>`
+    )).join("");
     const row = document.createElement("div");
     row.className = "map-source-row device-row";
     row.innerHTML =
       `<input type="text" class="dev-imei" inputmode="numeric" maxlength="15" value="${escapeAttr(device.imei)}" placeholder="IMEI (15 digits)" />` +
       `<input type="text" class="dev-name" value="${escapeAttr(device.name)}" placeholder="Device name, e.g. TT1" />` +
+      `<label>ETA route <select class="dev-eta-route">${routeOptions}</select></label>` +
+      `<label>Direction <select class="dev-eta-direction"><option value="forward">Front to back</option><option value="reverse">Back to front</option></select></label>` +
+      `<label>Fallback speed (km/h) <input type="number" class="dev-eta-speed" min="0.1" max="160" step="0.1" value="${Number(device.etaFallbackSpeedKmh) > 0 ? Number(device.etaFallbackSpeedKmh) : 5}" /></label>` +
+      `<span class="eta-route-bearing"></span>` +
       `<button type="button" class="secondary dev-remove">Delete</button>`;
+    row.querySelector(".dev-eta-direction").value = device.etaDirection === "reverse" ? "reverse" : "forward";
+    const routeSelect = row.querySelector(".dev-eta-route");
+    const updateBearing = () => {
+      const selectedRoute = etaRoutes.find((route) => route.id === routeSelect.value);
+      const coords = selectedRoute && selectedRoute.coordinates;
+      row.querySelector(".eta-route-bearing").textContent = coords && coords.length > 1
+        ? `First leg: ${directionName(coords[0], coords[1], row.querySelector(".dev-eta-direction").value)}`
+        : "";
+    };
+    routeSelect.addEventListener("change", updateBearing);
+    row.querySelector(".dev-eta-direction").addEventListener("change", updateBearing);
+    updateBearing();
     row.querySelector(".dev-remove").addEventListener("click", () => {
       if (confirm("Delete this device?")) row.remove();
     });
     return row;
+  }
+
+  function directionName(start, end, direction) {
+    const from = direction === "reverse" ? end : start;
+    const to = direction === "reverse" ? start : end;
+    const lat1 = from[1] * Math.PI / 180, lat2 = to[1] * Math.PI / 180;
+    const dLng = (to[0] - from[0]) * Math.PI / 180;
+    const y = Math.sin(dLng) * Math.cos(lat2);
+    const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
+    const bearing = (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+    return ["N", "NE", "E", "SE", "S", "SW", "W", "NW"][Math.round(bearing / 45) % 8];
   }
 
   // Returns the device list, or null (after flagging the error) if invalid.
@@ -324,13 +363,19 @@
     for (const row of document.querySelectorAll("#device-list .device-row")) {
       const imei = row.querySelector(".dev-imei").value.trim();
       const name = row.querySelector(".dev-name").value.trim();
+      const etaRouteId = row.querySelector(".dev-eta-route").value;
+      const etaDirection = row.querySelector(".dev-eta-direction").value;
+      const etaFallbackSpeedKmh = Number(row.querySelector(".dev-eta-speed").value);
       if (!imei && !name) continue;
-      if (!/^\d{15}$/.test(imei) || !name || seen.has(imei)) {
+      if (!/^\d{15}$/.test(imei) || !name || seen.has(imei) ||
+          !Number.isFinite(etaFallbackSpeedKmh) || etaFallbackSpeedKmh < 0.1 || etaFallbackSpeedKmh > 160 ||
+          (etaRouteId && !etaRoutes.some((route) => route.id === etaRouteId)) ||
+          !["forward", "reverse"].includes(etaDirection)) {
         row.querySelector(".dev-imei").focus();
         return null;
       }
       seen.add(imei);
-      devices.push({ imei, name });
+      devices.push({ imei, name, etaRouteId, etaDirection, etaFallbackSpeedKmh });
     }
     return devices;
   }
@@ -587,9 +632,23 @@
       statusEl.className = "status-msg error";
       return;
     }
+    const eta = {
+      enabled: document.getElementById("eta-enabled").checked,
+      staleMinutes: Number(document.getElementById("eta-stale-minutes").value),
+      lunchTime: document.getElementById("eta-lunch-time").value,
+      lunchDurationMinutes: Number(document.getElementById("eta-lunch-duration").value)
+    };
+    if (!Number.isInteger(eta.staleMinutes) || eta.staleMinutes < 10 || eta.staleMinutes > 720 ||
+        !/^\d{2}:\d{2}$/.test(eta.lunchTime) ||
+        !Number.isInteger(eta.lunchDurationMinutes) || eta.lunchDurationMinutes < 0 || eta.lunchDurationMinutes > 240) {
+      statusEl.textContent = "ETA settings are invalid: stale time must be 10–720 minutes, lunch time must be valid, and lunch duration must be 0–240 minutes.";
+      statusEl.className = "status-msg error";
+      return;
+    }
 
     const newSettings = {
       ...settings,
+      eta,
       mapDataMaxAgeHours,
       devices,
       defaultRouteFolder: document.getElementById("default-route-folder").value,

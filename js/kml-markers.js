@@ -53,7 +53,15 @@
         }) });
       },
       onEachFeature(feature, layer) {
-        layer.bindPopup(buildPopupHtml(feature.properties || {}, feature.geometry && feature.geometry.coordinates), { maxWidth: 320 });
+        const props = feature.properties || {};
+        const coords = feature.geometry && feature.geometry.coordinates;
+        const etaInfo = coords && MaynardEta
+          ? MaynardEta.getInfo(markerKey(feature), coords[1], coords[0],
+            Number(props._positionTimeMs) || kmlTimeMs(props), Number(props["GPS Accuracy"]))
+          : { status: "disabled" };
+        layer._etaInfo = etaInfo;
+        layer._etaTeam = markerKey(feature);
+        layer.bindPopup(buildPopupHtml(props, coords, MaynardEta ? MaynardEta.popupHtml(etaInfo) : ""), { maxWidth: 320 });
         if (feature.geometry && feature.geometry.type === "Point") {
           MaynardNearbyPicker.register(layer, "Team position", markerKey(feature));
         }
@@ -153,7 +161,7 @@
     const pad = (v) => String(Math.floor((v % 100000) / 100)).padStart(3, "0");
     return `${A(l1)}${A(l2)} ${pad(e)} ${pad(n)}`;
   }
-  function buildPopupHtml(props, coords) {
+  function buildPopupHtml(props, coords, etaHtml) {
     const has = (k) => props[k] != null && String(props[k]).trim() !== "";
     const title = has("Map Display Name") ? props["Map Display Name"] : props.name || "Marker";
     const positionAge = MaynardUtils.timeSince(kmlTimeMs(props));
@@ -196,6 +204,7 @@
           .join("") +
         "</table>";
     }
+    if (etaHtml) details += etaHtml;
     if (hasCoordinates) {
       const href = mapAppUrl(lat, lng, title);
       details += `<div class="kml-popup-map"><a href="${escapeHtml(href)}" title="Open in maps app" aria-label="Open in maps app" target="_blank" rel="noopener">&#128506; Map</a></div>`;
@@ -320,6 +329,7 @@
         ? (kMsg > iMsg ? k : i)
         : hasIpc ? i : hasKml ? k : null;
       const props = Object.assign({}, posSrc.properties, { "Map Display Name": key });
+      props._positionTimeMs = iPos >= kPos ? iPos : kPos;
       delete props._posTime; delete props._msgTime; delete props._msgPos;
       const mp = msgSrc && msgSrc.properties;
       props.Text = ""; props["Message Time"] = ""; props["Message Type"] = "";
@@ -368,8 +378,18 @@
     rebuilding = true;
     if (layerGroup && curMap.hasLayer(layerGroup)) curMap.removeLayer(layerGroup);
     layerGroup = buildLayer({ type: "FeatureCollection", features: latestFeatures });
-    layerGroup.on("popupopen", (e) => { if (!rebuilding) openKey = Object.keys(layerGroup._keyed).find((k) => layerGroup._keyed[k] === e.popup._source) || null; });
-    layerGroup.on("popupclose", () => { if (!rebuilding) openKey = null; });
+    layerGroup.on("popupopen", (e) => {
+      if (!rebuilding) {
+        openKey = Object.keys(layerGroup._keyed).find((k) => layerGroup._keyed[k] === e.popup._source) || null;
+      }
+      const source = e.popup._source;
+      if (source && source._etaInfo && MaynardEta) MaynardEta.popupOpened(source._etaTeam, source._etaInfo, e.popup);
+    });
+    layerGroup.on("popupclose", (e) => {
+      if (!rebuilding) openKey = null;
+      const source = e.popup && e.popup._source;
+      if (source && source._etaTeam && MaynardEta) MaynardEta.popupClosed(source._etaTeam);
+    });
     if (visible) layerGroup.addTo(curMap);
     rebuilding = false;
     if (visible && openKey && layerGroup._keyed[openKey]) {

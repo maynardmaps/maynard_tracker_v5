@@ -239,6 +239,15 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   padding: 0.3rem 0;
   border-bottom: 1px solid #eee;
 }
+.device-row { display: flex; flex-wrap: wrap; align-items: center; }
+.device-row > input { min-width: 10rem; flex: 1 1 10rem; }
+.device-row > label { display: flex; flex: 1 1 13rem; flex-direction: column; gap: 0.2rem; font-size: 0.8rem; }
+.device-row .eta-route-bearing { flex: 1 1 100%; color: var(--muted); font-size: 0.85rem; }
+.eta-popup { border-top: 1px solid #ddd; margin-top: 0.4rem; padding-top: 0.35rem; font-size: 0.85rem; }
+.eta-popup > div { margin-top: 0.15rem; }
+.eta-low-confidence { color: #8a4b00; font-weight: 600; }
+.eta-waypoint-controls { display: flex; align-items: center; justify-content: space-between; gap: 0.4rem; margin-top: 0.4rem !important; }
+.eta-waypoint-controls button { padding: 0.25rem 0.45rem; font-size: 0.8rem; }
 
 .save-bar {
   position: sticky;

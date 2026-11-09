@@ -19,9 +19,10 @@
     }
   }
 
-  function makeEvent(imei, lat, lon, code, text, low) {
+  function makeEvent(imei, lat, lon, code, text, low, eventTimeMs) {
     const ev = {
-      imei, messageCode: code, timeStamp: Date.now() - Math.max(0, Number($("t-age").value) || 0) * 60000,
+      imei, messageCode: code,
+      timeStamp: (Number.isFinite(eventTimeMs) ? eventTimeMs : Date.now()) - Math.max(0, Number($("t-age").value) || 0) * 60000,
       point: { latitude: lat, longitude: lon, altitude: 100, gpsFix: 2, course: 0, speed: 0 },
       status: { autonomous: 0, lowBattery: low ? 1 : 0, intervalChange: 0, resetDetected: 0 }
     };
@@ -101,8 +102,7 @@
   }
 
   // ---- Route simulation ----
-  const STEP_SECONDS = 10;
-  const STEP_METRES = 26.8224 * STEP_SECONDS; // 60 mph
+  const DEFAULT_STEP_SECONDS = 10;
   const TURN_DEGREES = 40;
   const TURN_MIN_GAP_M = 200;
   const R = 6371000;
@@ -146,16 +146,20 @@
     return [p[0] + (q[0] - p[0]) * f, p[1] + (q[1] - p[1]) * f];
   }
 
-  // One entry per 10 s step; turn messages land on the first step at or after each turn.
-  function buildSteps(a) {
+  // Turn messages land on the first report at or after each detected turn.
+  function buildSteps(a, speedKmh, varySpeed, stepSeconds) {
     const script = [{ code: 3, text: "first turn" }, { code: 14 }, { code: 15 }, { code: 16 }];
     const steps = [];
-    let next = 0;
-    for (let d = 0; d < a.total; d += STEP_METRES) {
+    let next = 0, d = 0, report = 0;
+    while (d < a.total) {
+      const factor = varySpeed ? [0.7, 1.3, 1][report % 3] : 1;
+      const stepMetres = speedKmh * factor / 3.6 * stepSeconds;
       const [lat, lon] = pointAt(a, d);
       const s = { lat, lon, code: 0 };
-      if (next < script.length && next < a.turns.length && d + STEP_METRES > a.turns[next]) Object.assign(s, script[next++]);
+      if (next < script.length && next < a.turns.length && d + stepMetres > a.turns[next]) Object.assign(s, script[next++]);
       steps.push(s);
+      d += stepMetres;
+      report++;
     }
     const [lat, lon] = a.pts[a.pts.length - 1];
     steps.push({ lat, lon, code: 4, text: "SOS" });
@@ -212,13 +216,19 @@
     try {
       const raw = await loadRoutePoints(path.split("/").map(decodeURIComponent).join("/"));
       if (raw.length < 2) throw new Error("no line found in the route file");
+      const speed = Number($("r-speed-kmh").value);
+      if (!Number.isFinite(speed) || speed <= 0 || speed > 160) throw new Error("speed must be between 0.1 and 160 km/h");
+      const stepSeconds = Number($("r-interval-seconds").value) || DEFAULT_STEP_SECONDS;
       const a = analyseRoute(raw);
-      sim = buildSteps(a);
-      logLine(`Route ${decodeURIComponent(path)}: ${(a.total / 1000).toFixed(2)} km, ${sim.steps.length} reports, ${a.turns.length} turn(s) detected`);
+      sim = buildSteps(a, speed, $("r-vary-speed").checked, stepSeconds);
+      logLine(`Route ${decodeURIComponent(path)}: ${(a.total / 1000).toFixed(2)} km, ${sim.steps.length} reports every ${stepSeconds / 60} min, ${a.turns.length} turn(s) detected`);
       if (sim.turnsFound < 4) logLine(`Only ${sim.turnsFound} of the 4 turn messages can be sent on this route`);
+      sim.stepSeconds = stepSeconds;
     } catch (e) { $("r-status").textContent = "Could not load route: " + e.message; return; }
 
-    const interval = STEP_SECONDS * 1000 / Number($("r-speedup").value || 1);
+    const speedup = Number($("r-speedup").value || 1);
+    const interval = sim.stepSeconds * 1000 / speedup;
+    const simulationStart = Date.now() - (sim.steps.length - 1) * (sim.stepSeconds * 1000 - interval);
     let n = 0;
     $("r-start").disabled = true;
     $("r-stop").disabled = false;
@@ -228,7 +238,8 @@
       const s = sim.steps[n++];
       $("r-status").textContent = `Step ${n} of ${sim.steps.length}`;
       try {
-        await call({ action: "inject", events: [makeEvent(imei, s.lat, s.lon, s.code, s.text, false)] });
+        const eventTimeMs = simulationStart + (n - 1) * sim.stepSeconds * 1000;
+        await call({ action: "inject", events: [makeEvent(imei, s.lat, s.lon, s.code, s.text, false, eventTimeMs)] });
         logLine(`Route step ${n}/${sim.steps.length}: code ${s.code}${s.text ? ' "' + s.text + '"' : ""} at ${s.lat.toFixed(5)}, ${s.lon.toFixed(5)}`);
       } catch (e) { stopRoute("Stopped: " + e.message); return; }
       if (n >= sim.steps.length) stopRoute("Route simulation finished (SOS sent).");
