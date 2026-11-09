@@ -108,7 +108,7 @@ is available).
 
 ## Optional tracker ETA
 
-Tracker ETA is disabled by default and isolated in `js/eta.js`. When enabled, assign a route and direction and fallback speed to each tracker under Device management. The compact team-position popup shows the destination-local time of day and time remaining, without a date; expanded details include the full arrival date and time. ETA uses cumulative route distance and time-stamped positions, smoothing the latest three valid speed intervals; a single off-route/ambiguous fix preserves the last estimate with a low-confidence warning, while repeated unusable matches or stale data make ETA unavailable. The test tool offers 10-minute sparse-ping simulation with an accelerated clock, as well as a faster 10-second demonstration. Simulated observation timestamps are separate from current receipt timestamps so test reports remain fresh while ETA speed calculations use the simulated travel interval. Lunch time and duration are configured in the Tracker ETA section. Destination-local arrival formatting is available for UK routes; outside the supported area the duration remains available and local time is reported unavailable.
+Tracker ETA is disabled by default and isolated in `js/eta.js`. When enabled, assign a route, direction, and fallback speed to each tracker in **Expedition setup**. The **ETA management** section contains the feature toggle, stale-position threshold, and planned lunch time and duration. The compact team-position popup shows the destination-local time of day and time remaining, without a date; expanded details include the full arrival date and time. ETA uses cumulative route distance and time-stamped positions, smoothing the latest three valid speed intervals; a single off-route/ambiguous fix preserves the last estimate with a low-confidence warning, while repeated unusable matches or stale data make ETA unavailable. The test tool offers 10-minute sparse-ping simulation with an accelerated clock, as well as a faster 10-second demonstration. Simulated observation timestamps are separate from current receipt timestamps so test reports remain fresh while ETA speed calculations use the simulated travel interval. Destination-local arrival formatting is available for UK routes; outside the supported area the duration remains available and local time is reported unavailable.
 
 To remove ETA if it proves unsuitable, remove the `js/eta.js` script includes from `index.html` and `config.html`, remove its map hooks from `js/map-page.js` and `js/kml-markers.js`, remove ETA controls/fields from `config.html` and `js/config-page.js`, and remove the `eta` and per-device ETA fields from `settings.json` and the Worker settings allowlist/validation in `worker/relay.js`. Remove `tools/test_eta.js` and the ETA-specific test controls from `test.html` and `js/test-page.js`. Garmin data ingestion, route rendering and messaging do not depend on the ETA module.
 
@@ -120,24 +120,20 @@ Visit `config.html` and enter the config passphrase. It is checked by the
 Cloudflare Worker (stored there as the `CONFIG_PASSPHRASE` secret, never in
 this repo), so it is real authorisation, not a client-side gate.
 
-From there you can set:
+The configuration sections are ordered by workflow:
 
-- Default route folder shown on load.
-- Map start point/zoom (type coordinates or click/drag the picker map).
-- Route colours: a generic palette of 8 colours.
-- Garmin KML marker colours: a generic palette of 8 colours.
-- Whether the weather overlay is on by default.
-- Whether the birds and rivers overlay is on by default.
-- River levels: on by default, and the area box to display.
-- Operating mode: Normal or Test (see below).
-- Device management: team names and 15-digit inReach IMEIs.
-- Messaging: last 3 messages per team, send text messages, force start/stop tracking (see below).
-- Diagnostics: show a panel at the bottom of the map menu with the Garmin retrieval method and any data-source failures.
-- Map icon age limit: hide Garmin position/message pins and river-level markers older than the configured number of hours (1-720; default 12), set in the Location history section. Older records remain in configuration history.
-- Tracker ETA: enable/disable ETA, set stale-position threshold and planned lunch time/duration. Device management stores each tracker’s assigned route, direction and fallback speed.
-- Which base map sources are offered, their display names/URLs, and you can
-  add your own XYZ tile sources.
-- The GitHub owner/repo/branch (read-only; fixed in the Worker).
+1. **Expedition setup:** default route folder, each tracker's route assignment, direction and fallback speed, plus the map start point and zoom.
+2. **Messaging & tracking:** recent messages and tracking status, send text messages, and force start/stop/query tracking (see below).
+3. **Map defaults:** available/default base maps, overlay defaults, river-level area, and the map icon age limit. The age limit (1–720 hours, default 12) hides old Garmin and river-level map icons only; older records remain in Location history.
+4. **Map appearance:** generic 8-colour palettes for routes and Garmin markers.
+5. **Diagnostics & test mode:** diagnostics panel toggle and Normal/Test operating mode.
+6. **Location history:** recent position reports and messages, including raw event details; this is retained independently of the map icon age limit.
+7. **Route management:** add, rename, and delete route folders/files.
+8. **GitHub integration:** read-only owner, repository, and branch details.
+9. **ETA management:** enable/disable ETA, stale-position threshold, and planned lunch time/duration. Per-tracker route assignments and fallback speeds are in Expedition setup.
+10. **Device management:** add/edit/delete device names and 15-digit inReach IMEIs. These are kept separate from route assignments.
+
+All sections are collapsible and initially closed. Settings are applied with **Save settings**, except route-management changes, which are committed immediately.
 
 Clicking **Save settings** saves to `localStorage` immediately and asks the
 Worker to commit `settings.json` to GitHub. The GitHub token is a Worker

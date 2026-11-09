@@ -52,8 +52,8 @@ Data source requirements:
 27) The "birds and rivers" overlay should load ALL the KML files in the "data" folder (not a single named file), and its single toggle should show/hide all of them. New KML files added to the folder should appear automatically without code changes.
 
 Configuration page requirements:
-1) The configuration page should allow the user to set the default route sub-folder.
-2) The configuration page should allow the user to set the "start point" for the map. This should be configurable by entering coordinates or selecting a location on a map.
+1) Expedition setup should allow the user to set the default route sub-folder.
+2) Expedition setup should allow the user to set the "start point" for the map. This should be configurable by entering coordinates or selecting a location on a map.
 3) The configuration page should be accessible from the map page with a small button or link.
 4) The configuration page should be responsive and work well on both desktop and mobile devices.
 5) The configuration page should require a password to make changes to settings. This password should be "maynard".
@@ -62,11 +62,16 @@ Configuration page requirements:
 8) The configuration page should provide a link to the github folder in which the project is stored.
 9) The configuration page should provide toggles for which map sources are available for the map user to select.
 10) Map sources should be displayed as a list on the configuration page, with the user able to add extra map sources to the list as needed.
-10a) Each map source in the list should have a Default checkbox (only one can be ticked, and it must be an enabled source) to choose the map shown when the map page opens. The configuration page should list Messaging as its first section.
+10a) Each map source in the list should have a Default checkbox (only one can be ticked, and it must be an enabled source) to choose the map shown when the map page opens.
 10b) After the configuration page commits settings to GitHub it should show that changes are pending, poll the published settings.json, and automatically reload the page once the committed changes are live.
 11) The configuration page should have a clear "save settings" button that applies all changes made by the user.
-12) Each configuration box should be collapsible and collapsed by default when the page opens.
-13) A "Device management" section should list the registered inReach devices (IMEI + short name, e.g. "TT1", without the "inReach Mini" prefix). The user can edit names, add devices (15-digit unique IMEI required) and delete devices (after confirmation); changes apply on "Save settings". Initial devices: 300434031477230=TT1, 300434031379170=TT2, 300434031470000=TT3, 300434031375980=TT4.
+12) Configuration sections should be collapsible and collapsed by default. Order them by workflow: Expedition setup; Messaging and tracking; Map defaults; Map appearance; Diagnostics and test mode; Location history; Route management; GitHub integration; ETA management; Device management.
+13) Expedition setup should contain the default route folder, per-tracker route assignment, direction and fallback speed, and map start point/zoom. Keep route assignments separate from device identity fields in the interface while saving them together for each tracker.
+14) A "Device management" section near the bottom should list registered inReach devices (IMEI + short name, e.g. "TT1", without the "inReach Mini" prefix). The user can edit names, add devices (15-digit unique IMEI required) and delete devices (after confirmation); changes apply on "Save settings". Initial devices: 300434031477230=TT1, 300434031379170=TT2, 300434031470000=TT3, 300434031375980=TT4.
+15) Messaging and tracking should be the second section, after Expedition setup, and provide recent messages and tracking status, message sending, and tracking controls.
+16) Map defaults should contain the base-map source list/default, overlay defaults and relevant map display settings, including the configurable map icon age limit.
+17) ETA management near the bottom should contain generic ETA settings: feature enablement, stale-position threshold, and planned lunch time/duration. Tracker-specific route, direction and fallback speed remain in Expedition setup.
+18) Location history should remain available in its own section, independent of the map icon age limit.
 
 Route management requirements:
 1) The configuration page should have a "route management" section that lists all the route folders in the routes folder.
@@ -93,7 +98,7 @@ River levels requirements:
 10) Do not display a river-level marker when its latest reading is older than `mapDataMaxAgeHours`. The Test mode stale-data override also temporarily reveals these markers.
 
 Map icon freshness and history requirements:
-1) `mapDataMaxAgeHours` defaults to 12 and is configurable as a whole number from 1 to 720 in the Configuration page's Location history section.
+1) `mapDataMaxAgeHours` defaults to 12 and is configurable as a whole number from 1 to 720 in the Configuration page's Map defaults section.
 2) The age limit applies only to Garmin position/message pins and river-level markers shown on the map. It must not delete or filter older records from the Configuration page's Messaging and Location history sections.
 3) The Test tool exposes a stale-data display override only when settings are in Test mode. Toggling it updates an already-open Test mode map and does not alter the configured age limit.
 
@@ -104,7 +109,7 @@ Status message requirements:
 4) Several messages can show at once, separated by a dot. The message must not block interaction with the map and must be announced to screen readers (aria-live).
 
 Diagnostics requirements:
-1) The configuration page should have a collapsible "Diagnostics" box with a tick box (off by default) that enables a diagnostics panel.
+1) The configuration page should have a "Diagnostics & test mode" section with a tick box (off by default) that enables a diagnostics panel.
 2) When enabled, a small panel is pinned to the bottom of the map menu showing the latest result for each data source: the Garmin retrieval method (IPC Outbound push or MapShare relay), the operating mode and their status, plus any failures retrieving other information (route list, weather, river levels and trends, birds and rivers KML, location), each with the time of the last result.
 3) When disabled the panel is hidden. The setting is saved with the other settings (diagnosticsEnabled).
 
@@ -119,7 +124,7 @@ Garmin direct API requirements:
 5) The diagnostics panel states how many teams are currently shown from each source (push feed or MapShare KML), the operating mode, and any failure of either source. A status message appears on the map only if both sources fail.
 6) Normal mode: /ipc/outbound accepts only requests carrying the static authorisation token (Worker secret IPC_OUTBOUND_TOKEN, compared with Garmin's X-Outbound-Auth-Token header or the Authorization header), with Content-Type application/json and a valid IPC Outbound body ("Events" array). Events for IMEIs not registered in Device management are ignored (still answered 200 so Garmin does not retry). If the token secret is not set the endpoint refuses traffic (503). /ipc/locations returns registered devices only. Incoming values are validated (IMEI format, coordinate ranges, body size, device count cap).
 7) Test mode: unregistered IMEIs are also accepted and returned, shown using a grey dashed circle marked '?' (named 'Unregistered <IMEI>') instead of the team diamond; the token is always enforced. Unregistered devices never affect the KML/push comparison for registered teams. Test mode also enables the test tool that injects false team track information.
-8) The mode ("normal" or "test", setting "mode", default normal) is chosen with a tick box in an "Operating mode" box on the configuration page, saved with "Save settings", and stored by the Worker (KV) when settings are saved; until then the Worker reads it from the committed settings.json.
+8) The mode ("normal" or "test", setting "mode", default normal) is chosen with a tick box in the configuration page's "Diagnostics & test mode" section, saved with "Save settings", and stored by the Worker (KV) when settings are saved; until then the Worker reads it from the committed settings.json.
 9) Message-type handling: there should be an icon for each team in the same colour as the tracker that denotes the last message indication received, separately from the position tracking indicator
 9a) When a free text message is received, the icon popout dialogue should display the message content and timestamp, allowing the user to quickly view the details without interfering with the map interaction.
 9b) When message type 14 (puck message 1) is received, the icon popout dialogue should display the message "All ok" and timestamp, similar to free text messages, allowing the user to quickly view the details without interfering with the map interaction.
