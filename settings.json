@@ -98,7 +98,7 @@
     "lunchTime": "12:00",
     "lunchDurationMinutes": 30
   },
-  "mode": "normal",
+  "mode": "test",
   "birdsRiversEnabledByDefault": false,
   "riverLevels": {
     "enabledByDefault": false,
