@@ -12,6 +12,8 @@
 //                                    "mode") also accepts unregistered IMEIs.
 //   GET  /ipc/locations?imeis=a,b -> latest stored position per device.
 //   POST /settings[/verify]       -> passphrase-protected settings.json commit.
+import { parseRouteCard, routeCardToKml } from "./gmail-route-card.js";
+
 const GARMIN_FEED = "https://share.garmin.com/Feed/Share/9ZU7V";
 const MET_BASE = "https://data.hub.api.metoffice.gov.uk/map-images/1.0.0/orders";
 
@@ -32,6 +34,12 @@ const WEATHER_CACHE_SECONDS = 300;
 
 const KEEP_FILE = ".gitkeep"; // placeholder so an empty folder exists in git
 const ROUTES_CACHE_KEY = "https://cache.invalid/routes-manifest";
+const GMAIL_API = "https://gmail.googleapis.com/gmail/v1/users/me";
+const GMAIL_IMPORT_PREFIX = "gmail-route-import:";
+const GMAIL_IMPORT_TTL_SECONDS = 60 * 60 * 24 * 365;
+const MAX_GMAIL_DOCX_BYTES = 8 * 1024 * 1024;
+const MAX_GMAIL_MESSAGES_PER_POLL = 10;
+const MAX_GMAIL_CARDS_PER_POLL = 2;
 
 // Lists routes/<folder>/<file>.(gpx|kml) from the repo so new uploads appear
 // without editing routes/manifest.json.
@@ -1031,7 +1039,299 @@ async function applyRouteOp(req, env) {
   });
   await gh(env, `/git/refs/heads/${GH_BRANCH}`, { method: "PATCH", body: JSON.stringify({ sha: commit.sha }) });
 }
+
+function gmailSenders(env) {
+  const raw = env.GMAIL_ALLOWED_SENDERS || "";
+  const senders = raw.split(/[,\s]+/).map((value) => value.trim().toLowerCase()).filter(Boolean);
+  if (!senders.length || senders.some((sender) => !/^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/i.test(sender))) {
+    throw new Error("GMAIL_ALLOWED_SENDERS must contain one or more valid sender email addresses");
+  }
+  return [...new Set(senders)];
+}
+
+async function gmailAccessToken(env) {
+  if (!env.GMAIL_CLIENT_ID || !env.GMAIL_CLIENT_SECRET || !env.GMAIL_REFRESH_TOKEN) {
+    throw new Error("Gmail OAuth secrets are not configured");
+  }
+  const response = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: env.GMAIL_CLIENT_ID,
+      client_secret: env.GMAIL_CLIENT_SECRET,
+      refresh_token: env.GMAIL_REFRESH_TOKEN,
+      grant_type: "refresh_token"
+    })
+  });
+  if (!response.ok) throw new Error(`Gmail OAuth token refresh failed (HTTP ${response.status})`);
+  const token = await response.json();
+  if (typeof token.access_token !== "string" || !token.access_token) {
+    throw new Error("Gmail OAuth response did not contain an access token");
+  }
+  return token.access_token;
+}
+
+async function gmailGet(path, accessToken) {
+  const response = await fetch(`${GMAIL_API}${path}`, {
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
+  if (!response.ok) {
+    const error = new Error(`Gmail API request failed (HTTP ${response.status})`);
+    error.status = response.status;
+    throw error;
+  }
+  return response.json();
+}
+
+function decodeBase64Url(value) {
+  const base64 = value.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = base64 + "=".repeat((4 - base64.length % 4) % 4);
+  const binary = atob(padded);
+  return Uint8Array.from(binary, (char) => char.charCodeAt(0));
+}
+
+function decodeBase64Utf8(value) {
+  return new TextDecoder().decode(decodeBase64Url(value.replace(/\s/g, "")));
+}
+
+function gmailSender(message) {
+  const headers = message.payload && message.payload.headers || [];
+  const from = headers.find((header) => header.name.toLowerCase() === "from");
+  const match = from && /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.exec(from.value);
+  return match ? match[0].toLowerCase() : "";
+}
+
+function gmailAttachments(payload, result = []) {
+  if (!payload) return result;
+  if (payload.filename && /\.docx$/i.test(payload.filename)) result.push(payload);
+  (payload.parts || []).forEach((part) => gmailAttachments(part, result));
+  return result;
+}
+
+function londonImportDate(internalDate) {
+  const date = new Date(Number(internalDate));
+  if (!Number.isFinite(date.getTime())) throw new Error("Gmail message has an invalid received date");
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(date);
+  const value = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${value.year}-${value.month}-${value.day}`;
+}
+
+async function attachmentBytes(messageId, part, accessToken) {
+  const body = part.body || {};
+  let bytes;
+  if (body.data) {
+    bytes = decodeBase64Url(body.data);
+  } else if (body.attachmentId) {
+    const result = await gmailGet(
+      `/messages/${encodeURIComponent(messageId)}/attachments/${encodeURIComponent(body.attachmentId)}`,
+      accessToken
+    );
+    bytes = decodeBase64Url(result.data || "");
+  } else {
+    throw new Error("DOCX attachment has no downloadable content");
+  }
+  if (!bytes.length || bytes.length > MAX_GMAIL_DOCX_BYTES) {
+    throw new Error("DOCX attachment is empty or exceeds the 8 MB size limit");
+  }
+  return bytes;
+}
+
+async function commitImportedRoute(env, folder, route, gmailMessageId) {
+  if (!env.GITHUB_TOKEN) throw new Error("GITHUB_TOKEN secret is not configured");
+  const routeFilename = `${route.routeName}.kml`;
+  const routePath = `routes/${folder}/${routeFilename}`;
+  const ref = await gh(env, `/git/ref/heads/${GH_BRANCH}`);
+  const headSha = ref.object.sha;
+  const head = await gh(env, `/git/commits/${headSha}`);
+  const tree = (await gh(env, `/git/trees/${head.tree.sha}?recursive=1`)).tree || [];
+  if (tree.some((item) => item.path === routePath)) {
+    return { imported: false, reason: "A route with this name is already in the daily folder" };
+  }
+
+  const settingsFile = await gh(env, `/contents/settings.json?ref=${encodeURIComponent(headSha)}`);
+  const settings = JSON.parse(decodeBase64Utf8(settingsFile.content));
+  settings.defaultRouteFolder = folder;
+  const routeId = `${folder}/${routeFilename}#0`;
+  (settings.devices || []).forEach((device) => {
+    if (device.etaRouteId === routeId) device.etaFallbackSpeedKmh = route.defaultSpeedKmh;
+  });
+
+  const kmlBlob = await gh(env, "/git/blobs", {
+    method: "POST",
+    body: JSON.stringify({
+      content: toBase64Utf8(routeCardToKml(route)),
+      encoding: "base64"
+    })
+  });
+  const settingsBlob = await gh(env, "/git/blobs", {
+    method: "POST",
+    body: JSON.stringify({ content: JSON.stringify(settings, null, 2) + "\n", encoding: "utf-8" })
+  });
+  const changes = [
+    { path: routePath, mode: "100644", type: "blob", sha: kmlBlob.sha },
+    { path: "settings.json", mode: "100644", type: "blob", sha: settingsBlob.sha }
+  ];
+  if (!tree.some((item) => item.path.startsWith(`routes/${folder}/`))) {
+    const keepBlob = await gh(env, "/git/blobs", {
+      method: "POST",
+      body: JSON.stringify({ content: "\n", encoding: "utf-8" })
+    });
+    changes.push({ path: `routes/${folder}/${KEEP_FILE}`, mode: "100644", type: "blob", sha: keepBlob.sha });
+  }
+
+  const newTree = await gh(env, "/git/trees", {
+    method: "POST",
+    body: JSON.stringify({ base_tree: head.tree.sha, tree: changes })
+  });
+  const commit = await gh(env, "/git/commits", {
+    method: "POST",
+    body: JSON.stringify({
+      message: `Import route card ${route.routeName} from Gmail ${gmailMessageId}`,
+      tree: newTree.sha,
+      parents: [headSha]
+    })
+  });
+  await gh(env, `/git/refs/heads/${GH_BRANCH}`, {
+    method: "PATCH",
+    body: JSON.stringify({ sha: commit.sha })
+  });
+  await caches.default.delete(new Request(ROUTES_CACHE_KEY));
+  return { imported: true, routePath };
+}
+
+async function pollGmailRouteCards(env) {
+  if (!env.RATE_LIMIT) throw new Error("RATE_LIMIT KV binding is required for Gmail import deduplication");
+  const senders = gmailSenders(env);
+  const accessToken = await gmailAccessToken(env);
+  const senderQuery = senders.map((sender) => `from:${sender}`).join(" ");
+  const query = `in:inbox has:attachment filename:docx newer_than:30d {${senderQuery}}`;
+  const cursorKey = `${GMAIL_IMPORT_PREFIX}cursor`;
+  const cursor = await env.RATE_LIMIT.get(cursorKey);
+  const listPath = (pageToken) =>
+    `/messages?q=${encodeURIComponent(query)}&maxResults=${MAX_GMAIL_MESSAGES_PER_POLL}` +
+    (pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : "");
+  let list;
+  try {
+    list = await gmailGet(listPath(cursor), accessToken);
+  } catch (error) {
+    if (!cursor || error.status !== 400) throw error;
+    console.warn("Gmail polling cursor expired; restarting from the newest matching messages");
+    await env.RATE_LIMIT.delete(cursorKey);
+    list = await gmailGet(listPath(""), accessToken);
+  }
+  const messages = list.messages || [];
+  let importedCardCount = 0;
+  let completedPage = true;
+  for (const summary of messages) {
+    const message = await gmailGet(`/messages/${encodeURIComponent(summary.id)}?format=full`, accessToken);
+    if (!senders.includes(gmailSender(message))) continue;
+    const parts = gmailAttachments(message.payload);
+    for (let partIndex = 0; partIndex < parts.length; partIndex++) {
+      const part = parts[partIndex];
+      const attachmentKey = part.body && part.body.attachmentId || `${partIndex}:${part.filename}`;
+      const stateKey = `${GMAIL_IMPORT_PREFIX}${message.id}:${attachmentKey}`;
+      if (await env.RATE_LIMIT.get(stateKey)) continue;
+
+      let bytes;
+      try {
+        bytes = await attachmentBytes(message.id, part, accessToken);
+      } catch (error) {
+        if (error.status || error instanceof TypeError) {
+          console.error("Gmail route-card attachment download failed; it will be retried", {
+            messageId: message.id,
+            filename: part.filename,
+            reason: String(error.message || error).slice(0, 300)
+          });
+          continue;
+        }
+        await env.RATE_LIMIT.put(stateKey, JSON.stringify({
+          status: "rejected",
+          message: String(error.message || error).slice(0, 300),
+          at: new Date().toISOString()
+        }), { expirationTtl: GMAIL_IMPORT_TTL_SECONDS });
+        console.error("Gmail route card rejected", {
+          messageId: message.id,
+          filename: part.filename,
+          reason: String(error.message || error).slice(0, 300)
+        });
+        continue;
+      }
+
+      let route;
+      try {
+        route = parseRouteCard(bytes);
+      } catch (error) {
+        await env.RATE_LIMIT.put(stateKey, JSON.stringify({
+          status: "rejected",
+          message: String(error.message || error).slice(0, 300),
+          at: new Date().toISOString()
+        }), { expirationTtl: GMAIL_IMPORT_TTL_SECONDS });
+        console.error("Gmail route card rejected", {
+          messageId: message.id,
+          filename: part.filename,
+          reason: String(error.message || error).slice(0, 300)
+        });
+        continue;
+      }
+
+      let result;
+      try {
+        const folder = londonImportDate(message.internalDate);
+        result = await commitImportedRoute(env, folder, route, message.id);
+      } catch (error) {
+        console.error("Gmail route card import failed; it will be retried", {
+          messageId: message.id,
+          routeName: route.routeName,
+          reason: String(error.message || error).slice(0, 300)
+        });
+        continue;
+      }
+      await env.RATE_LIMIT.put(stateKey, JSON.stringify({
+        status: result.imported ? "imported" : "duplicate",
+        routePath: result.routePath || "",
+        reason: result.reason || "",
+        at: new Date().toISOString()
+      }), { expirationTtl: GMAIL_IMPORT_TTL_SECONDS });
+      if (result.imported) {
+        console.info("Gmail route card imported", {
+          messageId: message.id,
+          routePath: result.routePath,
+          defaultSpeedKmh: route.defaultSpeedKmh,
+          waypointCount: route.waypoints.length
+        });
+      } else {
+        console.warn("Gmail route card was not imported", {
+          messageId: message.id,
+          routeName: route.routeName,
+          reason: result.reason
+        });
+      }
+      importedCardCount += 1;
+      if (importedCardCount >= MAX_GMAIL_CARDS_PER_POLL) {
+        completedPage = false;
+        break;
+      }
+    }
+    if (!completedPage) break;
+  }
+  if (completedPage && list.nextPageToken) {
+    await env.RATE_LIMIT.put(cursorKey, list.nextPageToken, { expirationTtl: GMAIL_IMPORT_TTL_SECONDS });
+  } else if (completedPage) {
+    await env.RATE_LIMIT.delete(cursorKey);
+  }
+}
+
 export default {
+  async scheduled(controller, env, ctx) {
+    ctx.waitUntil(pollGmailRouteCards(env).catch((error) => {
+      console.error("Scheduled Gmail route-card poll failed", error);
+    }));
+  },
   async fetch(request, env, ctx) {
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
 

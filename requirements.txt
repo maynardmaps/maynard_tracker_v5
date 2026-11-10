@@ -52,6 +52,7 @@ Data source requirements:
 26) The map should display an indication of the date/time (and offset from now) of the precipitation overlay currently shown, visible only while precipitation is displayed.
 27) The "birds and rivers" overlay should load ALL the KML files in the "data" folder (not a single named file), and its single toggle should show/hide all of them. New KML files added to the folder should appear automatically without code changes.
 28) The North Moor TT27 map should be selectable as a base layer, served from the local WebP XYZ tiles in the "maps" folder, with appropriate Ordnance Survey attribution.
+29) Route-point labels should have a per-route toggle in the route list. Route points must not respond to map clicks or be keyboard-selectable, so selecting nearby team markers remains easy.
 
 Configuration page requirements:
 1) Expedition setup should allow the user to set the default route sub-folder.
@@ -86,6 +87,16 @@ Route management requirements:
 8) The user should be able to add a new file (GPX or KML) to the selected folder.
 9) The user should be able to select a file in the folder contents list, and rename or delete it (deletion after a confirmation prompt).
 10) Route management changes should be committed to the GitHub repository by the Cloudflare Worker (the GitHub token must never reach the browser), should require the configuration passphrase, and should apply immediately without needing "Save settings".
+
+Gmail route-card import requirements:
+1) The Cloudflare Worker should poll the Gmail inbox on a schedule using OAuth with the read-only Gmail scope. It must not mark messages read, change labels, or send messages.
+2) Only DOCX attachments from the configured sender allowlist should be considered. Process messages in the inbox received within the previous 30 days, and make processing idempotent so retries do not duplicate routes.
+3) The route title is the text following "Route Card:". The subtitle contains "Summary @ <speed>kph"; parse this speed as the route's default ETA fallback speed.
+4) Read each waypoint from the "Name / Position / Elevation" column: use the name as the waypoint name, the OS grid reference as its location, and the elevation in metres. Convert grid references to WGS84 for the map.
+5) Use the bearing and distance columns to check each leg. Reject and log a card when a bearing differs from the calculated bearing by more than 10 degrees or the straight-line leg distance exceeds the listed distance by more than 25 metres. Reject incomplete or inconsistently numbered waypoint tables without publishing a partial route.
+6) Save each successful import as a KML file named from the route title in a `YYYY-MM-DD` folder using the `Europe/London` date of the email. Reuse an existing folder for that day and make it the default route folder.
+7) Apply the parsed default speed to every configured tracker already assigned to the imported route. When a tracker is assigned to the route later, prefill its fallback ETA speed from the route metadata.
+8) Keep Gmail OAuth credentials, sender allowlist, and GitHub credentials in Cloudflare Worker secrets. Never expose them to the browser or commit them to the repository.
 
 River levels requirements:
 1) A "River levels" overlay should be available in the map menu overlays list (above Precipitation, which stays last), off by default unless enabled in configuration.

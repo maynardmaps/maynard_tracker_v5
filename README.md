@@ -5,9 +5,10 @@ Pages with **no backend**. It shows:
 
 - An interactive Leaflet map (pan/zoom/geolocation/scale bar) with a choice
   of base layers: OpenStreetMap, Esri World Imagery (satellite), and Ordnance
-  Survey Leisure (via the OS Maps API).
+  Survey Leisure (via the OS Maps API), plus the North Moor TT27 map.
 - GPX/KML routes, loaded from subfolders under `routes/`, auto-coloured and
-  individually toggleable.
+  individually toggleable; route-point labels can be toggled per route, and
+  route points are not interactive.
 - Live team positions and messages from two sources used together: Garmin IPC Outbound pushes (received by the Worker) and the MapShare KML feed. Position reports are compared by position timestamp; messages by message timestamp (not the timestamp of a later KML position update). Garmin popup headers and tracker information show a rounded relative age, with reports under one minute labeled "less than a minute ago". Position and message are separate markers; a message marker stays where the message was received (envelope, or a red pulsing SOS badge).
 - Garmin position and message popups keep the team name, relative age, location, emergency state, and a clearly labeled “Nav to” link with a navigation-arrow icon visible; a dropdown expands to show the remaining tracker and message details, including coordinates to five decimal places.
 - Garmin and river-level map icons older than the configurable 12-hour default are hidden, while configuration-page history remains available. In Test mode, the test tool can temporarily override the age filter to inspect older feed data.
@@ -20,9 +21,12 @@ Pages with **no backend**. It shows:
 - A right-click / long-press menu giving the clicked coordinates, an OS grid
   reference (inside Great Britain) and a link to open the spot in a maps app.
 - A nearby-item chooser for crowded taps: when multiple team, message, river,
-  route-point, or birds-and-rivers markers are close together, choose the
-  intended feature from a list; team, message, and river icons have larger
-  invisible tap targets for mobile.
+  or birds-and-rivers markers are close together, choose the intended feature
+  from a list; team, message, and river icons have larger invisible tap
+  targets for mobile.
+- Optional scheduled Gmail route-card import: authorized sender emails with
+  Word attachments are validated, converted to KML, and added to a dated route
+  folder for ETA use.
 - A password-gated `config.html` page for editing defaults (start point,
   route colours, map sources, GitHub link) which are saved to
   `settings.json` and committed straight back to the repo via the GitHub
@@ -58,6 +62,7 @@ Nothing sensitive is in this repo:
 | Config page passphrase | Worker secret `CONFIG_PASSPHRASE` |
 | Garmin IPC Outbound token | Worker secret `IPC_OUTBOUND_TOKEN` (required in every mode; must match the Authorization Token set in Garmin Portal Connect, sent in `X-Outbound-Auth-Token`) |
 | Garmin IPC Inbound credentials (V1, HTTP Basic) | Worker secrets `IPC_INBOUND_USER` and `IPC_INBOUND_PASSWORD`; `IPC_SENDER` must be set to the sender's email address |
+| Gmail route-card OAuth | Worker secrets `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN`, and `GMAIL_ALLOWED_SENDERS`; setup below |
 
 Set Worker secrets with `wrangler.cmd secret put <NAME>` and type the value at
 the prompt (never as a command argument).
@@ -90,6 +95,65 @@ unreachable; update it by hand if you want the fallback to stay current:
 Colours come from two generic 8-colour palettes set on the config page (one for routes, one for Garmin markers). The Nth route/marker in alphanumerical order takes colour N;
 the palette repeats when there are more than 8.
 
+## Importing route cards from Gmail
+
+The Worker polls the inbox every five minutes for DOCX attachments from the
+configured sender allowlist. It uses Gmail's read-only API scope and does not
+mark messages read, change labels, or send email. Matching messages are limited
+to the inbox and the most recent 30 days.
+
+Each route card must include a `Route Card: <name>` title, a
+`Summary @ <speed>kph` subtitle, and a waypoint table with `Leg`,
+`Name / Position / Elevation`, `Bearing`, and `Distance` columns. Numbered
+waypoints are converted from OS grid references to WGS84 and exported with
+their names and elevations. Cards are rejected and logged to the Worker if
+waypoint numbers are missing or duplicated, the bearing differs by more than 10
+degrees, or the straight-line leg distance exceeds the listed distance by more
+than 25 metres. Rejected attachments are not imported.
+
+Successful cards are saved as `routes/YYYY-MM-DD/<route name>.kml`, with the
+date determined in the `Europe/London` time zone. The date folder becomes the
+default route folder. The card's speed is included as route metadata: it is
+used to update fallback speeds for trackers already assigned to that route and
+pre-fills the fallback-speed field when assigning a tracker to it later.
+Duplicate route filenames in a daily folder are not overwritten. The importer
+checks at most 10 messages and imports at most two valid cards per poll to stay
+within Worker request limits; remaining work continues on later polls.
+
+Setup (one time):
+
+1. In Google Cloud Console, create a project, enable the Gmail API, configure
+   the OAuth consent screen, and add the Gmail read-only scope
+   `https://www.googleapis.com/auth/gmail.readonly`. Create an OAuth client ID
+   of type **Desktop app** and download its JSON configuration.
+2. Save that file locally as `tools/gmail-oauth-client.json` (it is ignored by
+   git), then from the repository root run:
+
+   ```powershell
+   node tools/gmail-oauth-setup.mjs tools/gmail-oauth-client.json
+   ```
+
+   Open the printed Google authorization URL, sign in to the Gmail account to
+   poll, and approve read-only access. The helper uses a temporary localhost
+   callback and prints the resulting client ID, client secret, and refresh
+   token. Keep those values private.
+3. From `worker/`, enter each value at Wrangler's interactive prompt:
+
+   ```powershell
+   wrangler.cmd secret put GMAIL_CLIENT_ID
+   wrangler.cmd secret put GMAIL_CLIENT_SECRET
+   wrangler.cmd secret put GMAIL_REFRESH_TOKEN
+   wrangler.cmd secret put GMAIL_ALLOWED_SENDERS
+   wrangler.cmd deploy
+   ```
+
+   `GMAIL_ALLOWED_SENDERS` is a comma- or whitespace-separated list of exact
+   sender email addresses. Never put OAuth values in a command argument or
+   commit the downloaded client JSON. The Worker logs import/rejection results;
+   use `wrangler.cmd tail` from `worker/` to inspect them. Google OAuth apps
+   left in Testing mode can issue refresh tokens that expire after seven days;
+   follow Google's publishing and verification requirements for ongoing use.
+
 ## Birds and rivers overlay
 
 Every `.kml` file in the `data/` folder is loaded (the Worker lists the folder, like routes) and
@@ -108,7 +172,7 @@ is available).
 
 ## Optional tracker ETA
 
-Tracker ETA is disabled by default and isolated in `js/eta.js`. When enabled, assign a route, direction, and fallback speed to each tracker in **Expedition setup**. The **ETA management** section contains the feature toggle, stale-position threshold, and planned lunch time and duration. The compact team-position popup shows the destination-local time of day and time remaining, without a date; expanded details include the full arrival date and time. ETA uses cumulative route distance and time-stamped positions, smoothing the latest three valid speed intervals; a single off-route/ambiguous fix preserves the last estimate with a low-confidence warning, while repeated unusable matches or stale data make ETA unavailable. The test tool offers 10-minute sparse-ping simulation with an accelerated clock, as well as a faster 10-second demonstration. Simulated observation timestamps are separate from current receipt timestamps so test reports remain fresh while ETA speed calculations use the simulated travel interval. Destination-local arrival formatting is available for UK routes; outside the supported area the duration remains available and local time is reported unavailable.
+Tracker ETA is disabled by default and isolated in `js/eta.js`. When enabled, assign a route, direction, and fallback speed to each tracker in **Expedition setup**. Imported route-card speeds appear as route defaults and prefill the fallback-speed field; existing assignments are updated when a card is imported. The **ETA management** section contains the feature toggle, stale-position threshold, and planned lunch time and duration. The compact team-position popup shows the destination-local time of day and time remaining, without a date; expanded details include the full arrival date and time. ETA uses cumulative route distance and time-stamped positions, smoothing the latest three valid speed intervals; a single off-route/ambiguous fix preserves the last estimate with a low-confidence warning, while repeated unusable matches or stale data make ETA unavailable. The test tool offers 10-minute sparse-ping simulation with an accelerated clock, as well as a faster 10-second demonstration. Simulated observation timestamps are separate from current receipt timestamps so test reports remain fresh while ETA speed calculations use the simulated travel interval. Destination-local arrival formatting is available for UK routes; outside the supported area the duration remains available and local time is reported unavailable.
 
 To remove ETA if it proves unsuitable, remove the `js/eta.js` script includes from `index.html` and `config.html`, remove its map hooks from `js/map-page.js` and `js/kml-markers.js`, remove ETA controls/fields from `config.html` and `js/config-page.js`, and remove the `eta` and per-device ETA fields from `settings.json` and the Worker settings allowlist/validation in `worker/relay.js`. Remove `tools/test_eta.js` and the ETA-specific test controls from `test.html` and `js/test-page.js`. Garmin data ingestion, route rendering and messaging do not depend on the ETA module.
 
@@ -288,8 +352,14 @@ maps/
 data/
   birdsrivers.kml    Static points+polygons overlay (sample placeholder - replace with real data)
 worker/
-  relay.js                Cloudflare Worker (Garmin KML + IPC Outbound/Inbound, Met Office, OS tiles, settings/routes writer)
+  relay.js                Cloudflare Worker (Garmin, Gmail route imports, Met Office, OS tiles, settings/routes writer)
+  gmail-route-card.js     DOCX route-card parser, validation, OS grid conversion and KML generator
   wrangler.toml           Worker deploy config
+  gmail-route-card.test.js  Route-card parser tests
+  gmail-import.test.js      Scheduled Gmail import integration test
+tools/
+  gmail-oauth-setup.mjs   Local read-only Gmail OAuth setup helper
+  test_eta.js             ETA regression tests
 settings.json            Committed shared defaults (editable via config.html)
 ```
 

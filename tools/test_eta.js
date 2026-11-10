@@ -12,8 +12,33 @@ const window = {
     })[char]),
   }
 };
+class FakeXmlDocument {
+  constructor(text) { this.text = text; }
+  getElementsByTagNameNS(_namespace, localName) {
+    if (localName !== "Data") return [];
+    return [...this.text.matchAll(/<Data\b[^>]*\bname="([^"]+)"[^>]*>([\s\S]*?)<\/Data>/g)]
+      .map((match) => ({
+        getAttribute: () => match[1],
+        getElementsByTagNameNS: (_namespace, childName) => childName === "value"
+          ? [{ textContent: /<value\b[^>]*>([\s\S]*?)<\/value>/.exec(match[2])?.[1] || "" }]
+          : []
+      }));
+  }
+}
+class FakeDOMParser {
+  parseFromString(text) { return new FakeXmlDocument(text); }
+}
 vm.runInNewContext(fs.readFileSync("js/eta.js", "utf8"), {
-  window, MaynardUtils: window.MaynardUtils, console
+  window,
+  MaynardUtils: window.MaynardUtils,
+  DOMParser: FakeDOMParser,
+  toGeoJSON: {
+    kml: () => ({ features: [{
+      geometry: { type: "LineString", coordinates: [[-3, 50], [-2.99, 50]] },
+      properties: { name: "Imported route" }
+    }] })
+  },
+  console
 });
 
 const route = {
@@ -131,4 +156,13 @@ assert.equal(info.speedSource, "measured");
 eta.init([route], null, { ...config, eta: { ...config.eta, enabled: false } });
 assert.equal(eta.getInfo("Team A", 50, -2.999, now).status, "disabled");
 
-console.log("ETA calculations: fallback/measured speed, lunch handling, route matching, deviations, reverse travel, ambiguity, stale recovery, simulated observation timestamps and feature toggle passed.");
+window.MaynardUtils.fetchText = async () =>
+  `<kml><Placemark><ExtendedData><Data name="defaultSpeedKmh"><value>3.25</value></Data></ExtendedData></Placemark></kml>`;
+eta.discoverRoutes({ folders: { "2026-01-02": ["imported.kml"] } }).then((definitions) => {
+  assert.equal(definitions.length, 1);
+  assert.equal(definitions[0].defaultSpeedKmh, 3.25);
+  console.log("ETA calculations and imported KML default-speed discovery passed.");
+}).catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});

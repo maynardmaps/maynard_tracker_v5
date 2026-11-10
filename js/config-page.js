@@ -348,7 +348,7 @@
 
   function trackerRouteRow(device, key) {
     const routeOptions = ['<option value="">No route assigned</option>'].concat(etaRoutes.map((route) =>
-      `<option value="${escapeAttr(route.id)}"${route.id === device.etaRouteId ? " selected" : ""}>${escapeAttr(route.label)}</option>`
+      `<option value="${escapeAttr(route.id)}"${route.id === device.etaRouteId ? " selected" : ""}>${escapeAttr(route.label)}${route.defaultSpeedKmh ? ` (${route.defaultSpeedKmh} km/h default)` : ""}</option>`
     )).join("");
     const row = document.createElement("div");
     row.className = "tracker-route-row";
@@ -361,6 +361,7 @@
       `<span class="eta-route-bearing"></span>`;
     row.querySelector(".dev-eta-direction").value = device.etaDirection === "reverse" ? "reverse" : "forward";
     const routeSelect = row.querySelector(".dev-eta-route");
+    const speedInput = row.querySelector(".dev-eta-speed");
     const updateBearing = () => {
       const selectedRoute = etaRoutes.find((route) => route.id === routeSelect.value);
       const coords = selectedRoute && selectedRoute.coordinates;
@@ -368,7 +369,13 @@
         ? `First leg: ${directionName(coords[0], coords[1], row.querySelector(".dev-eta-direction").value)}`
         : "";
     };
-    routeSelect.addEventListener("change", updateBearing);
+    routeSelect.addEventListener("change", () => {
+      const selectedRoute = etaRoutes.find((route) => route.id === routeSelect.value);
+      if (selectedRoute && selectedRoute.defaultSpeedKmh) {
+        speedInput.value = String(selectedRoute.defaultSpeedKmh);
+      }
+      updateBearing();
+    });
     row.querySelector(".dev-eta-direction").addEventListener("change", updateBearing);
     updateBearing();
     return row;

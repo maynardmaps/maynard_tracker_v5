@@ -19,6 +19,21 @@
   const routeLabel = (folder, file, name, index) =>
     `${folder} / ${file}${name ? ` — ${name}` : ` — Route ${index + 1}`}`;
 
+  function validDefaultSpeed(value) {
+    const speed = Number(value);
+    return Number.isFinite(speed) && speed >= 0.1 && speed <= MAX_SPEED_KMH ? speed : null;
+  }
+
+  function defaultSpeedFromKml(xml) {
+    const data = xml.getElementsByTagNameNS("*", "Data");
+    for (let i = 0; i < data.length; i++) {
+      if (data[i].getAttribute("name") !== "defaultSpeedKmh") continue;
+      const values = data[i].getElementsByTagNameNS("*", "value");
+      if (values.length) return validDefaultSpeed(values[0].textContent);
+    }
+    return null;
+  }
+
   function linesFromGeometry(geometry) {
     if (!geometry) return [];
     if (geometry.type === "LineString") return [geometry.coordinates];
@@ -37,6 +52,7 @@
           const path = `routes/${encodeURIComponent(folder)}/${encodeURIComponent(file)}`;
           const text = await MaynardUtils.fetchText(path, { timeoutMs: 15000 });
           const xml = new DOMParser().parseFromString(text, "text/xml");
+          const fileDefaultSpeed = ext === "kml" ? defaultSpeedFromKml(xml) : null;
           const collection = ext === "gpx" ? toGeoJSON.gpx(xml) : toGeoJSON.kml(xml);
           let index = 0;
           (collection.features || []).forEach((feature) => {
@@ -56,10 +72,12 @@
             }
             if (!coordinates.length || coordinates[0].length < 2) return;
             const name = String((feature.properties && feature.properties.name) || "").trim();
+            const routeSpeed = validDefaultSpeed(feature.properties && feature.properties.defaultSpeedKmh);
             found.push({
               id: routeId(folder, file, featureIndex),
               label: routeLabel(folder, file, name, featureIndex),
               coordinates: coordinates[0],
+              defaultSpeedKmh: routeSpeed === null ? fileDefaultSpeed : routeSpeed,
               index: featureIndex
             });
           });

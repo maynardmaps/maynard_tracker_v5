@@ -12,3 +12,6 @@ noshare.txt
 # Large source and analysis map files
 /maps/20261014-north-moor-map-tt27-o.pdf
 /maps/north-moor-tt27-epsg4326.tif
+
+# Local Google OAuth desktop client configuration
+/tools/gmail-oauth-client.json
