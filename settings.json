@@ -64,7 +64,7 @@
     {
       "imei": "300434031477230",
       "name": "TT1",
-      "etaRouteId": "TT1/TT1.kml#0",
+      "etaRouteId": "",
       "etaDirection": "forward",
       "etaFallbackSpeedKmh": 5
     },
@@ -98,7 +98,7 @@
     "lunchTime": "12:00",
     "lunchDurationMinutes": 30
   },
-  "mode": "test",
+  "mode": "normal",
   "birdsRiversEnabledByDefault": false,
   "riverLevels": {
     "enabledByDefault": false,
