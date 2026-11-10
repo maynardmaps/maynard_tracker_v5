@@ -68,6 +68,31 @@ html, body {
   font-size: 0.92rem;
 }
 
+.route-row {
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.route-row-main {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.route-label-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex: 0 0 auto;
+  font-size: 0.8rem;
+}
+
+.route-point-tooltip {
+  pointer-events: none;
+  user-select: none;
+}
+
 .colour-swatch {
   width: 12px;
   height: 12px;

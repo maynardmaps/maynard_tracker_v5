@@ -184,8 +184,10 @@
       .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
       .forEach((filename) => {
         const entry = layers.get(filename);
-        const row = document.createElement("label");
+        const row = document.createElement("div");
         row.className = "route-row";
+        const main = document.createElement("label");
+        main.className = "route-row-main";
         const cb = document.createElement("input");
         cb.type = "checkbox";
         cb.checked = true;
@@ -195,10 +197,24 @@
         const name = document.createElement("span");
         name.className = "route-name";
         name.textContent = filename;
-        row.append(cb, swatch, name);
+        main.append(cb, swatch, name);
         cb.addEventListener("change", (e) => {
           MaynardRoutes.setVisible(filename, e.target.checked, map);
         });
+        row.appendChild(main);
+        if (entry.pointLayers.length) {
+          const labelToggle = document.createElement("label");
+          labelToggle.className = "route-label-toggle";
+          const labelCheckbox = document.createElement("input");
+          labelCheckbox.type = "checkbox";
+          labelCheckbox.checked = entry.pointLabelsVisible;
+          labelCheckbox.setAttribute("aria-label", `Show ${filename} point labels`);
+          labelToggle.append(labelCheckbox, " Labels");
+          labelCheckbox.addEventListener("change", (e) => {
+            MaynardRoutes.setLabelsVisible(filename, e.target.checked);
+          });
+          row.appendChild(labelToggle);
+        }
         container.appendChild(row);
       });
   }

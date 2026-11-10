@@ -16,10 +16,22 @@
       const style = () => ({ color: "#3388ff", weight: 4, opacity: 0.85 });
       let layer;
       const pointToLayer = (f, ll) => {
-        const point = L.circleMarker(ll, { radius: 4, weight: 1, color: "#fff", fillColor: "#3388ff", fillOpacity: 1 });
+        const point = L.circleMarker(ll, {
+          radius: 4,
+          weight: 1,
+          color: "#fff",
+          fillColor: "#3388ff",
+          fillOpacity: 1,
+          interactive: false,
+          keyboard: false,
+          bubblingMouseEvents: false
+        });
         const name = String((f.properties && f.properties.name) || filename);
-        point.bindPopup(`<div class="kml-popup"><strong>${MaynardUtils.escapeHtml(name)}</strong><div>Route point</div></div>`);
-        MaynardNearbyPicker.register(point, "Route point", name);
+        point.bindTooltip(document.createTextNode(name), {
+          direction: "top",
+          offset: [0, -4],
+          className: "route-point-tooltip"
+        });
         return point;
       };
       if (ext === "gpx") {
@@ -95,16 +107,24 @@
     entries.forEach(([key, layer, id]) => {
       const colour = colours.get(key);
       layer.setStyle({ color: colour, weight: 4, opacity: 0.85, fillColor: colour });
-      layer.eachLayer((l) => { if (l instanceof L.CircleMarker) l.setStyle({ color: "#fff", weight: 1, fillColor: colour, fillOpacity: 1 }); });
-      routeLayers.set(key, { layer, colour, visible: true, id });
+      const pointLayers = [];
+      layer.eachLayer((l) => {
+        if (!(l instanceof L.CircleMarker)) return;
+        l.setStyle({ color: "#fff", weight: 1, fillColor: colour, fillOpacity: 1 });
+        pointLayers.push(l);
+      });
+      routeLayers.set(key, { layer, colour, visible: true, id, pointLayers, pointLabelsVisible: false });
     });
 
     return routeLayers;
   }
 
   function attachToMap(map) {
-    routeLayers.forEach(({ layer, visible }) => {
-      if (visible) layer.addTo(map);
+    routeLayers.forEach((entry) => {
+      if (entry.visible) {
+        entry.layer.addTo(map);
+        setPointLabelsVisible(entry, entry.pointLabelsVisible);
+      }
     });
   }
 
@@ -120,9 +140,25 @@
     entry.visible = visible;
     if (visible) {
       entry.layer.addTo(map);
+      setPointLabelsVisible(entry, entry.pointLabelsVisible);
     } else if (map.hasLayer(entry.layer)) {
       map.removeLayer(entry.layer);
     }
+  }
+
+  function setPointLabelsVisible(entry, visible) {
+    entry.pointLabelsVisible = visible;
+    entry.pointLayers.forEach((point) => {
+      if (point._map) {
+        if (visible) point.openTooltip();
+        else point.closeTooltip();
+      }
+    });
+  }
+
+  function setLabelsVisible(filename, visible) {
+    const entry = routeLayers.get(filename);
+    if (entry) setPointLabelsVisible(entry, visible);
   }
 
   function getBounds() {
@@ -142,6 +178,6 @@
   }
 
   global.MaynardRoutes = {
-    loadFolder, attachToMap, detachFromMap, setVisible, getBounds, getLayers
+    loadFolder, attachToMap, detachFromMap, setVisible, setLabelsVisible, getBounds, getLayers
   };
 })(window);

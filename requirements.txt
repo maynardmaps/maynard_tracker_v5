@@ -21,6 +21,7 @@ Map requirements:
 13) The start point set on the configuration page should be marked on the map with a small "home" icon (not a plain circle).
 14) Garmin position and message popups should be compact by default. Keep the team/device heading, time since the position or message was received, location, emergency state, and a clearly labeled "Nav to" maps link with a recognizable navigation icon visible without expanding details. Put the remaining details under a clickable dropdown. Show the OS grid reference as the main location within Great Britain. If a grid reference is unavailable, show latitude and longitude there instead. Include latitude and longitude to five decimal places in the expanded details.
 15) Garmin position and message pins older than the configured map icon age limit should be hidden from the map. This age limit applies to map display only and must not remove or filter older records from configuration-page messaging and position history.
+16) Route point labels should have a per-route toggle in the route list. Route points must not respond to map clicks or be keyboard-selectable, so selecting nearby team markers remains easy.
 
 Data source requirements:
 1) The map should be compatible with open street map, google maps and other common map providers.
