@@ -50,6 +50,7 @@ Data source requirements:
 25) The timeline should have a play/pause button that continuously cycles through the precipitation timeline steps (looping back to the start). Moving the slider manually or hiding precipitation should pause playback.
 26) The map should display an indication of the date/time (and offset from now) of the precipitation overlay currently shown, visible only while precipitation is displayed.
 27) The "birds and rivers" overlay should load ALL the KML files in the "data" folder (not a single named file), and its single toggle should show/hide all of them. New KML files added to the folder should appear automatically without code changes.
+28) The North Moor TT27 map should be selectable as a base layer, served from the local WebP XYZ tiles in the "maps" folder, with appropriate Ordnance Survey attribution.
 
 Configuration page requirements:
 1) Expedition setup should allow the user to set the default route sub-folder.

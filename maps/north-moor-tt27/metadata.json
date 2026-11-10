@@ -1,0 +1,19 @@
+{
+  "name": "North Moor TT27",
+  "source_pdf": "20261014-north-moor-map-tt27-o.pdf",
+  "tile_scheme": "XYZ",
+  "tile_format": "WebP with alpha",
+  "tile_crs": "EPSG:3857",
+  "min_zoom": 8,
+  "max_native_zoom": 16,
+  "tile_size": 256,
+  "bounds_epsg4326": {
+    "west": -4.125971289883484,
+    "south": 50.529941259062234,
+    "east": -3.845876104755217,
+    "north": 50.743166214807594
+  },
+  "tiles": 4338,
+  "usage_note": "Extract the z/x/y.webp hierarchy and serve at a stable HTTPS URL. Add as an XYZ tile layer with maxNativeZoom=16. WebP is supported by current browsers. Check the source map license attribution requirements.",
+  "tile_extension": "webp"
+}

@@ -596,6 +596,8 @@
         url: row.querySelector(".ms-url").value.trim(),
         attribution: existing.attribution || "",
         type: existing.type || "xyz",
+        bounds: existing.bounds,
+        maxNativeZoom: existing.maxNativeZoom,
         requiresKey: existing.requiresKey || false,
         enabled: row.querySelector(".ms-enabled").checked
       };

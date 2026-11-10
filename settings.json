@@ -31,6 +31,22 @@
       "enabled": true
     },
     {
+      "id": "north-moor-tt27",
+      "name": "North Moor TT27",
+      "url": "maps/north-moor-tt27/{z}/{x}/{y}.webp",
+      "attribution": "Contains OS data © Crown copyright and database rights",
+      "type": "xyz",
+      "bounds": {
+        "south": 50.529941259062234,
+        "west": -4.125971289883484,
+        "north": 50.743166214807594,
+        "east": -3.845876104755217
+      },
+      "maxNativeZoom": 16,
+      "requiresKey": false,
+      "enabled": true
+    },
+    {
       "id": "esri-satellite",
       "name": "Satellite (Esri World Imagery)",
       "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",

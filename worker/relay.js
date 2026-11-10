@@ -724,7 +724,7 @@ async function passphraseOk(request, env) {
   await new Promise((r) => setTimeout(r, 1000));
   return false;
 }
-const MAP_SOURCE_KEYS = new Set(["id", "name", "url", "attribution", "type", "requiresKey", "enabled"]);
+const MAP_SOURCE_KEYS = new Set(["id", "name", "url", "attribution", "type", "bounds", "maxNativeZoom", "requiresKey", "enabled"]);
 const OS_PREFIX = "https://api.os.uk/maps/raster/v1/zxy/";
 const isBool = (v) => typeof v === "boolean";
 const isStr = (v, max) => typeof v === "string" && v.length <= max;
@@ -740,18 +740,35 @@ function mapSourceError(m, i, ids) {
   if (m.name !== undefined && !isStr(m.name, 200)) return `${at}.name invalid`;
   if (m.attribution !== undefined && !isStr(m.attribution, 200)) return `${at}.attribution invalid`;
   if (m.type !== undefined && m.type !== "xyz" && m.type !== "os-27700") return `${at}.type invalid`;
+  if (m.bounds !== undefined) {
+    const b = m.bounds;
+    if (!b || typeof b !== "object" || Array.isArray(b) ||
+        !Object.keys(b).every((k) => ["south", "west", "north", "east"].includes(k)) ||
+        !inRange(b.south, -90, 90) || !inRange(b.north, -90, 90) ||
+        !inRange(b.west, -180, 180) || !inRange(b.east, -180, 180) ||
+        b.south >= b.north || b.west >= b.east) return `${at}.bounds invalid`;
+  }
+  if (m.maxNativeZoom !== undefined && (!Number.isInteger(m.maxNativeZoom) || m.maxNativeZoom < 0 || m.maxNativeZoom > 19)) {
+    return `${at}.maxNativeZoom invalid`;
+  }
   if (m.enabled !== undefined && !isBool(m.enabled)) return `${at}.enabled invalid`;
   if (m.requiresKey !== undefined && !isBool(m.requiresKey)) return `${at}.requiresKey invalid`;
-  if (!isStr(m.url, 300) || !/^https:\/\//.test(m.url)) return `${at}.url must be https (max 300 chars)`;
-  for (const ph of ["{z}", "{x}", "{y}"]) {
-    if (!m.url.includes(ph)) return `${at}.url must contain ${ph}`;
-  }
-  let u;
-  try { u = new URL(m.url.replace(/\{[xyzs]\}/g, "0")); } catch (e) { return `${at}.url is not a valid URL`; }
-  if (u.username || u.password) return `${at}.url must not contain credentials`;
-  const host = u.hostname;
-  if (host === "localhost" || host.endsWith(".localhost") || /^[\d.]+$/.test(host) || host.includes(":")) {
-    return `${at}.url must use a public host name`;
+  if (!isStr(m.url, 300)) return `${at}.url invalid (max 300 chars)`;
+  if (m.url.startsWith("maps/")) {
+    if (!/^maps\/[A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+)*\/\{z\}\/\{x\}\/\{y\}\.[A-Za-z0-9]+$/.test(m.url) ||
+        m.url.split("/").includes("..")) return `${at}.url must be a safe relative tile path`;
+  } else {
+    if (!/^https:\/\//.test(m.url)) return `${at}.url must be https or a relative maps/ tile path`;
+    for (const ph of ["{z}", "{x}", "{y}"]) {
+      if (!m.url.includes(ph)) return `${at}.url must contain ${ph}`;
+    }
+    let u;
+    try { u = new URL(m.url.replace(/\{[xyzs]\}/g, "0")); } catch (e) { return `${at}.url is not a valid URL`; }
+    if (u.username || u.password) return `${at}.url must not contain credentials`;
+    const host = u.hostname;
+    if (host === "localhost" || host.endsWith(".localhost") || /^[\d.]+$/.test(host) || host.includes(":")) {
+      return `${at}.url must use a public host name`;
+    }
   }
   if (m.requiresKey && !m.url.startsWith(OS_PREFIX)) return `${at}.requiresKey is only allowed for Ordnance Survey URLs`;
   return null;

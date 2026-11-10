@@ -280,6 +280,11 @@ js/
 routes/
   manifest.json           Hand-maintained list of route folders/files
   TT1/, TT2/              Sample route files
+maps/
+  north-moor-tt27/        North Moor TT27 WebP XYZ tiles (z/x/y.webp)
+  north-moor-tt27-epsg4326.tif
+  north-moor-tt27-web-xyz.zip
+  20261014-north-moor-map-tt27-o.pdf
 data/
   birdsrivers.kml    Static points+polygons overlay (sample placeholder - replace with real data)
 worker/
@@ -287,3 +292,8 @@ worker/
   wrangler.toml           Worker deploy config
 settings.json            Committed shared defaults (editable via config.html)
 ```
+
+The North Moor TT27 tiles are selectable as the **North Moor TT27** base map.
+The map uses the local `maps/north-moor-tt27/{z}/{x}/{y}.webp` tile set, with
+native detail through zoom 16; the GeoTIFF, tile archive, and source GeoPDF
+are kept alongside it in `maps/`.

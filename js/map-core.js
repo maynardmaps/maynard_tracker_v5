@@ -58,11 +58,19 @@
         console.warn(`Map source "${source.id}" requires a key but no relay is available.`);
       }
     }
-    return L.tileLayer(url, {
+    const options = {
       attribution: source.attribution || "",
+      maxNativeZoom: source.maxNativeZoom,
       maxZoom: source.type === "os-27700" ? BNG_MAX_ZOOM : 19,
       crossOrigin: !viaRelay
-    });
+    };
+    if (source.bounds) {
+      options.bounds = L.latLngBounds(
+        [source.bounds.south, source.bounds.west],
+        [source.bounds.north, source.bounds.east]
+      );
+    }
+    return L.tileLayer(url, options);
   }
 
   // Metres per pixel at a latitude for a Web Mercator zoom.
