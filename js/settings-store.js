@@ -1,17 +1,19 @@
 // settings-store.js - loads/merges settings and persists changes.
 //
-// Precedence (lowest to highest): settings.json (repo default) -> localStorage
-// override (per-browser tweaks / fallback when not saved to GitHub).
+// Shared settings are authoritative; local-only saves override them, with
+// legacy local settings retained only when the shared file is unavailable.
 (function (global) {
   "use strict";
 
-  const LOCAL_KEY = "maynard_settings_override_v1";
+  const LOCAL_KEY = "maynard_settings_override_v2";
+  const LEGACY_LOCAL_KEY = "maynard_settings_override_v1";
 
   let cached = null;
 
-  function readLocalOverride() {
+  function readLocalOverride(useLegacyFallback) {
     try {
-      const raw = localStorage.getItem(LOCAL_KEY);
+      const raw = localStorage.getItem(LOCAL_KEY) ||
+        (useLegacyFallback ? localStorage.getItem(LEGACY_LOCAL_KEY) : null);
       return raw ? JSON.parse(raw) : {};
     } catch (e) {
       console.warn("Could not read local settings override", e);
@@ -24,6 +26,23 @@
       localStorage.setItem(LOCAL_KEY, JSON.stringify(obj));
     } catch (e) {
       console.warn("Could not persist local settings override", e);
+    }
+  }
+
+  function clearLocalOverride() {
+    try {
+      localStorage.removeItem(LOCAL_KEY);
+      localStorage.removeItem(LEGACY_LOCAL_KEY);
+    } catch (e) {
+      console.warn("Could not clear local settings override", e);
+    }
+  }
+
+  function clearLegacyLocalOverride() {
+    try {
+      localStorage.removeItem(LEGACY_LOCAL_KEY);
+    } catch (e) {
+      console.warn("Could not clear legacy local settings override", e);
     }
   }
 
@@ -45,10 +64,17 @@
     if (cached) return cached;
     const cfg = global.MAYNARD_CONFIG;
     let defaults;
+    let usingFallbackDefaults = false;
     try {
-      defaults = await global.MaynardUtils.fetchJson(cfg.defaultSettingsUrl, { timeoutMs: 8000 });
+      const settingsUrl = new URL(cfg.defaultSettingsUrl, global.location.href);
+      settingsUrl.searchParams.set("_", Date.now().toString());
+      defaults = await global.MaynardUtils.fetchJson(settingsUrl.toString(), {
+        timeoutMs: 8000,
+        cache: "no-store"
+      });
     } catch (e) {
       console.warn("settings.json unavailable, using built-in fallback defaults", e);
+      usingFallbackDefaults = true;
       defaults = {
         github: cfg.github,
         defaultRouteFolder: "TT1",
@@ -61,7 +87,8 @@
         birdsRiversEnabledByDefault: false
       };
     }
-    const override = readLocalOverride();
+    const override = readLocalOverride(usingFallbackDefaults);
+    if (!usingFallbackDefaults) clearLegacyLocalOverride();
     cached = deepMerge(defaults, override);
     return cached;
   }
@@ -74,19 +101,20 @@
   // Worker (which holds the GitHub token) to commit settings.json.
   async function save(newSettings, passphrase) {
     cached = newSettings;
-    writeLocalOverride(newSettings);
 
     try {
       await global.MaynardGithubSave.commitSettingsJson(newSettings, passphrase);
+      clearLocalOverride();
       return { localSaved: true, githubSaved: true };
     } catch (e) {
       console.error("GitHub save failed", e);
+      writeLocalOverride(newSettings);
       return { localSaved: true, githubSaved: false, reason: e.message };
     }
   }
 
   function resetLocalOverride() {
-    localStorage.removeItem(LOCAL_KEY);
+    clearLocalOverride();
     cached = null;
   }
 
