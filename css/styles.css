@@ -46,6 +46,21 @@ html, body {
 .side-panel h1 {
   font-size: 1.1rem;
   margin: 0.25rem 0 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  justify-content: space-between;
+}
+
+.version-badge {
+  font-size: 0.65rem;
+  padding: 0.2rem 0.4rem;
+  background: var(--accent);
+  color: white;
+  border-radius: 3px;
+  font-weight: bold;
+  letter-spacing: 0.05em;
+  flex-shrink: 0;
 }
 
 .side-panel section {

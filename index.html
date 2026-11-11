@@ -13,7 +13,7 @@
 
   <div class="app-shell">
     <aside class="side-panel" id="side-panel">
-      <h1>Maynard Tracker</h1>
+      <h1>Maynard Tracker <span class="version-badge" id="version-badge">v5.1.4</span></h1>
 
       <section>
         <h2>Base map</h2>
@@ -90,6 +90,7 @@
   <script src="https://unpkg.com/leaflet-omnivore@0.3.4/leaflet-omnivore.min.js" integrity="sha384-iSbZ0u+krSsBvNi0nBcb2hAdkZkoY5HVYY/bPow5MvY9yWGAmXSpZJ3rt2Run9rK" crossorigin="anonymous"></script>
 
     <script src="js/app-config.js"></script>
+  <script src="js/version.js"></script>
   <script src="js/utils.js"></script>
   <script src="js/connection-monitor.js"></script>
   <script src="js/polling-coordinator.js"></script>
@@ -108,6 +109,15 @@
   <script src="js/map-page.js"></script>
 
   <script>
+    // Update version badge from version.js
+    if (typeof MaynardVersion !== 'undefined') {
+      const badge = document.getElementById('version-badge');
+      if (badge) {
+        badge.textContent = `v${MaynardVersion.version}`;
+        badge.title = `Maynard Tracker ${MaynardVersion.getVersionString()}`;
+      }
+    }
+
     document.getElementById("menu-toggle").addEventListener("click", () => {
       const open = document.getElementById("side-panel").classList.toggle("open");
       const btn = document.getElementById("menu-toggle");

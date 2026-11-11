@@ -8,7 +8,7 @@
 </head>
 <body>
   <div class="config-page">
-    <h1>Test tool</h1>
+    <h1>Test tool <span class="version-badge" id="version-badge">v5.1.4</span></h1>
     <p><a href="index.html">&larr; Back to map</a> | <a href="config.html">Configuration</a></p>
 
     <div id="locked-overlay" class="config-section lock-overlay">
@@ -119,10 +119,21 @@
   </div>
   <script src="https://unpkg.com/togeojson@0.16.0/togeojson.js" integrity="sha384-dlcQC0RqbD5hkW9dIHtouEHEP0tHnSuyKco85aJB5jdtbDseEsx4T3Jaa0lHs5ae" crossorigin="anonymous"></script>
   <script src="js/app-config.js"></script>
+  <script src="js/version.js"></script>
   <script src="js/utils.js"></script>
   <script src="js/settings-store.js"></script>
   <script src="js/github-save.js"></script>
   <script src="js/messaging-panel.js"></script>
   <script src="js/test-page.js"></script>
+  <script>
+    // Update version badge from version.js
+    if (typeof MaynardVersion !== 'undefined') {
+      const badge = document.getElementById('version-badge');
+      if (badge) {
+        badge.textContent = `v${MaynardVersion.version}`;
+        badge.title = `Maynard Tracker ${MaynardVersion.getVersionString()}`;
+      }
+    }
+  </script>
 </body>
 </html>
