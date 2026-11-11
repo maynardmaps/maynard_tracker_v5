@@ -265,6 +265,7 @@ const CFG_KEY = "cfg:ipc";
 function ipcConfigFrom(s) {
   return {
     mode: s && s.mode === "test" ? "test" : "normal",
+    gmailRouteImportEnabled: !s || s.gmailRouteImportEnabled !== false,
     imeis: ((s && s.devices) || []).map((d) => d.imei).filter((i) => /^\d{15}$/.test(i)),
     devices: ((s && s.devices) || []).filter((d) => d && /^\d{15}$/.test(d.imei)).map((d) => ({ imei: d.imei, name: d.name }))
   };
@@ -669,8 +670,8 @@ const MAX_SETTINGS_BYTES = 50000;
 const ALLOWED_KEYS = new Set([
   "_comment", "github", "defaultRouteFolder", "startPoint", "startZoom",
   "mapSources", "routeColours", "markerColours", "weatherEnabledByDefault",
-  "birdsRiversEnabledByDefault", "diagnosticsEnabled", "riverLevels", "devices",
-  "mapDataMaxAgeHours", "eta", "mode"
+  "birdsRiversEnabledByDefault", "diagnosticsEnabled", "gmailRouteImportEnabled",
+  "riverLevels", "devices", "mapDataMaxAgeHours", "eta", "mode"
 ]);
 
 // Fallback used only if the RATE_LIMIT KV binding is missing.
@@ -817,7 +818,7 @@ function settingsError(s) {
       return "eta.lunchDurationMinutes must be a whole number from 0 to 240";
     }
   }
-  for (const k of ["weatherEnabledByDefault", "birdsRiversEnabledByDefault", "diagnosticsEnabled"]) {
+  for (const k of ["weatherEnabledByDefault", "birdsRiversEnabledByDefault", "diagnosticsEnabled", "gmailRouteImportEnabled"]) {
     if (s[k] !== undefined && !isBool(s[k])) return `${k} must be true or false`;
   }
   for (const k of ["routeColours", "markerColours"]) {
@@ -925,6 +926,28 @@ async function gh(env, path, init) {
   });
   if (!res.ok) throw new HttpError(502, `GitHub ${path.split("?")[0]} failed (${res.status})`);
   return res.json();
+}
+
+async function importRouteCard(request, env) {
+  const raw = await request.text();
+  if (raw.length > MAX_UPLOAD_B64 + 2000) return json({ error: "Too large" }, 413);
+  let req;
+  try { req = JSON.parse(raw); } catch (e) { return json({ error: "Bad JSON" }, 400); }
+
+  if (typeof req.cardBase64 !== "string" || !req.cardBase64 || req.cardBase64.length > MAX_UPLOAD_B64 ||
+      !/^[A-Za-z0-9+/=\r\n]+$/.test(req.cardBase64)) {
+    return json({ error: "Invalid route card content" }, 400);
+  }
+
+  try {
+    const buffer = Uint8Array.from(atob(req.cardBase64), (char) => char.charCodeAt(0));
+    const route = parseRouteCard(new Uint8Array(buffer));
+    const kml = routeCardToKml(route);
+    const kmlBase64 = btoa(kml);
+    return json({ ok: true, name: route.routeName, contentBase64: kmlBase64 }, 200);
+  } catch (e) {
+    return json({ error: `Failed to parse route card: ${e.message}` }, 400);
+  }
 }
 
 async function manageRoutes(request, env, ctx) {
@@ -1328,7 +1351,14 @@ async function pollGmailRouteCards(env) {
 
 export default {
   async scheduled(controller, env, ctx) {
-    ctx.waitUntil(pollGmailRouteCards(env).catch((error) => {
+    ctx.waitUntil((async () => {
+      const config = await ipcConfig(env);
+      if (config.gmailRouteImportEnabled === false) {
+        console.info("Scheduled Gmail route-card poll skipped; email checking is disabled");
+        return;
+      }
+      await pollGmailRouteCards(env);
+    })().catch((error) => {
       console.error("Scheduled Gmail route-card poll failed", error);
     }));
   },
@@ -1355,10 +1385,11 @@ export default {
         return await ipcTest(request, env);
       } catch (e) { return json({ error: "Server error" }, 500); }
     }
-    if (request.method === "POST" && (pathname === "/settings" || pathname === "/settings/verify" || pathname === "/routes/manage")) {
+    if (request.method === "POST" && (pathname === "/settings" || pathname === "/settings/verify" || pathname === "/routes/manage" || pathname === "/routes/import-card")) {
       try {
         if (!(await passphraseOk(request, env))) return json({ error: "Unauthorized" }, 401);
         if (pathname === "/settings/verify") return json({ ok: true }, 200);
+        if (pathname === "/routes/import-card") return await importRouteCard(request, env);
         if (pathname === "/routes/manage") return await manageRoutes(request, env, ctx);
         return await saveSettings(request, env);
       } catch (e) {

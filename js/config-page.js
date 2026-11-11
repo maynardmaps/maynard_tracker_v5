@@ -169,6 +169,7 @@
     rmEl("rm-rename-folder").disabled = !rmFolder;
     rmEl("rm-delete-folder").disabled = !rmFolder;
     rmEl("rm-add-file").disabled = !rmFolder;
+    rmEl("rm-import-card").disabled = !rmFolder;
     rmEl("rm-rename-file").disabled = !rmFile;
     rmEl("rm-delete-file").disabled = !rmFile;
   }
@@ -248,6 +249,36 @@
       rmFile = null;
       rmRun({ op: "deleteFile", folder: rmFolder, name }, `"${name}" deleted.`);
     });
+    rmEl("rm-import-card").addEventListener("click", () => rmEl("rm-card-input").click());
+    rmEl("rm-card-input").addEventListener("change", async (e) => {
+      const folder = rmFolder;
+      for (const file of Array.from(e.target.files)) {
+        if (!file.name.toLowerCase().endsWith(".docx")) {
+          rmStatus(`Only .docx files are supported`, true);
+          continue;
+        }
+        try {
+          rmStatus("Parsing route card...");
+          const cardBase64 = await fileToBase64(file);
+          const parseRes = await fetch((MAYNARD_CONFIG.garminRelayUrl || "").replace(/\/$/, "") + "/routes/import-card", {
+            method: "POST",
+            headers: { "X-Config-Passphrase": passphrase, "Content-Type": "application/json" },
+            body: JSON.stringify({ cardBase64 })
+          });
+          if (!parseRes.ok) {
+            let msg = `HTTP ${parseRes.status}`;
+            try { msg = (await parseRes.json()).error || msg; } catch (e) { /* keep default */ }
+            throw new Error(msg);
+          }
+          const result = await parseRes.json();
+          const kmlName = `${result.name}.kml`;
+          await rmRun({ op: "addFile", folder, name: kmlName, contentBase64: result.contentBase64 }, `Route "${result.name}" imported to ${folder}.`);
+        } catch (err) {
+          rmStatus(`Failed to parse route card: ${err.message}`, true);
+        }
+      }
+      e.target.value = "";
+    });
     renderRouteManagement();
   }
   function fillDefaultFolderSelect() {
@@ -302,6 +333,7 @@
     document.getElementById("birds-rivers-default").checked = settings.birdsRiversEnabledByDefault === true;
     document.getElementById("diagnostics-enabled").checked = settings.diagnosticsEnabled === true;
     document.getElementById("test-mode").checked = settings.mode === "test";
+    document.getElementById("gmail-route-import-enabled").checked = settings.gmailRouteImportEnabled !== false;
 
     initRiverBox();
 
@@ -709,6 +741,7 @@
       weatherEnabledByDefault: document.getElementById("weather-default").checked,
       birdsRiversEnabledByDefault: document.getElementById("birds-rivers-default").checked,
       diagnosticsEnabled: document.getElementById("diagnostics-enabled").checked,
+      gmailRouteImportEnabled: document.getElementById("gmail-route-import-enabled").checked,
       mode: document.getElementById("test-mode").checked ? "test" : "normal",
       riverLevels: collectRiverSettings(),
       mapSources: collectMapSources()

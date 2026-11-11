@@ -137,11 +137,22 @@
         <div id="rm-files" class="rm-list" role="listbox" aria-label="Files in selected folder"></div>
         <div class="rm-actions">
           <button type="button" id="rm-add-file" disabled>Add file</button>
+          <button type="button" id="rm-import-card" disabled>Import route card</button>
           <button type="button" id="rm-rename-file" disabled>Rename file</button>
           <button type="button" id="rm-delete-file" class="danger" disabled>Delete file</button>
           <input type="file" id="rm-file-input" accept=".gpx,.kml" multiple hidden />
+          <input type="file" id="rm-card-input" accept=".docx" hidden />
         </div>
         <p id="rm-status" class="status-msg"></p>
+      </details>
+
+      <details class="config-section">
+        <summary>Email route-card import</summary>
+        <p class="status-msg">Controls scheduled Gmail inbox checks for route cards. Turning this off pauses email polling only; the Worker stays online for map data, Garmin, settings, and route management. Save settings to apply the change.</p>
+        <label class="switch-row">
+          <input type="checkbox" id="gmail-route-import-enabled" />
+          Check email for route cards
+        </label>
       </details>
 
       <details class="config-section">
