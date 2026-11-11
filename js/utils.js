@@ -123,6 +123,34 @@
     renderDiag();
   }
 
+  // GPS backoff strategy: exponential backoff when geolocation fails repeatedly
+  // Tracks consecutive timeouts and increases minimum retry interval accordingly
+  function createGpsBackoffTracker(initialIntervalMs = 300000, maxIntervalMs = 3600000) {
+    let consecutiveFailures = 0;
+    let lastFailureMs = 0;
+
+    return {
+      recordSuccess() {
+        consecutiveFailures = 0;
+        lastFailureMs = 0;
+      },
+      recordFailure() {
+        lastFailureMs = Date.now();
+        consecutiveFailures = Math.min(consecutiveFailures + 1, 5); // Cap at 5 to avoid huge delays
+      },
+      // Returns how many ms to wait before next GPS attempt
+      getNextRetryDelayMs() {
+        if (consecutiveFailures === 0) return initialIntervalMs;
+        // Exponential backoff: 300s, 600s, 1200s, 2400s, 3600s
+        const delayMs = initialIntervalMs * Math.pow(2, consecutiveFailures - 1);
+        return Math.min(delayMs, maxIntervalMs);
+      },
+      getConsecutiveFailures() {
+        return consecutiveFailures;
+      }
+    };
+  }
+
   // Live folder listing from the relay (auto-detects new route folders/files);
   // falls back to the static routes/manifest.json if the relay is unreachable.
   async function loadRoutesManifest() {
@@ -153,6 +181,7 @@
     setDiagnosticsEnabled,
     BNG_PROJ4,
     STALE_MAP_DATA_TEST_OVERRIDE_KEY,
-    showStaleMapDataTestOverride
+    showStaleMapDataTestOverride,
+    createGpsBackoffTracker
   };
 })(window);

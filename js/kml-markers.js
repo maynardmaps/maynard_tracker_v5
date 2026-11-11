@@ -1,17 +1,23 @@
 // kml-markers.js - "KML Markers": polls the Garmin MapShare feed and renders
 // points as markers with popups, refreshed periodically without a page reload.
+// PHASE 1 UPDATE: Integrated with polling coordinator for efficient unified polling
 (function (global) {
   "use strict";
 
   let layerGroup = null;
   let visible = true;
   let markerPalette = MaynardUtils.sanitizePalette();
-  let pollTimer = null;
   let lastRawKml = null;
   let latestFeatures = [];
   let maxAgeMs = 12 * 60 * 60 * 1000;
   let testMode = false;
   let showStaleOverride = false;
+  let pollingSubscriptionId = null;
+  let pageVisible = true;
+  let curMap = null;
+  let relayUrl = null;
+  let devices = null;
+  let pollIntervalMs = 60000;
 
   function featureIsVisible(feature) {
     if (testMode && showStaleOverride) return true;
@@ -384,11 +390,6 @@
   let kmlFetchedAt = 0;
   let openKey = null;
   let rebuilding = false;
-
-  // The push feed (a cheap read of the Worker's stored state) is refreshed
-  // often so every position report shows; the MapShare KML is fetched on the
-  // slower garminPollIntervalMs and its last result reused in between.
-  let curMap = null;
   function resizePopupOnDetailsToggle(popup) {
     const element = popup.getElement();
     if (!element) return;
@@ -459,10 +460,12 @@
       console.warn("Team position refresh failed (will retry)", ipcError, kmlError);
       MaynardUtils.diag("Garmin", false, "all sources failed: push feed: " + ipcError + "; MapShare KML: " + kmlError);
       MaynardUtils.setStatus("garmin", layerGroup ? "Team positions could not be updated (showing last known)" : "Team positions unavailable");
+      MaynardConnectionMonitor.recordAttempt(false);
       renderIfVisibilityChanged();
       return;
     }
     MaynardUtils.setStatus("garmin", null);
+    MaynardConnectionMonitor.recordAttempt(true);
     const merged = mergeTeams(ipc.registered, kmlFeatures, devices || []);
     const features = merged.features.concat(ipc.unregistered);
     MaynardUtils.diag("Garmin", !ipcError && !kmlError,
@@ -473,27 +476,57 @@
     renderIfVisibilityChanged();
   }
 
-  function start(map, { relayUrl, pollIntervalMs, pushPollIntervalMs, palette, startVisible, devices, mapDataMaxAgeHours, mode }) {
+  function start(map, { relayUrl: relayUrlParam, pollIntervalMs: pollIntervalMsParam, pushPollIntervalMs, palette, startVisible, devices: devicesParam, mapDataMaxAgeHours, mode }) {
     markerPalette = MaynardUtils.sanitizePalette(palette);
     curMap = map;
+    relayUrl = relayUrlParam;
+    devices = devicesParam;
+    pollIntervalMs = pollIntervalMsParam;
     maxAgeMs = (Number.isFinite(mapDataMaxAgeHours) && mapDataMaxAgeHours > 0 ? mapDataMaxAgeHours : 12) * 60 * 60 * 1000;
     testMode = mode === "test";
     showStaleOverride = testMode && MaynardUtils.showStaleMapDataTestOverride();
     visible = startVisible !== false;
     kmlFetchedAt = 0;
+    
+    // Initial refresh
     refresh(map, relayUrl, devices, pollIntervalMs);
+    
+    // Stop any existing subscription
     stop();
+    
+    // Use polling coordinator instead of direct setInterval
+    // Unified polling interval that combines with position-share
     const fast = Math.max(5000, Math.min(pushPollIntervalMs || 10000, pollIntervalMs));
-    pollTimer = setInterval(() => refresh(map, relayUrl, devices, pollIntervalMs), fast);
+    pollingSubscriptionId = MaynardPollingCoordinator.subscribe(
+      () => refresh(curMap, relayUrl, devices, pollIntervalMs),
+      fast
+    );
+    
+    // Monitor page visibility
+    pageVisible = !document.hidden;
+    document.addEventListener("visibilitychange", () => {
+      pageVisible = !document.hidden;
+      if (!pageVisible && pollingSubscriptionId !== null) {
+        // Pause polling when page is hidden
+        MaynardPollingCoordinator.updateInterval(pollingSubscriptionId, 0);
+      } else if (pageVisible && pollingSubscriptionId !== null) {
+        // Resume polling when page becomes visible
+        MaynardPollingCoordinator.updateInterval(pollingSubscriptionId, fast);
+      }
+    });
   }
+  
   global.addEventListener("storage", (event) => {
     if (!testMode || event.key !== MaynardUtils.STALE_MAP_DATA_TEST_OVERRIDE_KEY) return;
     showStaleOverride = MaynardUtils.showStaleMapDataTestOverride();
     renderIfVisibilityChanged();
   });
+  
   function stop() {
-    if (pollTimer) clearInterval(pollTimer);
-    pollTimer = null;
+    if (pollingSubscriptionId !== null) {
+      MaynardPollingCoordinator.unsubscribe(pollingSubscriptionId);
+      pollingSubscriptionId = null;
+    }
   }
 
   function setVisible(v, map) {

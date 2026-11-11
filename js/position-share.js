@@ -1,6 +1,7 @@
 // position-share.js - GPS-based position sharing: enables users to share
 // their location with others viewing the map. Handles geolocation polling,
 // position updates to the Worker, marker display, and auto-stop timer.
+// PHASE 1 UPDATE: Integrated with polling coordinator and GPS backoff strategy
 (function (global) {
   "use strict";
 
@@ -8,14 +9,15 @@
   let map = null;
   let layerGroup = null;
   let isEnabled = false;
-  let watchId = null;
-  let updateTimer = null;
+  let pageVisible = true;
   let autoStopTimer = null;
   let sessionId = null;
   let lastUpdateMs = 0;
   let userDisplayName = "";
-  let gpsWatchId = null;
   let markerCache = new Map(); // sessionId -> marker
+  let gpsBackoff = null;
+  let pollingSubscriptionId = null;
+  let markerRefreshSubscriptionId = null;
 
   const POSITION_SHARE_NAME_KEY = "maynard_position_share_name";
 
@@ -25,6 +27,18 @@
     if (!layerGroup) {
       layerGroup = L.featureGroup([]).addTo(map);
     }
+    // Monitor page visibility to avoid polling when backgrounded
+    document.addEventListener("visibilitychange", () => {
+      pageVisible = !document.hidden;
+      if (!isEnabled) return;
+      if (pageVisible) {
+        // Reactivate polling when page becomes visible
+        updatePollingInterval();
+      } else {
+        // Pause GPS polling when backgrounded
+        updatePollingInterval();
+      }
+    });
   }
 
   // Persist display name to localStorage
@@ -45,8 +59,24 @@
     }
   }
 
-  // Start position sharing: request GPS permission, immediately share once,
-  // then poll at configured intervals.
+  function updatePollingInterval() {
+    if (!isEnabled || !gpsBackoff) return;
+
+    // Get base interval from settings
+    const updateMinutes = settings.positionShare?.updateMinutes || 5;
+    const baseIntervalMs = updateMinutes * 60 * 1000;
+
+    // Apply backoff strategy
+    const backoffIntervalMs = gpsBackoff.getNextRetryDelayMs();
+
+    // If page is hidden, pause GPS polling (still fetch marker updates)
+    const gpsIntervalMs = pageVisible && isEnabled ? backoffIntervalMs : 0;
+
+    if (pollingSubscriptionId !== null) {
+      MaynardPollingCoordinator.updateInterval(pollingSubscriptionId, gpsIntervalMs);
+    }
+  }
+
   function enable(displayName) {
     if (isEnabled) return false;
     if (!("geolocation" in navigator)) {
@@ -63,17 +93,29 @@
 
     isEnabled = true;
     sessionId = null; // Will be set on first successful share
+    pageVisible = !document.hidden;
 
-    // Immediately request position and then set up polling
-    requestPositionOnce(() => {
-      // After first position, set up polling
-      const updateMinutes = settings.positionShare?.updateMinutes || 5;
-      if (!updateTimer) {
-        updateTimer = setInterval(() => {
-          requestPositionOnce();
-        }, updateMinutes * 60 * 1000);
+    // Initialize GPS backoff tracker (5 minute default, 60 minute max)
+    const updateMinutes = settings.positionShare?.updateMinutes || 5;
+    gpsBackoff = MaynardUtils.createGpsBackoffTracker(
+      updateMinutes * 60 * 1000,
+      60 * 60 * 1000
+    );
+
+    // Subscribe GPS position requests to coordinator
+    pollingSubscriptionId = MaynardPollingCoordinator.subscribe(() => {
+      if (isEnabled && pageVisible) {
+        requestPositionOnce();
       }
-    });
+    }, gpsBackoff.getNextRetryDelayMs());
+
+    // Subscribe marker refresh to coordinator (unified with Garmin polling)
+    markerRefreshSubscriptionId = MaynardPollingCoordinator.subscribe(() => {
+      refreshMarkers();
+    }, 10000); // Match Garmin polling interval
+
+    // Request position immediately
+    requestPositionOnce();
 
     // Auto-stop timer
     const autoStopHours = settings.positionShare?.autoStopHours || 8;
@@ -91,21 +133,25 @@
     userDisplayName = "";
     sessionId = null;
 
-    if (updateTimer !== null) {
-      clearInterval(updateTimer);
-      updateTimer = null;
+    // Unsubscribe from coordinator
+    if (pollingSubscriptionId !== null) {
+      MaynardPollingCoordinator.unsubscribe(pollingSubscriptionId);
+      pollingSubscriptionId = null;
     }
+    if (markerRefreshSubscriptionId !== null) {
+      MaynardPollingCoordinator.unsubscribe(markerRefreshSubscriptionId);
+      markerRefreshSubscriptionId = null;
+    }
+
     if (autoStopTimer !== null) {
       clearTimeout(autoStopTimer);
       autoStopTimer = null;
     }
-    if (gpsWatchId !== null) {
-      navigator.geolocation.clearWatch(gpsWatchId);
-      gpsWatchId = null;
-    }
+
+    gpsBackoff = null;
   }
 
-  // Request GPS position once with timeout
+  // Request GPS position once with timeout and backoff tracking
   function requestPositionOnce(callback) {
     if (!isEnabled) return;
 
@@ -118,10 +164,29 @@
         lastUpdateMs = timestamp;
         sendPositionToWorker(lat, lng, timestamp);
         
+        // Record success for backoff strategy
+        if (gpsBackoff) {
+          gpsBackoff.recordSuccess();
+          updatePollingInterval(); // Adjust interval based on backoff state
+        }
+        
+        // Record success with connection monitor
+        MaynardConnectionMonitor.recordAttempt(true);
+        
         if (callback) callback();
       },
       (err) => {
         console.warn("Geolocation error:", err.message);
+        
+        // Record failure for backoff strategy
+        if (gpsBackoff) {
+          gpsBackoff.recordFailure();
+          updatePollingInterval(); // Adjust interval based on backoff state
+        }
+        
+        // Record failure with connection monitor
+        MaynardConnectionMonitor.recordAttempt(false);
+        
         if (callback) callback();
       },
       {
@@ -252,20 +317,10 @@
   }
 
   // Start polling positions from the Worker at the same interval as Garmin markers
-  function startPositionPoll() {
-    // Poll every 10 seconds (same as Garmin KML markers)
-    setInterval(() => {
-      refreshMarkers();
-    }, 10000);
-    // Initial refresh
-    refreshMarkers();
-  }
-
   function setVisible(visible) {
     if (layerGroup) {
       if (visible) {
         layerGroup.addTo(map);
-        startPositionPoll();
       } else {
         map.removeLayer(layerGroup);
       }
