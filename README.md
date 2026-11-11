@@ -176,6 +176,34 @@ Tracker ETA is disabled by default and isolated in `js/eta.js`. When enabled, as
 
 To remove ETA if it proves unsuitable, remove the `js/eta.js` script includes from `index.html` and `config.html`, remove its map hooks from `js/map-page.js` and `js/kml-markers.js`, remove ETA controls/fields from `config.html` and `js/config-page.js`, and remove the `eta` and per-device ETA fields from `settings.json` and the Worker settings allowlist/validation in `worker/relay.js`. Remove `tools/test_eta.js` and the ETA-specific test controls from `test.html` and `js/test-page.js`. Garmin data ingestion, route rendering and messaging do not depend on the ETA module.
 
+## Position Share
+
+Website visitors can share their GPS location in real time using the map's **Position Share** menu option.
+Position sharing is GPS-only (off if GPS is unavailable) and is individually configurable per visit.
+
+**Using the feature:** Click **Position Share** in the map menu to enable sharing. A text box appears for a short identifier
+(up to 4 characters, e.g. "A1", "Sue", "123"). Your display name persists in browser storage so the same identifier is used
+if you re-enable sharing later. When enabled, your position is sent to the Worker immediately and then at a configurable
+interval (default 5 minutes; range 1–60 minutes). Between updates, if "Show my location" is disabled, GPS is not actively
+polled to preserve battery. Position sharing automatically stops after a configurable session duration (default 8 hours; range 1–24 hours).
+You can manually disable sharing at any time; your marker disappears and no further positions are sent.
+
+**Map display:** Shared positions appear as markers with the 4-letter name label, distinct from Garmin team markers (which
+use diamonds). The map fetches positions every 10 seconds (same as Garmin positions) and updates their markers. Up to 24
+concurrent sharers are supported.
+
+**Configuration:** The **Position Share** section (config page, collapsed by default) has three settings:
+- **Persistence**: How long shared positions remain on the server after upload (default 20 minutes; range 10–120 minutes).
+  Positions automatically expire and disappear from the map when they age out.
+- **Update rate**: How often positions are sent to the Worker (default 5 minutes; range 1–60 minutes).
+- **Auto-stop**: How long a sharing session lasts before automatic stop (default 8 hours; range 1–24 hours).
+
+**Backend:** Position sharing uses two Worker endpoints (no authentication required for public sharing):
+- `POST /positions/share`: Accept a position update (latitude, longitude, timestamp, optional elevation, display name).
+- `GET /positions`: Retrieve all active positions from KV.
+
+Positions are stored in the Worker's KV with a TTL matching the persistence timeout, so they automatically expire.
+
 ## Configuration page
 
 **Route management:** the config page lists the folders in `routes/` (scrollable) and lets you add/rename/delete folders and add/rename/delete GPX/KML files. Changes are committed to GitHub by the Worker (`POST /routes/manage`, passphrase-protected, needs the `GITHUB_TOKEN` secret). Empty folders are kept with a `.gitkeep`.
