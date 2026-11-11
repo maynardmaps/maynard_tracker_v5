@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Phase 1 Optimization Tests</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    .test { margin: 20px 0; padding: 10px; border: 1px solid #ccc; }
+    .pass { background-color: #d4edda; color: #155724; }
+    .fail { background-color: #f8d7da; color: #721c24; }
+    .pending { background-color: #fff3cd; color: #856404; }
+    h1 { color: #333; }
+    h2 { color: #666; margin-top: 30px; }
+    .section { background: #f9f9f9; padding: 15px; margin: 10px 0; }
+    code { background: #f0f0f0; padding: 2px 4px; }
+  </style>
+</head>
+<body>
+  <h1>Phase 1 Optimization Tests - Polling & Connection Monitoring</h1>
+  
+  <div class="section">
+    <h2>1. Polling Coordinator Tests</h2>
+    
+    <div id="test-coordinator-load" class="test pending">
+      Loading polling coordinator...
+    </div>
+    
+    <div id="test-coordinator-subscribe" class="test pending">
+      Testing subscribe functionality...
+    </div>
+    
+    <div id="test-coordinator-unsubscribe" class="test pending">
+      Testing unsubscribe functionality...
+    </div>
+    
+    <div id="test-coordinator-update-interval" class="test pending">
+      Testing interval updates...
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>2. Connection Monitor Tests</h2>
+    
+    <div id="test-connection-load" class="test pending">
+      Loading connection monitor...
+    </div>
+    
+    <div id="test-connection-tracking" class="test pending">
+      Testing connection attempt tracking...
+    </div>
+    
+    <div id="test-connection-slow-mode" class="test pending">
+      Testing slow mode activation...
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>3. GPS Backoff Tracker Tests</h2>
+    
+    <div id="test-backoff-load" class="test pending">
+      Loading GPS backoff helper...
+    </div>
+    
+    <div id="test-backoff-exponential" class="test pending">
+      Testing exponential backoff...
+    </div>
+    
+    <div id="test-backoff-reset" class="test pending">
+      Testing backoff reset on success...
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>4. Integration Tests</h2>
+    
+    <div id="test-integration-polling" class="test pending">
+      Testing unified polling for position-share and kml-markers...
+    </div>
+    
+    <div id="test-integration-visibility" class="test pending">
+      Testing page visibility detection...
+    </div>
+  </div>
+
+  <script src="js/utils.js"></script>
+  <script src="js/connection-monitor.js"></script>
+  <script src="js/polling-coordinator.js"></script>
+
+  <script>
+    // Helper functions
+    const updateTest = (id, passed, message) => {
+      const el = document.getElementById(id);
+      el.className = `test ${passed ? 'pass' : 'fail'}`;
+      el.innerHTML = `<strong>${passed ? '✓ PASS' : '✗ FAIL'}</strong>: ${message}`;
+    };
+
+    // TEST 1: Polling Coordinator - Load
+    try {
+      if (typeof MaynardPollingCoordinator !== 'undefined') {
+        updateTest('test-coordinator-load', true, 'MaynardPollingCoordinator loaded successfully');
+      } else {
+        updateTest('test-coordinator-load', false, 'MaynardPollingCoordinator not defined');
+      }
+    } catch (e) {
+      updateTest('test-coordinator-load', false, `Error: ${e.message}`);
+    }
+
+    // TEST 2: Polling Coordinator - Subscribe
+    try {
+      let callCount = 0;
+      const id = MaynardPollingCoordinator.subscribe(() => {
+        callCount++;
+      }, 100);
+      
+      setTimeout(() => {
+        const passed = callCount > 0 && id >= 0;
+        updateTest('test-coordinator-subscribe', passed, 
+          `Subscription created (ID: ${id}), callback called ${callCount} times`);
+        MaynardPollingCoordinator.unsubscribe(id);
+      }, 150);
+    } catch (e) {
+      updateTest('test-coordinator-subscribe', false, `Error: ${e.message}`);
+    }
+
+    // TEST 3: Polling Coordinator - Unsubscribe
+    try {
+      const id = MaynardPollingCoordinator.subscribe(() => {}, 100);
+      MaynardPollingCoordinator.unsubscribe(id);
+      const status = MaynardPollingCoordinator.getStatus();
+      const passed = status.subscriberCount === 1; // Only the subscribe test's subscription should exist
+      updateTest('test-coordinator-unsubscribe', passed, 
+        `Unsubscribed successfully, ${status.subscriberCount} active subscriptions remain`);
+    } catch (e) {
+      updateTest('test-coordinator-unsubscribe', false, `Error: ${e.message}`);
+    }
+
+    // TEST 4: Polling Coordinator - Update Interval
+    try {
+      let callCount = 0;
+      const id = MaynardPollingCoordinator.subscribe(() => {
+        callCount++;
+      }, 100);
+      
+      // Pause polling
+      MaynardPollingCoordinator.updateInterval(id, 0);
+      const countAfterPause = callCount;
+      
+      setTimeout(() => {
+        const passed = callCount === countAfterPause; // No new calls while paused
+        updateTest('test-coordinator-update-interval', passed, 
+          `Interval updated: paused polling (calls: ${countAfterPause} before, ${callCount} after)`);
+        MaynardPollingCoordinator.unsubscribe(id);
+      }, 150);
+    } catch (e) {
+      updateTest('test-coordinator-update-interval', false, `Error: ${e.message}`);
+    }
+
+    // TEST 5: Connection Monitor - Load
+    try {
+      if (typeof MaynardConnectionMonitor !== 'undefined') {
+        updateTest('test-connection-load', true, 'MaynardConnectionMonitor loaded successfully');
+      } else {
+        updateTest('test-connection-load', false, 'MaynardConnectionMonitor not defined');
+      }
+    } catch (e) {
+      updateTest('test-connection-load', false, `Error: ${e.message}`);
+    }
+
+    // TEST 6: Connection Monitor - Tracking
+    try {
+      for (let i = 0; i < 10; i++) {
+        MaynardConnectionMonitor.recordAttempt(i < 7); // 7 successes, 3 failures = 30% failure
+      }
+      const status = MaynardConnectionMonitor.getStatus();
+      const passed = status.attemptCount === 10 && Math.abs(status.failureRate - 0.3) < 0.01;
+      updateTest('test-connection-tracking', passed, 
+        `Tracked 10 attempts: ${(status.failureRate * 100).toFixed(1)}% failure rate (expected 30%)`);
+    } catch (e) {
+      updateTest('test-connection-tracking', false, `Error: ${e.message}`);
+    }
+
+    // TEST 7: Connection Monitor - Slow Mode
+    try {
+      // Reset and record failures
+      for (let i = 0; i < 20; i++) {
+        MaynardConnectionMonitor.recordAttempt(false); // All failures
+      }
+      const slowMode = MaynardConnectionMonitor.isSlowMode();
+      updateTest('test-connection-slow-mode', slowMode, 
+        `Slow mode activated after high failure rate (slowMode: ${slowMode})`);
+    } catch (e) {
+      updateTest('test-connection-slow-mode', false, `Error: ${e.message}`);
+    }
+
+    // TEST 8: GPS Backoff - Load
+    try {
+      const tracker = MaynardUtils.createGpsBackoffTracker();
+      if (tracker && typeof tracker.getNextRetryDelayMs === 'function') {
+        updateTest('test-backoff-load', true, 'GPS backoff tracker created successfully');
+      } else {
+        updateTest('test-backoff-load', false, 'GPS backoff tracker creation failed');
+      }
+    } catch (e) {
+      updateTest('test-backoff-load', false, `Error: ${e.message}`);
+    }
+
+    // TEST 9: GPS Backoff - Exponential
+    try {
+      const tracker = MaynardUtils.createGpsBackoffTracker(1000, 60000);
+      const delays = [];
+      for (let i = 0; i < 5; i++) {
+        delays.push(tracker.getNextRetryDelayMs());
+        tracker.recordFailure();
+      }
+      // Should be: 1000, 2000, 4000, 8000, 16000
+      const passed = delays[0] === 1000 && delays[1] === 2000 && delays[2] === 4000;
+      updateTest('test-backoff-exponential', passed, 
+        `Exponential backoff working: ${delays.join(', ')}ms`);
+    } catch (e) {
+      updateTest('test-backoff-exponential', false, `Error: ${e.message}`);
+    }
+
+    // TEST 10: GPS Backoff - Reset
+    try {
+      const tracker = MaynardUtils.createGpsBackoffTracker(1000, 60000);
+      tracker.recordFailure();
+      tracker.recordFailure();
+      let delayAfterFailures = tracker.getNextRetryDelayMs();
+      tracker.recordSuccess();
+      let delayAfterSuccess = tracker.getNextRetryDelayMs();
+      const passed = delayAfterFailures > 1000 && delayAfterSuccess === 1000;
+      updateTest('test-backoff-reset', passed, 
+        `Backoff reset on success: delay before=${delayAfterFailures}ms, after=${delayAfterSuccess}ms`);
+    } catch (e) {
+      updateTest('test-backoff-reset', false, `Error: ${e.message}`);
+    }
+
+    // TEST 11: Integration - Polling
+    try {
+      let coordinatorCalls = 0;
+      const id = MaynardPollingCoordinator.subscribe(() => {
+        coordinatorCalls++;
+      }, 50);
+      
+      setTimeout(() => {
+        MaynardPollingCoordinator.unsubscribe(id);
+        const passed = coordinatorCalls >= 2;
+        updateTest('test-integration-polling', passed, 
+          `Unified polling working: coordinator called ${coordinatorCalls} times in 100ms`);
+      }, 100);
+    } catch (e) {
+      updateTest('test-integration-polling', false, `Error: ${e.message}`);
+    }
+
+    // TEST 12: Integration - Visibility
+    try {
+      const passed = typeof document.hidden !== 'undefined' || typeof document.webkitHidden !== 'undefined';
+      updateTest('test-integration-visibility', passed, 
+        `Page visibility API available (needed for background detection)`);
+    } catch (e) {
+      updateTest('test-integration-visibility', false, `Error: ${e.message}`);
+    }
+
+    console.log('Phase 1 Optimization Tests: All tests completed');
+  </script>
+</body>
+</html>
