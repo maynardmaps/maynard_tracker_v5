@@ -1,0 +1,45 @@
+<?xml version="1.0" ?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>North Moor Rare Bird Nesting Areas</name>
+    <description>Rare bird nesting areas from Ten Tors Training Area Map TT27</description>
+    <Style id="BirdNestingStyle">
+      <LineStyle>
+        <color>FF00AA00</color>
+        <width>1</width>
+      </LineStyle>
+    </Style>
+    <Placemark>
+      <name>Rare Bird Nesting Area - North</name>
+      <description>Restricted area - rare bird nesting</description>
+      <styleUrl>#BirdNestingStyle</styleUrl>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-3.87,50.565,0
+-3.86,50.565,0
+-3.86,50.555,0
+-3.87,50.555,0
+-3.87,50.565,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+    <Placemark>
+      <name>Rare Bird Nesting Area - South</name>
+      <description>Restricted area - rare bird nesting</description>
+      <styleUrl>#BirdNestingStyle</styleUrl>
+      <Polygon>
+        <outerBoundaryIs>
+          <LinearRing>
+            <coordinates>-3.88,50.535,0
+-3.865,50.535,0
+-3.865,50.525,0
+-3.88,50.525,0
+-3.88,50.535,0</coordinates>
+          </LinearRing>
+        </outerBoundaryIs>
+      </Polygon>
+    </Placemark>
+  </Document>
+</kml>

@@ -1,0 +1,80 @@
+<?xml version="1.0" ?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>North Moor River Crossings</name>
+    <description>River crossing points from Ten Tors Training Area Map TT27</description>
+    <Style id="BlueRiverCrossingStyle">
+      <IconStyle>
+        <scale>0.8</scale>
+        <Icon>
+          <href>http://maps.google.com/mapfiles/kml/shapes/info-i.png</href>
+        </Icon>
+      </IconStyle>
+      <LabelStyle>
+        <scale>0.8</scale>
+      </LabelStyle>
+    </Style>
+    <Style id="PurpleRiverCrossingStyle">
+      <IconStyle>
+        <scale>0.8</scale>
+        <Icon>
+          <href>http://maps.google.com/mapfiles/kml/shapes/info-i.png</href>
+        </Icon>
+      </IconStyle>
+      <LabelStyle>
+        <scale>0.8</scale>
+      </LabelStyle>
+    </Style>
+    <Style id="AmberRiverCrossingStyle">
+      <IconStyle>
+        <scale>0.8</scale>
+        <Icon>
+          <href>http://maps.google.com/mapfiles/kml/shapes/info-i.png</href>
+        </Icon>
+      </IconStyle>
+      <LabelStyle>
+        <scale>0.8</scale>
+      </LabelStyle>
+    </Style>
+    <Placemark>
+      <name>Blue River Crossing 1</name>
+      <description>Blue river crossing point</description>
+      <styleUrl>#BlueRiverCrossingStyle</styleUrl>
+      <Point>
+        <coordinates>-3.9405,50.554,0</coordinates>
+      </Point>
+    </Placemark>
+    <Placemark>
+      <name>Blue River Crossing 2</name>
+      <description>Blue river crossing point</description>
+      <styleUrl>#BlueRiverCrossingStyle</styleUrl>
+      <Point>
+        <coordinates>-3.9385,50.548,0</coordinates>
+      </Point>
+    </Placemark>
+    <Placemark>
+      <name>Purple River Crossing 1</name>
+      <description>Purple river crossing point</description>
+      <styleUrl>#PurpleRiverCrossingStyle</styleUrl>
+      <Point>
+        <coordinates>-3.9315,50.552,0</coordinates>
+      </Point>
+    </Placemark>
+    <Placemark>
+      <name>Amber River Crossing 1</name>
+      <description>Amber river crossing point</description>
+      <styleUrl>#AmberRiverCrossingStyle</styleUrl>
+      <Point>
+        <coordinates>-3.8885,50.558,0</coordinates>
+      </Point>
+    </Placemark>
+    <Placemark>
+      <name>Amber River Crossing 2</name>
+      <description>Amber river crossing point</description>
+      <styleUrl>#AmberRiverCrossingStyle</styleUrl>
+      <Point>
+        <coordinates>-3.8875,50.55,0</coordinates>
+      </Point>
+    </Placemark>
+  </Document>
+</kml>
