@@ -335,6 +335,12 @@
     document.getElementById("test-mode").checked = settings.mode === "test";
     document.getElementById("gmail-route-import-enabled").checked = settings.gmailRouteImportEnabled !== false;
 
+    // Position share settings
+    const ps = settings.positionShare || {};
+    document.getElementById("position-share-persistence").value = ps.persistenceMinutes || 20;
+    document.getElementById("position-share-update").value = ps.updateMinutes || 5;
+    document.getElementById("position-share-autostop").value = ps.autoStopHours || 8;
+
     initRiverBox();
 
     // Map sources
@@ -720,9 +726,23 @@
       return;
     }
 
+    const positionShare = {
+      persistenceMinutes: Number(document.getElementById("position-share-persistence").value),
+      updateMinutes: Number(document.getElementById("position-share-update").value),
+      autoStopHours: Number(document.getElementById("position-share-autostop").value)
+    };
+    if (!Number.isInteger(positionShare.persistenceMinutes) || positionShare.persistenceMinutes < 10 || positionShare.persistenceMinutes > 120 ||
+        !Number.isInteger(positionShare.updateMinutes) || positionShare.updateMinutes < 1 || positionShare.updateMinutes > 60 ||
+        !Number.isInteger(positionShare.autoStopHours) || positionShare.autoStopHours < 1 || positionShare.autoStopHours > 24) {
+      statusEl.textContent = "Position share settings are invalid: persistence 10–120 min, update 1–60 min, auto-stop 1–24 hours.";
+      statusEl.className = "status-msg error";
+      return;
+    }
+
     const newSettings = {
       ...settings,
       eta,
+      positionShare,
       mapDataMaxAgeHours,
       devices,
       defaultRouteFolder: document.getElementById("default-route-folder").value,

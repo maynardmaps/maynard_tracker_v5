@@ -156,6 +156,26 @@
       </details>
 
       <details class="config-section">
+        <summary>Position share</summary>
+        <p class="status-msg">Configure how website visitors can share their GPS location with others viewing the map. Users can enter a 4-letter display name, and their position will update at the configured interval and persist for the specified duration.</p>
+        <div class="field-row">
+          <label class="field-label" for="position-share-persistence">Position persistence (minutes)</label>
+          <input type="number" id="position-share-persistence" min="10" max="120" step="1" />
+        </div>
+        <p class="status-msg">How long shared positions remain on the map after the last update. Range: 10–120 minutes. Default: 20.</p>
+        <div class="field-row">
+          <label class="field-label" for="position-share-update">Update interval (minutes)</label>
+          <input type="number" id="position-share-update" min="1" max="60" step="1" />
+        </div>
+        <p class="status-msg">How often a sharing user's GPS location is polled and sent. Range: 1–60 minutes. Default: 5.</p>
+        <div class="field-row">
+          <label class="field-label" for="position-share-autostop">Auto-stop after (hours)</label>
+          <input type="number" id="position-share-autostop" min="1" max="24" step="1" />
+        </div>
+        <p class="status-msg">Automatic shutdown time limit for position sharing sessions. Range: 1–24 hours. Default: 8. Prevents accidental long-running background sharing.</p>
+      </details>
+
+      <details class="config-section">
         <summary>GitHub integration</summary>
         <div class="field-row">
           <label class="field-label" for="gh-owner">Owner / org</label>

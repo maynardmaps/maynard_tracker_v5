@@ -45,6 +45,15 @@
           Show my location
         </label>
         <label class="switch-row">
+          <input type="checkbox" id="toggle-position-share" />
+          Share my position
+        </label>
+        <div id="position-share-name-box" hidden>
+          <input type="text" id="position-share-name" placeholder="Name (max 4 letters)" maxlength="4" />
+          <button type="button" id="position-share-submit">Share</button>
+          <div id="position-share-status" class="status-msg"></div>
+        </div>
+        <label class="switch-row">
           <input type="checkbox" id="toggle-river-levels" />
           River levels (Environment Agency)
         </label>
@@ -93,6 +102,7 @@
   <script src="js/river-levels.js"></script>
   <script src="js/weather.js"></script>
   <script src="js/geolocation.js"></script>
+  <script src="js/position-share.js"></script>
   <script src="js/map-page.js"></script>
 
   <script>

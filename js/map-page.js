@@ -30,6 +30,7 @@
     buildRouteFolderControl();
     buildWeatherAndMarkerControls();
     buildGeolocationControl();
+    buildPositionShareControl();
 
     await loadRouteFolder(settings.defaultRouteFolder);
     if (settings.eta && settings.eta.enabled) {
@@ -98,6 +99,7 @@
       MaynardWeather.reattach(map);
       MaynardBirdsRivers.reattach(map);
       MaynardRiverLevels.reattach(map);
+      MaynardPositionShare.reattach(map);
       addHomeMarker();
       enableLocationMenu();
       if (geoVisible) MaynardGeolocation.reattach(map);
@@ -239,6 +241,62 @@
       geoVisible = e.target.checked;
       if (geoVisible) MaynardGeolocation.start(map);
       else MaynardGeolocation.stop(map);
+    });
+  }
+
+  function buildPositionShareControl() {
+    MaynardPositionShare.init(map, settings);
+    const toggle = document.getElementById("toggle-position-share");
+    const nameBox = document.getElementById("position-share-name-box");
+    const nameInput = document.getElementById("position-share-name");
+    const submitBtn = document.getElementById("position-share-submit");
+    const statusEl = document.getElementById("position-share-status");
+
+    // Load saved name from localStorage
+    nameInput.value = MaynardPositionShare.loadDisplayName();
+
+    toggle.addEventListener("change", (e) => {
+      if (e.target.checked) {
+        nameBox.hidden = false;
+        statusEl.textContent = "";
+      } else {
+        nameBox.hidden = true;
+        statusEl.textContent = "";
+        MaynardPositionShare.disable();
+      }
+    });
+
+    submitBtn.addEventListener("click", () => {
+      const name = nameInput.value.trim();
+      if (!name) {
+        statusEl.textContent = "Please enter a name (max 4 letters)";
+        statusEl.className = "status-msg error";
+        return;
+      }
+      if (name.length > 4) {
+        statusEl.textContent = "Name must be 4 letters or fewer";
+        statusEl.className = "status-msg error";
+        return;
+      }
+
+      const success = MaynardPositionShare.enable(name);
+      if (success) {
+        statusEl.textContent = "Sharing position...";
+        statusEl.className = "status-msg ok";
+        MaynardPositionShare.setVisible(true);
+      } else {
+        statusEl.textContent = "Geolocation not available or name invalid";
+        statusEl.className = "status-msg error";
+        toggle.checked = false;
+        nameBox.hidden = true;
+      }
+    });
+
+    // Allow Enter key to submit
+    nameInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        submitBtn.click();
+      }
     });
   }
 
