@@ -232,8 +232,8 @@
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          lat,
-          lng,
+          latitude: lat,
+          longitude: lng,
           name: userDisplayName,
           timestamp
         })
@@ -292,7 +292,7 @@
 
         // Update or create marker
         if (!markerCache.has(pos.sessionId)) {
-          const marker = L.marker([pos.lat, pos.lng], {
+          const marker = L.marker([pos.latitude, pos.longitude], {
             icon: L.divIcon({
               className: "position-share-marker",
               html: `<div class="share-marker-icon"><span class="share-marker-label">${escapeHtml(pos.name)}</span></div>`,
@@ -320,8 +320,8 @@
             <div class="position-share-popup">
               <strong>${escapeHtml(pos.name)}</strong>
               <div class="popup-row">Time: ${escapeHtml(timeStr)}</div>
-              <div class="popup-row">Lat: ${pos.lat.toFixed(5)}</div>
-              <div class="popup-row">Lng: ${pos.lng.toFixed(5)}</div>
+              <div class="popup-row">Lat: ${pos.latitude.toFixed(5)}</div>
+              <div class="popup-row">Lng: ${pos.longitude.toFixed(5)}</div>
             </div>
           `;
           marker.bindPopup(popupHtml);
@@ -330,7 +330,7 @@
         } else {
           // Update existing marker
           const marker = markerCache.get(pos.sessionId);
-          marker.setLatLng([pos.lat, pos.lng]);
+          marker.setLatLng([pos.latitude, pos.longitude]);
         }
       });
 
