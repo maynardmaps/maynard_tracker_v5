@@ -211,3 +211,28 @@ Note - messaging and tracking control (Garmin IPC Inbound):
 - Garmin delivers outbound messages and tracking changes over Iridium and bills them to the device plan, so in Test mode these commands are simulated by the Worker and never sent to Garmin. The Worker keeps the last 3 received messages per team and a command log (last 30).
 - Only the Text message type can be sent to a device; puck and SOS messages are received only.
 - A standard-library laptop diagnostic, tools/test_garmin_inbound.py, prompts for an IMEI and credentials (password hidden), then performs only a read-only GET tracking-status query against the EUR endpoint. It does not save credentials.
+
+Position Share requirements:
+1) The map page should have a menu option to enable/disable position sharing from mobile devices using GPS.
+2) Position sharing should only be available when the device has GPS capability; if GPS is unavailable, the option should not be offered.
+3) When position sharing is enabled, a text input box should appear allowing the user to enter a display name (maximum 4 characters). This name should be displayed on the map alongside a distinct icon (different from Garmin team markers which use diamonds).
+4) The user's chosen name should persist in browser storage (e.g., localStorage) and be restored when position sharing is re-enabled, so the same name is used automatically next time.
+5) Up to 24 concurrent users can share positions via this method.
+6) Shared positions should be sent to the Worker at a configurable interval (default 5 minutes; update rate configurable in configuration page).
+7) Position sharing should begin immediately upon being enabled, regardless of when the last position was shared.
+8) Between position share updates, if "show my location" is not enabled, GPS should not be actively used to preserve battery.
+9) Shared positions should persist on the server for a configurable duration (default 20 minutes; configurable in configuration page as a whole number from 10 to 120 minutes).
+10) Position sharing should automatically stop after a configurable idle/session duration (default 8 hours; configurable in configuration page). After this time, the user must manually re-enable sharing.
+11) The configuration page should have a "Position Share" section (collapsed by default) with controls for:
+    - Position persistence timeout (default 20 minutes, range 10–120 minutes)
+    - Position update rate (default 5 minutes, range 1–60 minutes, must be ≤ persistence timeout)
+    - Auto-stop duration (default 8 hours, range 1–24 hours)
+12) Shared positions are sent to a Worker endpoint (POST /positions/share) with GPS coordinates, timestamp, and user's display name.
+13) The Worker stores positions in KV with per-position TTL matching the configured persistence timeout.
+14) The map should display shared positions as markers with the user's 4-letter name label. Shared-position markers should be distinct in appearance from Garmin team markers.
+15) Shared positions should be retrieved from the Worker (GET /positions) and updated on the map. They should be refreshed at the same interval as Garmin data (every 10 seconds for the latest push feed, or as part of the main poll).
+16) If "show my location" is enabled, the user's own position should be shown on the map and not be counted toward the 24-user limit (it should be shared internally or displayed locally only).
+17) A user can disable position sharing at any time; their marker disappears from the map and no further positions are sent.
+18) Position sharing requires the same passphrase protection as other admin endpoints if accessed from a configuration URL, or session-based token verification if accessed from the public map page.
+19) The feature should handle users with poor GPS signal gracefully: if a GPS position cannot be obtained within a reasonable timeout (e.g., 30 seconds), the position update should be skipped and the next update attempted at the scheduled interval.
+20) Battery optimization: GPS polling should only occur at the configured update interval when sharing is active. If "show my location" is also active, GPS should be polled at whichever interval is more frequent.
