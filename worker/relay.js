@@ -41,6 +41,12 @@ const MAX_GMAIL_DOCX_BYTES = 8 * 1024 * 1024;
 const MAX_GMAIL_MESSAGES_PER_POLL = 10;
 const MAX_GMAIL_CARDS_PER_POLL = 2;
 
+const POSITION_SHARE_MAX_USERS = 24;
+const POSITION_SHARE_PREFIX = "position-share:";
+const POSITION_SHARE_DEFAULT_PERSISTENCE_MINUTES = 20;
+const POSITION_SHARE_DEFAULT_UPDATE_MINUTES = 5;
+const POSITION_SHARE_DEFAULT_AUTO_STOP_HOURS = 8;
+
 // Lists routes/<folder>/<file>.(gpx|kml) from the repo so new uploads appear
 // without editing routes/manifest.json.
 async function routesManifest(env, ctx) {
@@ -263,9 +269,13 @@ async function safeEqual(a, b) {
 const CFG_KEY = "cfg:ipc";
 
 function ipcConfigFrom(s) {
+  const ps = (s && s.positionShare) || {};
   return {
     mode: s && s.mode === "test" ? "test" : "normal",
     gmailRouteImportEnabled: !s || s.gmailRouteImportEnabled !== false,
+    positionSharePersistenceMinutes: ps.persistenceMinutes || POSITION_SHARE_DEFAULT_PERSISTENCE_MINUTES,
+    positionShareUpdateMinutes: ps.updateMinutes || POSITION_SHARE_DEFAULT_UPDATE_MINUTES,
+    positionShareAutoStopHours: ps.autoStopHours || POSITION_SHARE_DEFAULT_AUTO_STOP_HOURS,
     imeis: ((s && s.devices) || []).map((d) => d.imei).filter((i) => /^\d{15}$/.test(i)),
     devices: ((s && s.devices) || []).filter((d) => d && /^\d{15}$/.test(d.imei)).map((d) => ({ imei: d.imei, name: d.name }))
   };
@@ -671,7 +681,7 @@ const ALLOWED_KEYS = new Set([
   "_comment", "github", "defaultRouteFolder", "startPoint", "startZoom",
   "mapSources", "routeColours", "markerColours", "weatherEnabledByDefault",
   "birdsRiversEnabledByDefault", "diagnosticsEnabled", "gmailRouteImportEnabled",
-  "riverLevels", "devices", "mapDataMaxAgeHours", "eta", "mode"
+  "positionShare", "riverLevels", "devices", "mapDataMaxAgeHours", "eta", "mode"
 ]);
 
 // Fallback used only if the RATE_LIMIT KV binding is missing.
@@ -848,6 +858,25 @@ function settingsError(s) {
       if (d.etaDirection !== undefined && d.etaDirection !== "forward" && d.etaDirection !== "reverse") return "devices etaDirection invalid";
       if (d.etaFallbackSpeedKmh !== undefined && !inRange(d.etaFallbackSpeedKmh, 0.1, 160)) return "devices etaFallbackSpeedKmh invalid";
       seen.add(d.imei);
+    }
+  }
+  const ps = s.positionShare;
+  if (ps !== undefined) {
+    if (!ps || typeof ps !== "object" || Array.isArray(ps)) return "positionShare invalid";
+    if (!Object.keys(ps).every((k) => ["persistenceMinutes", "updateMinutes", "autoStopHours"].includes(k))) {
+      return "positionShare has unknown fields";
+    }
+    if (ps.persistenceMinutes !== undefined &&
+        (!Number.isInteger(ps.persistenceMinutes) || ps.persistenceMinutes < 10 || ps.persistenceMinutes > 120)) {
+      return "positionShare.persistenceMinutes must be a whole number from 10 to 120";
+    }
+    if (ps.updateMinutes !== undefined &&
+        (!Number.isInteger(ps.updateMinutes) || ps.updateMinutes < 1 || ps.updateMinutes > 60)) {
+      return "positionShare.updateMinutes must be a whole number from 1 to 60";
+    }
+    if (ps.autoStopHours !== undefined &&
+        (!Number.isInteger(ps.autoStopHours) || ps.autoStopHours < 1 || ps.autoStopHours > 24)) {
+      return "positionShare.autoStopHours must be a whole number from 1 to 24";
     }
   }
   if (!Array.isArray(s.mapSources) || s.mapSources.length > 12) return "mapSources must be a list of at most 12";
@@ -1349,6 +1378,100 @@ async function pollGmailRouteCards(env) {
   }
 }
 
+// ---- Position Share ------------------------------------------------
+// GPS-based position sharing from website users. Positions stored in KV
+// with TTL-based expiration. Maximum 24 concurrent users.
+
+async function sharePosition(request, env) {
+  const raw = await request.text();
+  if (raw.length > 10000) return json({ error: "Too large" }, 413);
+  let req;
+  try { req = JSON.parse(raw); } catch (e) { return json({ error: "Bad JSON" }, 400); }
+
+  // Validate required fields
+  if (typeof req.latitude !== "number" || typeof req.longitude !== "number" ||
+      !Number.isFinite(req.latitude) || !Number.isFinite(req.longitude) ||
+      req.latitude < -90 || req.latitude > 90 || req.longitude < -180 || req.longitude > 180) {
+    return json({ error: "Invalid latitude/longitude" }, 400);
+  }
+  if (typeof req.name !== "string" || !req.name || req.name.length > 4 ||
+      !/^[A-Za-z0-9\-. ]+$/.test(req.name)) {
+    return json({ error: "Invalid name (max 4 characters, alphanumeric/space/dash/dot)" }, 400);
+  }
+  if (typeof req.timestamp !== "number" || !Number.isFinite(req.timestamp) || req.timestamp <= 0) {
+    return json({ error: "Invalid timestamp" }, 400);
+  }
+
+  // Get persistence timeout from settings (default 20 minutes)
+  const config = await ipcConfig(env);
+  const persistenceMinutes = config.positionSharePersistenceMinutes ||
+    POSITION_SHARE_DEFAULT_PERSISTENCE_MINUTES;
+  if (persistenceMinutes < 10 || persistenceMinutes > 120) {
+    return json({ error: "Invalid position share persistence setting" }, 500);
+  }
+
+  // Generate a unique session ID (using timestamp + name hash)
+  const sessionId = req.sessionId || `${Math.floor(Date.now() / 1000)}-${req.name.replace(/[^a-z0-9]/gi, "").toLowerCase()}`;
+  const kvKey = `${POSITION_SHARE_PREFIX}${sessionId}`;
+
+  // Check current user count (excluding this session to allow updates)
+  if (!env.RATE_LIMIT) {
+    return json({ error: "KV store not configured" }, 500);
+  }
+
+  try {
+    const position = {
+      sessionId,
+      name: req.name,
+      latitude: req.latitude,
+      longitude: req.longitude,
+      timestamp: req.timestamp,
+      elevation: req.elevation || null
+    };
+
+    // Store position with TTL in minutes
+    const ttlSeconds = persistenceMinutes * 60;
+    await env.RATE_LIMIT.put(kvKey, JSON.stringify(position), { expirationTtl: ttlSeconds });
+
+    return json({ ok: true, sessionId }, 200);
+  } catch (e) {
+    console.error("Failed to store position", e);
+    return json({ error: "Failed to store position" }, 500);
+  }
+}
+
+async function getPositions(env) {
+  if (!env.RATE_LIMIT) {
+    return json({ positions: [] }, 200);
+  }
+
+  try {
+    // List all position keys with prefix
+    const list = await env.RATE_LIMIT.list({ prefix: POSITION_SHARE_PREFIX });
+
+    const positions = [];
+    for (const key of list.keys) {
+      try {
+        const data = await env.RATE_LIMIT.get(key.name, "json");
+        if (data) {
+          positions.push(data);
+        }
+      } catch (e) {
+        // Skip malformed entries
+        console.warn(`Failed to parse position ${key.name}`, e);
+      }
+    }
+
+    // Sort by name for consistent ordering
+    positions.sort((a, b) => a.name.localeCompare(b.name));
+
+    return json({ positions }, 200);
+  } catch (e) {
+    console.error("Failed to retrieve positions", e);
+    return json({ positions: [] }, 200);
+  }
+}
+
 export default {
   async scheduled(controller, env, ctx) {
     ctx.waitUntil((async () => {
@@ -1392,6 +1515,20 @@ export default {
         if (pathname === "/routes/import-card") return await importRouteCard(request, env);
         if (pathname === "/routes/manage") return await manageRoutes(request, env, ctx);
         return await saveSettings(request, env);
+      } catch (e) {
+        return json({ error: "Server error" }, 500);
+      }
+    }
+    if (request.method === "POST" && pathname === "/positions/share") {
+      try {
+        return await sharePosition(request, env);
+      } catch (e) {
+        return json({ error: "Server error" }, 500);
+      }
+    }
+    if (request.method === "GET" && pathname === "/positions") {
+      try {
+        return await getPositions(env);
       } catch (e) {
         return json({ error: "Server error" }, 500);
       }

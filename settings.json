@@ -125,5 +125,11 @@
       "east": -3.57
     }
   },
-  "diagnosticsEnabled": false
+  "diagnosticsEnabled": false,
+  "gmailRouteImportEnabled": true,
+  "positionShare": {
+    "persistenceMinutes": 20,
+    "updateMinutes": 5,
+    "autoStopHours": 8
+  }
 }
