@@ -73,7 +73,21 @@
       </div>
 
       <div class="config-section">
-        <h2>Fallback test</h2>
+        <h2>Simulate phone position sharing</h2>
+        <p class="status-msg">Test position sharing from a mobile device without needing an actual phone. Simulates sending positions to the relay at configured intervals.</p>
+        <div class="field-row"><label class="field-label" for="ps-name">Sharer name (max 4 letters)</label><input type="text" id="ps-name" maxlength="4" placeholder="E.g., JOHN" value="TEST" /></div>
+        <div class="field-row"><label class="field-label" for="ps-lat">Starting latitude</label><input type="number" id="ps-lat" step="any" value="51.5" /></div>
+        <div class="field-row"><label class="field-label" for="ps-lon">Starting longitude</label><input type="number" id="ps-lon" step="any" value="-1.5" /></div>
+        <div class="field-row"><label class="field-label" for="ps-interval">Share interval (seconds)</label><input type="number" id="ps-interval" min="5" step="5" value="10" /></div>
+        <label class="switch-row"><input type="checkbox" id="ps-walk" /> Simulate walk (drift slightly each update)</label>
+        <div class="rm-actions">
+          <button type="button" id="ps-start">Start sharing</button>
+          <button type="button" id="ps-stop" disabled>Stop sharing</button>
+        </div>
+        <p id="ps-status" class="status-msg"></p>
+      </div>
+
+      <div class="config-section">
         <p class="status-msg">Clearing stored positions removes all push data, so the map falls back to the MapShare KML feed.</p>
         <button type="button" id="t-clear" class="danger">Clear stored positions</button>
       </div>

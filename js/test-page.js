@@ -277,6 +277,87 @@
     }
   }
 
+  // ---- Position share simulation ----
+  let posShareTimer = null;
+  let posShareLat = 51.5;
+  let posShareLon = -1.5;
+  let posShareCount = 0;
+
+  async function sendPositionShare() {
+    try {
+      const name = $("ps-name").value.trim().substring(0, 4);
+      if (!name) {
+        logLine("Position share: name required");
+        return;
+      }
+
+      const base = (window.MAYNARD_CONFIG.garminRelayUrl || "").replace(/\/$/, "");
+      const response = await fetch(`${base}/positions/share`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lat: posShareLat,
+          lng: posShareLon,
+          name: name,
+          timestamp: Date.now()
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const result = await response.json();
+      posShareCount++;
+      logLine(`Position share #${posShareCount}: ${name} at ${posShareLat.toFixed(5)}, ${posShareLon.toFixed(5)}`);
+      $("ps-status").textContent = `Sent ${posShareCount} positions. Last: ${posShareLat.toFixed(5)}, ${posShareLon.toFixed(5)}`;
+      $("ps-status").className = "status-msg ok";
+
+      // Simulate walk if enabled
+      if ($("ps-walk").checked) {
+        posShareLat += (Math.random() - 0.5) * 0.0008;
+        posShareLon += (Math.random() - 0.5) * 0.0008;
+      }
+    } catch (e) {
+      logLine(`Position share failed: ${e.message}`);
+      $("ps-status").textContent = `Error: ${e.message}`;
+      $("ps-status").className = "status-msg error";
+    }
+  }
+
+  function startPositionShare() {
+    const name = $("ps-name").value.trim();
+    if (!name || name.length > 4) {
+      $("ps-status").textContent = "Enter a name (max 4 letters)";
+      $("ps-status").className = "status-msg error";
+      return;
+    }
+
+    posShareLat = Number($("ps-lat").value) || 51.5;
+    posShareLon = Number($("ps-lon").value) || -1.5;
+    const intervalSeconds = Number($("ps-interval").value) || 10;
+    posShareCount = 0;
+
+    $("ps-start").disabled = true;
+    $("ps-stop").disabled = false;
+    $("ps-status").textContent = "Sharing position...";
+    $("ps-status").className = "status-msg pending";
+
+    sendPositionShare();
+    posShareTimer = setInterval(sendPositionShare, intervalSeconds * 1000);
+    logLine(`Position share started: ${name} every ${intervalSeconds}s from ${posShareLat.toFixed(5)}, ${posShareLon.toFixed(5)}`);
+  }
+
+  function stopPositionShare() {
+    if (posShareTimer) clearInterval(posShareTimer);
+    posShareTimer = null;
+    $("ps-start").disabled = false;
+    $("ps-stop").disabled = true;
+    $("ps-status").textContent = `Stopped after ${posShareCount} positions`;
+    $("ps-status").className = "status-msg";
+    logLine(`Position share stopped after ${posShareCount} positions`);
+  }
+
   $("unlock-btn").addEventListener("click", unlock);
   $("test-password").addEventListener("keydown", (e) => { if (e.key === "Enter") unlock(); });
   $("t-send").addEventListener("click", () => send(Number($("t-lat").value), Number($("t-lon").value)).catch(() => {}));
@@ -287,4 +368,6 @@
   $("t-clear").addEventListener("click", () => call({ action: "clear" }).then(() => logLine("Cleared stored positions")).catch(() => {}));
   $("t-log-refresh").addEventListener("click", refreshLog);
   $("t-log-clear").addEventListener("click", () => call({ action: "clearLog" }).then(refreshLog).catch(() => {}));
+  $("ps-start").addEventListener("click", startPositionShare);
+  $("ps-stop").addEventListener("click", stopPositionShare);
 })();

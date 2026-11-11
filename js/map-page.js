@@ -251,6 +251,23 @@
     const nameInput = document.getElementById("position-share-name");
     const submitBtn = document.getElementById("position-share-submit");
     const statusEl = document.getElementById("position-share-status");
+    
+    // Set up status callback for real-time feedback
+    MaynardPositionShare.setStatusCallback((statusInfo) => {
+      if (statusInfo.status === "ok") {
+        statusEl.textContent = statusInfo.message;
+        statusEl.className = "status-msg ok";
+      } else if (statusInfo.status === "error") {
+        statusEl.textContent = statusInfo.message;
+        statusEl.className = "status-msg error";
+      } else if (statusInfo.status === "pending") {
+        statusEl.textContent = statusInfo.message;
+        statusEl.className = "status-msg pending";
+      } else {
+        statusEl.textContent = statusInfo.message;
+        statusEl.className = "status-msg";
+      }
+    });
 
     // Load saved name from localStorage
     nameInput.value = MaynardPositionShare.loadDisplayName();
@@ -259,10 +276,13 @@
       if (e.target.checked) {
         nameBox.hidden = false;
         statusEl.textContent = "";
+        // Show overlay for position-share layer so user can see their position
+        MaynardPositionShare.setVisible(true);
       } else {
         nameBox.hidden = true;
         statusEl.textContent = "";
         MaynardPositionShare.disable();
+        MaynardPositionShare.setVisible(false);
       }
     });
 
@@ -281,8 +301,8 @@
 
       const success = MaynardPositionShare.enable(name);
       if (success) {
-        statusEl.textContent = "Sharing position...";
-        statusEl.className = "status-msg ok";
+        statusEl.textContent = "Requesting GPS location...";
+        statusEl.className = "status-msg pending";
         MaynardPositionShare.setVisible(true);
       } else {
         statusEl.textContent = "Geolocation not available or name invalid";

@@ -13,11 +13,13 @@
   let autoStopTimer = null;
   let sessionId = null;
   let lastUpdateMs = 0;
+  let lastShareSuccessMs = 0;
   let userDisplayName = "";
   let markerCache = new Map(); // sessionId -> marker
   let gpsBackoff = null;
   let pollingSubscriptionId = null;
   let markerRefreshSubscriptionId = null;
+  let statusCallback = null; // For UI feedback
 
   const POSITION_SHARE_NAME_KEY = "maynard_position_share_name";
 
@@ -39,6 +41,25 @@
         updatePollingInterval();
       }
     });
+  }
+
+  function getLastShareStatus() {
+    if (!isEnabled) {
+      return { status: "disabled", message: "Position sharing not enabled" };
+    }
+    if (lastShareSuccessMs === 0) {
+      return { status: "pending", message: "Waiting for first position..." };
+    }
+    const age = Date.now() - lastShareSuccessMs;
+    const minutes = Math.floor(age / 60000);
+    const seconds = Math.floor((age % 60000) / 1000);
+    let timeStr;
+    if (minutes > 0) {
+      timeStr = `${minutes}m ${seconds}s ago`;
+    } else {
+      timeStr = `${seconds}s ago`;
+    }
+    return { status: "ok", message: `Last shared: ${timeStr}` };
   }
 
   // Persist display name to localStorage
@@ -227,8 +248,17 @@
       if (result.sessionId) {
         sessionId = result.sessionId;
       }
+      
+      // Track successful share
+      lastShareSuccessMs = timestamp;
+      if (statusCallback) {
+        statusCallback(getLastShareStatus());
+      }
     } catch (err) {
       console.error("Failed to share position:", err.message);
+      if (statusCallback) {
+        statusCallback({ status: "error", message: `Share failed: ${err.message}` });
+      }
     }
   }
 
@@ -351,7 +381,8 @@
     loadDisplayName,
     saveDisplayName,
     isEnabled: () => isEnabled,
-    startPositionPoll,
+    getLastShareStatus,
+    setStatusCallback: (cb) => { statusCallback = cb; },
     setVisible,
     reattach
   };
