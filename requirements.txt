@@ -55,9 +55,11 @@ Data source requirements:
 27) The "birds and rivers" overlay should load ALL the KML files in the "data" folder (not a single named file), and its single toggle should show/hide all of them. New KML files added to the folder should appear automatically without code changes.
 28) The North Moor TT27 map should be selectable as a base layer, served from the local WebP XYZ tiles in the "maps" folder, with appropriate Ordnance Survey attribution.
 29) Route-point labels should have a per-route toggle in the route list. Route points must not respond to map clicks or be keyboard-selectable, so selecting nearby team markers remains easy.
+30) Route management should allow an optional expected calendar date per route folder, saved with settings. Saved dates follow folder renames and are removed on deletion.
+31) In Auto mode, select the folder dated today or nearest in the future in Europe/London time; if none is upcoming, select the most recent past date. Break same-date ties by alphanumeric folder name. If no existing folder is dated, use the manual default. Recalculate on UK date changes while retaining manual selection on the map until the next date change.
 
 Configuration page requirements:
-1) Expedition setup should allow the user to set the default route sub-folder.
+1) Expedition setup should allow a manual default route sub-folder or an Auto mode that disables the selector and previews the automatically chosen folder.
 2) Expedition setup should allow the user to set the "start point" for the map. This should be configurable by entering coordinates or selecting a location on a map.
 3) The configuration page should be accessible from the map page with a small button or link.
 4) The configuration page should be responsive and work well on both desktop and mobile devices.

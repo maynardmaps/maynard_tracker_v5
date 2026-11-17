@@ -9,7 +9,7 @@
 </head>
 <body>
   <div class="config-page">
-    <h1>Configuration <span class="version-badge" id="version-badge">v5.3.1</span></h1>
+    <h1>Configuration <span class="version-badge" id="version-badge">v5.4.0</span></h1>
     <p><a href="index.html">&larr; Back to map</a></p>
 
     <div id="locked-overlay" class="config-section lock-overlay">
@@ -25,6 +25,8 @@
       <details class="config-section" id="expedition-setup-section">
         <summary>Expedition setup</summary>
         <h3>Default route folder</h3>
+        <button type="button" class="secondary" id="auto-route-folder" aria-pressed="false">Auto</button>
+        <p id="auto-route-status" class="status-msg" aria-live="polite"></p>
         <div class="field-row">
           <label class="field-label" for="default-route-folder">Default folder</label>
           <select id="default-route-folder"></select>
@@ -125,7 +127,7 @@
 
       <details class="config-section">
         <summary>Route management</summary>
-        <p class="status-msg">Changes here are committed straight to the GitHub repository and apply immediately (no Save needed).</p>
+        <p class="status-msg">Folder and file changes are committed immediately. Expected dates are applied with Save settings.</p>
         <h3>Route folders</h3>
         <div id="rm-folders" class="rm-list" role="listbox" aria-label="Route folders"></div>
         <div class="rm-actions">
@@ -133,6 +135,9 @@
           <button type="button" id="rm-rename-folder" disabled>Rename folder</button>
           <button type="button" id="rm-delete-folder" class="danger" disabled>Delete folder</button>
         </div>
+        <h3>Expected folder dates</h3>
+        <p class="status-msg">Set a date for each folder and use Save settings to apply date changes.</p>
+        <div id="route-folder-dates"></div>
         <h3>Files in <span id="rm-folder-name">(no folder selected)</span></h3>
         <div id="rm-files" class="rm-list" role="listbox" aria-label="Files in selected folder"></div>
         <div class="rm-actions">

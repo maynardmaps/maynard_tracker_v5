@@ -5,6 +5,7 @@
 
   let settings, manifest, map;
   let geoVisible = false;
+  let routeLoadFinished = Promise.resolve();
 
   let homeMarker = null;
 
@@ -32,7 +33,16 @@
     buildGeolocationControl();
     buildPositionShareControl();
 
-    await loadRouteFolder(settings.defaultRouteFolder);
+    await loadRouteFolder(document.getElementById("route-folder-select").value);
+    MaynardUtils.watchLondonDate(() => {
+      if (!settings.autoRouteFolder) return;
+      const select = document.getElementById("route-folder-select");
+      const selected = autoDefaultFolder();
+      if (select.value !== selected) {
+        select.value = selected;
+        loadRouteFolder(selected).catch(reportRouteLoadError);
+      }
+    });
     if (settings.eta && settings.eta.enabled) {
       const etaRoutes = await MaynardEta.discoverRoutes(manifest);
       MaynardEta.init(etaRoutes, map, settings);
@@ -159,23 +169,46 @@
     const select = document.getElementById("route-folder-select");
     select.innerHTML = "";
     Object.keys(manifest.folders)
-      .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+      .sort(MaynardUtils.compareRouteFolders)
       .forEach((folder) => {
         const opt = document.createElement("option");
         opt.value = folder;
         opt.textContent = folder;
-        if (folder === settings.defaultRouteFolder) opt.selected = true;
         select.appendChild(opt);
       });
-    select.addEventListener("change", () => loadRouteFolder(select.value));
+    select.value = autoDefaultFolder();
+    select.addEventListener("change", () => loadRouteFolder(select.value).catch(reportRouteLoadError));
+  }
+
+  function autoDefaultFolder() {
+    const folders = Object.keys(manifest.folders).sort(MaynardUtils.compareRouteFolders);
+    const manual = folders.includes(settings.defaultRouteFolder) ? settings.defaultRouteFolder : (folders[0] || "");
+    const automatic = settings.autoRouteFolder ? MaynardUtils.autoRouteFolder(folders, settings.routeFolderDates || {}) : null;
+    MaynardUtils.setStatus("auto-route", settings.autoRouteFolder && !automatic
+      ? "No dated route folders; using the manual default" : "");
+    return automatic || manual;
+  }
+
+  function reportRouteLoadError(err) {
+    console.error("Route folder load failed", err);
+    MaynardUtils.setStatus("routes", "Route folder could not be loaded");
   }
 
   async function loadRouteFolder(folder) {
-    MaynardRoutes.detachFromMap(map);
-    await MaynardRoutes.loadFolder(folder, manifest, settings.routeColours);
-    MaynardRoutes.attachToMap(map);
-    buildRouteToggleList();
-    fitToEverything();
+    const previous = routeLoadFinished;
+    let release;
+    routeLoadFinished = new Promise((resolve) => { release = resolve; });
+    await previous;
+    try {
+      MaynardRoutes.detachFromMap(map);
+      await MaynardRoutes.loadFolder(folder, manifest, settings.routeColours);
+      MaynardRoutes.attachToMap(map);
+      buildRouteToggleList();
+      fitToEverything();
+      MaynardUtils.setStatus("routes", "");
+    } finally {
+      release();
+    }
   }
 
   function buildRouteToggleList() {

@@ -9,11 +9,17 @@
   let settings, manifest, etaRoutes = [];
   let pickerMap, pickerMarker;
   let deviceCounter = 0;
+  let routeFolderDates = {};
+  let manualDefaultFolder = "";
+  let autoRouteFolder = false;
 
   async function main() {
     settings = await MaynardSettings.load();
     manifest = await MaynardUtils.loadRoutesManifest();
     etaRoutes = await MaynardEta.discoverRoutes(manifest);
+    routeFolderDates = { ...settings.routeFolderDates };
+    manualDefaultFolder = settings.defaultRouteFolder;
+    autoRouteFolder = settings.autoRouteFolder === true;
 
     document.getElementById("github-link").href =
       `https://github.com/${(settings.github || window.MAYNARD_CONFIG.github).owner}/` +
@@ -32,9 +38,17 @@
     document.getElementById("add-device-btn").addEventListener("click", () => {
       appendTracker({ imei: "", name: "" });
     });
+    document.getElementById("auto-route-folder").addEventListener("click", () => {
+      autoRouteFolder = !autoRouteFolder;
+      updateDefaultFolderDisplay();
+    });
+    document.getElementById("default-route-folder").addEventListener("change", (event) => {
+      manualDefaultFolder = event.target.value;
+    });
 
     populateForm();
     initRouteManagement();
+    MaynardUtils.watchLondonDate(updateDefaultFolderDisplay);
   }
 
   async function unlock() {
@@ -163,6 +177,7 @@
     if (rmFile && !files.includes(rmFile)) rmFile = null;
 
     renderRmList("rm-folders", folders, rmFolder, (f) => { rmFolder = f; rmFile = null; renderRouteManagement(); });
+    renderFolderDates(folders);
     renderRmList("rm-files", files, rmFile, (f) => { rmFile = f; renderRouteManagement(); });
     rmEl("rm-folder-name").textContent = rmFolder || "(no folder selected)";
     rmEl("rm-add-folder").disabled = false;
@@ -179,6 +194,12 @@
     document.querySelectorAll(".rm-actions button").forEach((b) => { b.disabled = true; });
     try {
       await MaynardGithubSave.manageRoutes(op, passphrase);
+      if (op.op === "renameFolder" || op.op === "deleteFolder") {
+        if (Object.prototype.hasOwnProperty.call(routeFolderDates, op.folder)) {
+          if (op.op === "renameFolder") routeFolderDates[op.to] = routeFolderDates[op.folder];
+          delete routeFolderDates[op.folder];
+        }
+      }
       manifest = await MaynardUtils.loadRoutesManifest();
       fillDefaultFolderSelect();
       rmStatus(successMsg + " Committed to GitHub; the site updates after the next Pages deploy (about a minute).");
@@ -186,6 +207,29 @@
       rmStatus(`Failed: ${e.message}`, true);
     }
     renderRouteManagement();
+  }
+
+  function renderFolderDates(folders) {
+    const container = document.getElementById("route-folder-dates");
+    container.replaceChildren();
+    folders.forEach((folder, index) => {
+      const row = document.createElement("div");
+      row.className = "route-folder-date";
+      const label = document.createElement("label");
+      const input = document.createElement("input");
+      input.type = "date";
+      input.id = `route-folder-date-${index}`;
+      label.htmlFor = input.id;
+      label.textContent = folder;
+      input.value = Object.prototype.hasOwnProperty.call(routeFolderDates, folder) ? routeFolderDates[folder] : "";
+      input.addEventListener("input", () => {
+        if (input.value) routeFolderDates[folder] = input.value;
+        else delete routeFolderDates[folder];
+        updateDefaultFolderDisplay();
+      });
+      row.append(label, input);
+      container.appendChild(row);
+    });
   }
 
   function fileToBase64(file) {
@@ -283,17 +327,32 @@
   }
   function fillDefaultFolderSelect() {
     const folderSelect = document.getElementById("default-route-folder");
-    const current = folderSelect.value || settings.defaultRouteFolder;
     folderSelect.innerHTML = "";
     Object.keys(manifest.folders)
-      .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+      .sort(MaynardUtils.compareRouteFolders)
       .forEach((folder) => {
         const opt = document.createElement("option");
         opt.value = folder;
         opt.textContent = folder;
-        if (folder === current) opt.selected = true;
         folderSelect.appendChild(opt);
       });
+    if (!Object.prototype.hasOwnProperty.call(manifest.folders, manualDefaultFolder)) {
+      manualDefaultFolder = folderSelect.value;
+    }
+    updateDefaultFolderDisplay();
+  }
+
+  function updateDefaultFolderDisplay() {
+    const folderSelect = document.getElementById("default-route-folder");
+    const button = document.getElementById("auto-route-folder");
+    const status = document.getElementById("auto-route-status");
+    const chosen = MaynardUtils.autoRouteFolder(Object.keys(manifest.folders), routeFolderDates);
+    button.setAttribute("aria-pressed", String(autoRouteFolder));
+    folderSelect.disabled = autoRouteFolder;
+    folderSelect.value = autoRouteFolder && chosen ? chosen : manualDefaultFolder;
+    status.textContent = !autoRouteFolder ? "Choose a default folder manually." :
+      chosen ? `Auto: ${chosen} (${routeFolderDates[chosen]}). Dates use UK time.` :
+        "No dated folders; using the manual default. Set dates in Route management.";
   }
 
   function populateForm() {
@@ -662,6 +721,8 @@
   // Live settings match when every key GitHub has published equals what was saved
   // (the Worker may drop keys it does not whitelist).
   function isLive(live, wanted) {
+    if (!Object.prototype.hasOwnProperty.call(live, "autoRouteFolder") ||
+        !Object.prototype.hasOwnProperty.call(live, "routeFolderDates")) return false;
     const subset = {};
     Object.keys(live).forEach((k) => { subset[k] = wanted[k]; });
     return JSON.stringify(canon(live)) === JSON.stringify(canon(subset));
@@ -699,6 +760,13 @@
     const statusEl = document.getElementById("save-status");
     statusEl.textContent = "Saving...";
     statusEl.className = "status-msg";
+
+    if ([...document.querySelectorAll("#route-folder-dates input")].some((input) => input.validity.badInput) ||
+        Object.values(routeFolderDates).some((date) => !MaynardUtils.isRouteDate(date))) {
+      statusEl.textContent = "Route folder dates must be valid calendar dates.";
+      statusEl.className = "status-msg error";
+      return;
+    }
 
     const devices = collectDevices();
     if (!devices) {
@@ -745,7 +813,9 @@
       positionShare,
       mapDataMaxAgeHours,
       devices,
-      defaultRouteFolder: document.getElementById("default-route-folder").value,
+      defaultRouteFolder: manualDefaultFolder,
+      autoRouteFolder,
+      routeFolderDates: { ...routeFolderDates },
       startPoint: {
         lat: parseFloat(document.getElementById("start-lat").value),
         lng: parseFloat(document.getElementById("start-lng").value)

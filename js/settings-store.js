@@ -90,6 +90,9 @@
     const override = readLocalOverride(usingFallbackDefaults);
     if (!usingFallbackDefaults) clearLegacyLocalOverride();
     cached = deepMerge(defaults, override);
+    if (Object.prototype.hasOwnProperty.call(override, "routeFolderDates")) {
+      cached.routeFolderDates = override.routeFolderDates;
+    }
     return cached;
   }
 

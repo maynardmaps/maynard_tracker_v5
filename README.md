@@ -226,18 +226,26 @@ this repo), so it is real authorisation, not a client-side gate.
 
 The configuration sections are ordered by workflow:
 
-1. **Expedition setup:** default route folder, each tracker's route assignment, direction and fallback speed, plus the map start point and zoom.
+1. **Expedition setup:** default route folder (manual or **Auto**), each tracker's route assignment, direction and fallback speed, plus the map start point and zoom.
 2. **Messaging & tracking:** recent messages and tracking status, send text messages, and force start/stop/query tracking (see below).
 3. **Map defaults:** available/default base maps, overlay defaults, river-level area, and the map icon age limit. The age limit (1–720 hours, default 12) hides old Garmin and river-level map icons only; older records remain in Location history.
 4. **Map appearance:** generic 8-colour palettes for routes and Garmin markers.
 5. **Diagnostics & test mode:** diagnostics panel toggle and Normal/Test operating mode.
 6. **Location history:** recent position reports and messages, including raw event details; this is retained independently of the map icon age limit.
-7. **Route management:** add, rename, and delete route folders/files.
+7. **Route management:** add, rename, and delete route folders/files, and assign an optional expected date to each folder.
 8. **GitHub integration:** read-only owner, repository, and branch details.
 9. **ETA management:** enable/disable ETA, stale-position threshold, and planned lunch time/duration. Per-tracker route assignments and fallback speeds are in Expedition setup.
 10. **Device management:** add/edit/delete device names and 15-digit inReach IMEIs. These are kept separate from route assignments.
 
-All sections are collapsible and initially closed. Settings are applied with **Save settings**, except route-management changes, which are committed immediately.
+All sections are collapsible and initially closed. Use **Save settings** for folder dates and all other settings; folder
+and file add/rename/delete operations are committed immediately. A folder's saved date follows a rename and is removed
+when the folder is deleted.
+
+With **Auto** enabled, the default-folder selector is disabled and previews the dated folder nearest today in UK time
+(today or a future date). If all dated folders are in the past, the most recent date is used; ties use alphanumeric
+folder order. If no existing folders have dates, the saved manual default is used. The map recalculates at UK midnight
+and when the page becomes visible again. Visitors can still select a folder manually on the map; the automatic default
+is reapplied on the next UK date change. Turning **Auto** off restores the saved manual choice.
 
 Clicking **Save settings** saves to `localStorage` immediately and asks the
 Worker to commit `settings.json` to GitHub. The GitHub token is a Worker

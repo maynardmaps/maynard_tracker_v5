@@ -678,7 +678,7 @@ const GH_BRANCH = "main";
 const GH_PATH = "settings.json";
 const MAX_SETTINGS_BYTES = 50000;
 const ALLOWED_KEYS = new Set([
-  "_comment", "github", "defaultRouteFolder", "startPoint", "startZoom",
+  "_comment", "github", "defaultRouteFolder", "autoRouteFolder", "routeFolderDates", "startPoint", "startZoom",
   "mapSources", "routeColours", "markerColours", "weatherEnabledByDefault",
   "birdsRiversEnabledByDefault", "diagnosticsEnabled", "gmailRouteImportEnabled",
   "positionShare", "riverLevels", "devices", "mapDataMaxAgeHours", "eta", "mode"
@@ -804,6 +804,19 @@ function settingsError(s) {
   if (!Number.isInteger(s.startZoom) || s.startZoom < 1 || s.startZoom > 19) return "startZoom must be 1-19";
   if (typeof s.defaultRouteFolder !== "string" || (s.defaultRouteFolder && !FOLDER_RE.test(s.defaultRouteFolder))) {
     return "defaultRouteFolder invalid";
+  }
+  if (s.autoRouteFolder !== undefined && !isBool(s.autoRouteFolder)) return "autoRouteFolder invalid";
+  if (s.routeFolderDates !== undefined) {
+    if (!s.routeFolderDates || typeof s.routeFolderDates !== "object" || Array.isArray(s.routeFolderDates)) {
+      return "routeFolderDates invalid";
+    }
+    for (const [folder, date] of Object.entries(s.routeFolderDates)) {
+      if (!FOLDER_RE.test(folder) || typeof date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(date) || date.startsWith("0000")) {
+        return "routeFolderDates invalid";
+      }
+      const time = Date.parse(date + "T00:00:00Z");
+      if (!Number.isFinite(time) || new Date(time).toISOString().slice(0, 10) !== date) return "routeFolderDates invalid";
+    }
   }
   if (s.mode !== undefined && s.mode !== "normal" && s.mode !== "test") return "mode must be normal or test";
   if (s.mapDataMaxAgeHours !== undefined &&
@@ -1080,6 +1093,18 @@ async function applyRouteOp(req, env) {
     }
     default:
       throw new HttpError(400, "Unknown operation");
+  }
+
+  if (req.op === "renameFolder" || req.op === "deleteFolder") {
+    const settingsFile = await gh(env, `/contents/settings.json?ref=${encodeURIComponent(headSha)}`);
+    const settings = JSON.parse(decodeBase64Utf8(settingsFile.content));
+    const dates = settings.routeFolderDates;
+    if (dates && typeof dates === "object" && !Array.isArray(dates) &&
+        Object.prototype.hasOwnProperty.call(dates, req.folder)) {
+      if (req.op === "renameFolder") dates[req.to] = dates[req.folder];
+      delete dates[req.folder];
+      changes.push({ path: "settings.json", mode: "100644", type: "blob", content: JSON.stringify(settings, null, 2) + "\n" });
+    }
   }
 
   const newTree = await gh(env, "/git/trees", {

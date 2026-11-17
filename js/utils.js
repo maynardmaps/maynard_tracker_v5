@@ -61,6 +61,62 @@
   const HTML_ESC = { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" };
   const escapeHtml = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => HTML_ESC[c]);
 
+  const folderCollator = new Intl.Collator("en-GB", { numeric: true, sensitivity: "base" });
+  function compareRouteFolders(a, b) {
+    return folderCollator.compare(a, b) || (a < b ? -1 : a > b ? 1 : 0);
+  }
+
+  function isRouteDate(value) {
+    if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value) || value.startsWith("0000")) return false;
+    const time = Date.parse(value + "T00:00:00Z");
+    return Number.isFinite(time) && new Date(time).toISOString().slice(0, 10) === value;
+  }
+
+  const londonDateFormat = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London", year: "numeric", month: "2-digit", day: "2-digit"
+  });
+  function londonDate(time = Date.now()) {
+    const parts = Object.fromEntries(londonDateFormat.formatToParts(new Date(time)).map((part) => [part.type, part.value]));
+    return `${parts.year}-${parts.month}-${parts.day}`;
+  }
+
+  function autoRouteFolder(folders, dates, today = londonDate()) {
+    const dated = folders.filter((folder) =>
+      Object.prototype.hasOwnProperty.call(dates, folder) && isRouteDate(dates[folder]));
+    const upcoming = dated.filter((folder) => dates[folder] >= today);
+    const candidates = upcoming.length ? upcoming : dated;
+    candidates.sort((a, b) => {
+      const byDate = dates[a].localeCompare(dates[b]);
+      return (upcoming.length ? byDate : -byDate) || compareRouteFolders(a, b);
+    });
+    return candidates[0] || null;
+  }
+
+  function watchLondonDate(callback) {
+    let lastDate = londonDate();
+    let timer;
+    function check() {
+      const now = Date.now();
+      const today = londonDate(now);
+      if (today !== lastDate) {
+        lastDate = today;
+        callback(today);
+      }
+      clearTimeout(timer);
+      let low = now, high = now + 36 * 60 * 60 * 1000;
+      while (high - low > 1) {
+        const mid = Math.floor((low + high) / 2);
+        if (londonDate(mid) === today) low = mid;
+        else high = mid;
+      }
+      timer = setTimeout(check, Math.max(1, high - Date.now()));
+    }
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) check(); });
+    global.addEventListener("focus", check);
+    callback(lastDate);
+    check();
+  }
+
   function timeSince(timestamp) {
     const time = typeof timestamp === "number" ? timestamp : Date.parse(timestamp);
     if (!Number.isFinite(time) || time <= 0) return "";
@@ -175,6 +231,11 @@
     fetchJson,
     fetchText,
     escapeHtml,
+    compareRouteFolders,
+    isRouteDate,
+    londonDate,
+    autoRouteFolder,
+    watchLondonDate,
     timeSince,
     setStatus,
     diag,
