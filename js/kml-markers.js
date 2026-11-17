@@ -57,12 +57,11 @@
       pointToLayer(feature, latlng) {
         const c = colours.get(markerKey(feature));
         const em = String((feature.properties || {})["In Emergency"]).toLowerCase() === "true";
-        const s = em ? 54 : 18;
-        const popupY = em ? -19.5 : -s / 2;
-        return L.marker(latlng, { icon: L.divIcon({
+        const s = em ? 66 : 22;
+        return L.marker(latlng, { zIndexOffset: 100, icon: L.divIcon({
           className: em ? "team-diamond team-emergency" : "team-diamond",
           html: `<span style="background:${c}"></span>`,
-          iconSize: [s, s], iconAnchor: [s / 2, s / 2], popupAnchor: [0, popupY]
+          iconSize: [s, s], iconAnchor: [s / 2, s / 2], popupAnchor: [0, -s / 2]
         }) });
       },
       onEachFeature(feature, layer) {

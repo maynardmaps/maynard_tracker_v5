@@ -29,6 +29,11 @@
     if (!layerGroup) {
       layerGroup = L.featureGroup([]).addTo(map);
     }
+    if (markerRefreshSubscriptionId === null) {
+      markerRefreshSubscriptionId = MaynardPollingCoordinator.subscribe(() => {
+        refreshMarkers();
+      }, 10000);
+    }
     // Monitor page visibility to avoid polling when backgrounded
     document.addEventListener("visibilitychange", () => {
       pageVisible = !document.hidden;
@@ -130,11 +135,6 @@
       }
     }, gpsBackoff.getNextRetryDelayMs());
 
-    // Subscribe marker refresh to coordinator (unified with Garmin polling)
-    markerRefreshSubscriptionId = MaynardPollingCoordinator.subscribe(() => {
-      refreshMarkers();
-    }, 10000); // Match Garmin polling interval
-
     // Request position immediately
     requestPositionOnce();
 
@@ -159,11 +159,6 @@
       MaynardPollingCoordinator.unsubscribe(pollingSubscriptionId);
       pollingSubscriptionId = null;
     }
-    if (markerRefreshSubscriptionId !== null) {
-      MaynardPollingCoordinator.unsubscribe(markerRefreshSubscriptionId);
-      markerRefreshSubscriptionId = null;
-    }
-
     if (autoStopTimer !== null) {
       clearTimeout(autoStopTimer);
       autoStopTimer = null;
@@ -282,13 +277,12 @@
       // Update existing markers and add new ones
       const seenSessions = new Set();
       positions.forEach((pos) => {
-        seenSessions.add(pos.sessionId);
-
         // Skip if expired
         const age = now - pos.timestamp;
         if (age > persistenceMs) {
           return;
         }
+        seenSessions.add(pos.sessionId);
 
         // Update or create marker
         if (!markerCache.has(pos.sessionId)) {
@@ -296,9 +290,9 @@
             icon: L.divIcon({
               className: "position-share-marker",
               html: `<div class="share-marker-icon"><span class="share-marker-label">${escapeHtml(pos.name)}</span></div>`,
-              iconSize: [48, 48],
-              iconAnchor: [24, 48],
-              popupAnchor: [0, -48]
+              iconSize: [30, 30],
+              iconAnchor: [15, 15],
+              popupAnchor: [0, -15]
             }),
             title: pos.name
           });
@@ -325,6 +319,7 @@
             </div>
           `;
           marker.bindPopup(popupHtml);
+          MaynardNearbyPicker.register(marker, "Shared position", pos.name);
           marker.addTo(layerGroup);
           markerCache.set(pos.sessionId, marker);
         } else {
@@ -343,17 +338,6 @@
       }
     } catch (err) {
       console.error("Failed to refresh position markers:", err.message);
-    }
-  }
-
-  // Start polling positions from the Worker at the same interval as Garmin markers
-  function setVisible(visible) {
-    if (layerGroup) {
-      if (visible) {
-        layerGroup.addTo(map);
-      } else {
-        map.removeLayer(layerGroup);
-      }
     }
   }
 
@@ -383,7 +367,6 @@
     isEnabled: () => isEnabled,
     getLastShareStatus,
     setStatusCallback: (cb) => { statusCallback = cb; },
-    setVisible,
     reattach
   };
 })(window);

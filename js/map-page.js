@@ -276,13 +276,10 @@
       if (e.target.checked) {
         nameBox.hidden = false;
         statusEl.textContent = "";
-        // Show overlay for position-share layer so user can see their position
-        MaynardPositionShare.setVisible(true);
       } else {
         nameBox.hidden = true;
         statusEl.textContent = "";
         MaynardPositionShare.disable();
-        MaynardPositionShare.setVisible(false);
       }
     });
 
@@ -303,7 +300,6 @@
       if (success) {
         statusEl.textContent = "Requesting GPS location...";
         statusEl.className = "status-msg pending";
-        MaynardPositionShare.setVisible(true);
       } else {
         statusEl.textContent = "Geolocation not available or name invalid";
         statusEl.className = "status-msg error";

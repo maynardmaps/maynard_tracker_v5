@@ -10,6 +10,7 @@ Map requirements:
 2) The map should display markers for relevant locations.
 3) The map should update in real-time as new data (see data source requirements) becomes available.
 4) The map should be responsive and work well on both desktop and mobile devices.
+4a) On mobile, the menu button and zoom controls must not overlap. The zoom controls are hidden while the menu is open and restored below the menu button when it closes.
 5) The map should have selectable layers for different map types (see data source requirements).
 6) The map should be able to display the position of the user. This should be togglable from the map page.
 7) There should be a scale bar.
@@ -22,6 +23,7 @@ Map requirements:
 14) Garmin position and message popups should be compact by default. Keep the team/device heading, time since the position or message was received, location, emergency state, and a clearly labeled "Nav to" maps link with a recognizable navigation icon visible without expanding details. Put the remaining details under a clickable dropdown. Show the OS grid reference as the main location within Great Britain. If a grid reference is unavailable, show latitude and longitude there instead. Include latitude and longitude to five decimal places in the expanded details.
 15) Garmin position and message pins older than the configured map icon age limit should be hidden from the map. This age limit applies to map display only and must not remove or filter older records from configuration-page messaging and position history.
 16) Route point labels should have a per-route toggle in the route list. Route points must not respond to map clicks or be keyboard-selectable, so selecting nearby team markers remains easy.
+17) When multiple selectable markers are close to a tap or click, provide a nearby-item chooser that opens the selected marker's popup. Include shared positions, Garmin positions and messages, river stations, and birds-and-rivers markers.
 
 Data source requirements:
 1) The map should be compatible with open street map, google maps and other common map providers.
@@ -229,10 +231,10 @@ Position Share requirements:
     - Auto-stop duration (default 8 hours, range 1–24 hours)
 12) Shared positions are sent to a Worker endpoint (POST /positions/share) with GPS coordinates, timestamp, and user's display name.
 13) The Worker stores positions in KV with per-position TTL matching the configured persistence timeout.
-14) The map should display shared positions as markers with the user's 4-letter name label. Shared-position markers should be distinct in appearance from Garmin team markers.
-15) Shared positions should be retrieved from the Worker (GET /positions) and updated on the map. They should be refreshed at the same interval as Garmin data (every 10 seconds for the latest push feed, or as part of the main poll).
+14) The map should display shared positions as compact circular markers centred on their reported coordinates with the user's 4-letter name label and a popup above the marker. Garmin team diamonds should be visually more prominent, and shared-position markers should participate in the nearby-item chooser.
+15) Shared positions should be retrieved from the Worker (GET /positions) and updated on every visitor's map, regardless of whether that visitor shares their own position. They should be refreshed at the same interval as Garmin data (every 10 seconds for the latest push feed, or as part of the main poll).
 16) If "show my location" is enabled, the user's own position should be shown on the map and not be counted toward the 24-user limit (it should be shared internally or displayed locally only).
-17) A user can disable position sharing at any time; their marker disappears from the map and no further positions are sent.
+17) A user can disable position sharing at any time; no further positions are sent and their last shared marker remains visible until its configured persistence period expires.
 18) Position sharing requires the same passphrase protection as other admin endpoints if accessed from a configuration URL, or session-based token verification if accessed from the public map page.
 19) The feature should handle users with poor GPS signal gracefully: if a GPS position cannot be obtained within a reasonable timeout (e.g., 30 seconds), the position update should be skipped and the next update attempted at the scheduled interval.
 20) Battery optimization: GPS polling should only occur at the configured update interval when sharing is active. If "show my location" is also active, GPS should be polled at whichever interval is more frequent.

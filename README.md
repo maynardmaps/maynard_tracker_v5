@@ -20,10 +20,12 @@ Pages with **no backend**. It shows:
   steady) for a configurable area of England, with the Dartmoor area as the default.
 - A right-click / long-press menu giving the clicked coordinates, an OS grid
   reference (inside Great Britain) and a link to open the spot in a maps app.
-- A nearby-item chooser for crowded taps: when multiple team, message, river,
+- A nearby-item chooser for crowded taps: when multiple team, message, shared-position, river,
   or birds-and-rivers markers are close together, choose the intended feature
-  from a list; team, message, and river icons have larger invisible tap
+  from a list; team, message, shared-position, and river icons have larger invisible tap
   targets for mobile.
+- On mobile, the map menu and zoom controls occupy separate spaces; zoom controls
+  are hidden while the menu is open.
 - Optional scheduled Gmail route-card import: authorized sender emails with
   Word attachments are validated, converted to KML, and added to a dated route
   folder for ETA use.
@@ -186,11 +188,13 @@ Position sharing is GPS-only (off if GPS is unavailable) and is individually con
 if you re-enable sharing later. When enabled, your position is sent to the Worker immediately and then at a configurable
 interval (default 5 minutes; range 1–60 minutes). Between updates, if "Show my location" is disabled, GPS is not actively
 polled to preserve battery. Position sharing automatically stops after a configurable session duration (default 8 hours; range 1–24 hours).
-You can manually disable sharing at any time; your marker disappears and no further positions are sent.
+You can manually disable sharing at any time; no further positions are sent, and your last shared position remains visible until it expires.
 
-**Map display:** Shared positions appear as markers with the 4-letter name label, distinct from Garmin team markers (which
-use diamonds). The map fetches positions every 10 seconds (same as Garmin positions) and updates their markers. Up to 24
-concurrent sharers are supported.
+**Map display:** Shared positions appear for every map visitor, whether or not they share their own position, as compact
+circular markers centred on the reported coordinates, with the 4-letter name label and a popup above the marker. Garmin
+team positions use more prominent diamonds. If markers are close together, tapping a shared position or another nearby
+marker opens the nearby-item chooser; selecting an item opens its popup. The map fetches positions every 10 seconds
+(same as Garmin positions) and updates their markers. Up to 24 concurrent sharers are supported.
 
 **Configuration:** The **Position Share** section (config page, collapsed by default) has three settings:
 - **Persistence**: How long shared positions remain on the server after upload (default 20 minutes; range 10–120 minutes).
