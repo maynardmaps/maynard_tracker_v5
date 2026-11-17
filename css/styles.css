@@ -428,18 +428,44 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 #test-mode-banner { position: fixed; top: 0; left: 50%; transform: translateX(-50%); z-index: 2000; background: #c62828; color: #fff; font-weight: 700; letter-spacing: 0.05em; padding: 0.3rem 1rem; border-radius: 0 0 6px 6px; box-shadow: 0 2px 6px rgba(0,0,0,0.4); pointer-events: none; }
 
 /* Position share UI */
-#position-share-name-box {
+.position-share-control {
+  margin: 0.6rem 0;
+  padding: 0.6rem;
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+#position-share-state {
+  margin: 0.2rem 0 0.4rem;
+  color: var(--muted);
+}
+
+.position-share-actions {
   display: flex;
-  flex-direction: column;
+  align-items: flex-end;
+  flex-wrap: wrap;
   gap: 0.5rem;
-  padding: 0.5rem 0;
-  border-top: 1px solid var(--panel-border);
-  margin-top: 0.5rem;
-  padding-top: 0.5rem;
+}
+
+#position-share-name-box {
+  flex: 1 1 110px;
+  min-width: 0;
+}
+
+#position-share-name-box[hidden] {
+  display: none;
+}
+
+#position-share-name-box label {
+  display: block;
+  font-size: 0.75rem;
+  margin-bottom: 0.2rem;
 }
 
 #position-share-name {
-  flex: 1;
+  width: 100%;
+  min-height: 44px;
   padding: 0.4rem 0.5rem;
   border: 1px solid var(--panel-border);
   border-radius: 3px;
@@ -447,6 +473,7 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 }
 
 #position-share-submit {
+  min-height: 44px;
   padding: 0.4rem 0.8rem;
   background: var(--accent);
   color: #fff;

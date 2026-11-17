@@ -246,65 +246,65 @@
 
   function buildPositionShareControl() {
     MaynardPositionShare.init(map, settings);
-    const toggle = document.getElementById("toggle-position-share");
     const nameBox = document.getElementById("position-share-name-box");
     const nameInput = document.getElementById("position-share-name");
     const submitBtn = document.getElementById("position-share-submit");
+    const stateEl = document.getElementById("position-share-state");
     const statusEl = document.getElementById("position-share-status");
-    
-    // Set up status callback for real-time feedback
+    let statusKind = "";
+    let statusTimer = null;
+
+    function renderSharingState() {
+      const active = MaynardPositionShare.isEnabled();
+      nameBox.hidden = active;
+      stateEl.textContent = active ? `Sharing as ${nameInput.value.trim()}` : "Not sharing";
+      submitBtn.textContent = active ? "Stop sharing" : "Start sharing";
+      if (!active && statusTimer !== null) {
+        clearInterval(statusTimer);
+        statusTimer = null;
+      }
+    }
+
     MaynardPositionShare.setStatusCallback((statusInfo) => {
-      if (statusInfo.status === "ok") {
-        statusEl.textContent = statusInfo.message;
-        statusEl.className = "status-msg ok";
-      } else if (statusInfo.status === "error") {
-        statusEl.textContent = statusInfo.message;
-        statusEl.className = "status-msg error";
-      } else if (statusInfo.status === "pending") {
-        statusEl.textContent = statusInfo.message;
-        statusEl.className = "status-msg pending";
-      } else {
-        statusEl.textContent = statusInfo.message;
-        statusEl.className = "status-msg";
-      }
+      statusKind = statusInfo.status;
+      statusEl.textContent = statusInfo.message;
+      statusEl.className = `status-msg ${statusInfo.status}`;
+      renderSharingState();
     });
-
-    // Load saved name from localStorage
     nameInput.value = MaynardPositionShare.loadDisplayName();
-
-    toggle.addEventListener("change", (e) => {
-      if (e.target.checked) {
-        nameBox.hidden = false;
-        statusEl.textContent = "";
-      } else {
-        nameBox.hidden = true;
-        statusEl.textContent = "";
-        MaynardPositionShare.disable();
-      }
-    });
+    renderSharingState();
 
     submitBtn.addEventListener("click", () => {
+      if (MaynardPositionShare.isEnabled()) {
+        MaynardPositionShare.disable();
+        return;
+      }
       const name = nameInput.value.trim();
       if (!name) {
-        statusEl.textContent = "Please enter a name (max 4 letters)";
+        statusEl.textContent = "Please enter a name (up to 4 characters).";
         statusEl.className = "status-msg error";
         return;
       }
-      if (name.length > 4) {
-        statusEl.textContent = "Name must be 4 letters or fewer";
+      if (name.length > 4 || !/^[A-Za-z0-9\-. ]+$/.test(name)) {
+        statusEl.textContent = "Use up to 4 letters, numbers, spaces, dots or dashes.";
         statusEl.className = "status-msg error";
         return;
       }
 
-      statusEl.textContent = "";
-      statusEl.className = "status-msg";
+      statusKind = "pending";
+      statusEl.textContent = "Requesting GPS location...";
+      statusEl.className = "status-msg pending";
       const success = MaynardPositionShare.enable(name);
       if (success) {
-        statusEl.textContent = "Requesting GPS location...";
-        statusEl.className = "status-msg pending";
+        renderSharingState();
+        statusTimer = setInterval(() => {
+          if (statusKind === "ok" && MaynardPositionShare.isEnabled()) {
+            statusEl.textContent = MaynardPositionShare.getLastShareStatus().message;
+          }
+        }, 10000);
       } else {
-        if (!statusEl.textContent) {
-          statusEl.textContent = "Position sharing is already enabled, or geolocation is unavailable";
+        if (statusKind !== "error") {
+          statusEl.textContent = "Geolocation is unavailable.";
           statusEl.className = "status-msg error";
         }
       }
@@ -313,6 +313,7 @@
     // Allow Enter key to submit
     nameInput.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
+        e.preventDefault();
         submitBtn.click();
       }
     });

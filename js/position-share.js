@@ -141,6 +141,7 @@
 
     isEnabled = true;
     sharingGeneration++;
+    lastShareSuccessMs = 0;
     pageVisible = !document.hidden;
 
     // Initialize GPS backoff tracker (5 minute default, 60 minute max)
@@ -162,13 +163,14 @@
     if (autoStopTimer) clearTimeout(autoStopTimer);
     autoStopTimer = setTimeout(() => {
       console.warn("Position sharing auto-stopped after", autoStopHours, "hours");
-      disable();
+      disable(true);
     }, autoStopHours * 60 * 60 * 1000);
 
     return true;
   }
 
-  function disable() {
+  function disable(automatic = false) {
+    if (!isEnabled) return;
     isEnabled = false;
     sharingGeneration++;
     positionRequestQueued = false;
@@ -186,6 +188,12 @@
     }
 
     gpsBackoff = null;
+    if (statusCallback) {
+      statusCallback({
+        status: "disabled",
+        message: `${automatic ? "Sharing stopped automatically." : "Sharing stopped."} Any last shared pin remains until it expires.`
+      });
+    }
   }
 
   // Request GPS position once with timeout and backoff tracking
@@ -251,6 +259,9 @@
           // Record failure with connection monitor
           MaynardConnectionMonitor.recordAttempt(false);
 
+          if (statusCallback) {
+            statusCallback({ status: "error", message: `GPS location unavailable: ${err.message || "Location could not be determined"}. Will retry.` });
+          }
           if (callback) callback();
         } finally {
           finish();

@@ -183,9 +183,10 @@ To remove ETA if it proves unsuitable, remove the `js/eta.js` script includes fr
 Website visitors can share their GPS location in real time using the map's **Position Share** menu option.
 Position sharing is GPS-only (off if GPS is unavailable) and is individually configurable per visit.
 
-**Using the feature:** Click **Position Share** in the map menu to enable sharing. A text box appears for a short identifier
-(up to 4 characters, e.g. "A1", "Sue", "123"). Your display name persists in browser storage so the same identifier is used
-if you re-enable sharing later. When enabled, your position is sent to the Worker immediately and then at a configurable
+**Using the feature:** Enter a short identifier (up to 4 characters, e.g. "A1", "Sue", "123") in **Share my position**
+and press **Start sharing**. The control shows the sharing name, GPS/upload status and time since the last successful
+share; press **Stop sharing** to stop. GPS and upload errors are shown in the control. Your display name persists in browser
+storage and is prefilled when you return, but sharing does not start until you press the button. When enabled, your position is sent to the Worker immediately and then at a configurable
 interval (default 5 minutes; range 1–60 minutes). Between updates, if "Show my location" is disabled, GPS is not actively
 polled to preserve battery. Position sharing automatically stops after a configurable session duration (default 8 hours; range 1–24 hours).
 You can manually disable sharing at any time; no further positions are sent, and your last shared position remains visible until it expires.

@@ -39,6 +39,8 @@ let positions = [{ sessionId: "other", name: "TT1", latitude: 50, longitude: -4,
 let gpsRequests = 0;
 let posts = 0;
 let gpsSuccess;
+let gpsFailure;
+let autoStop;
 let lastPost;
 const pickerEntries = [];
 const storage = new Map();
@@ -53,7 +55,7 @@ const context = {
     addEventListener() {},
     createElement() { return { set textContent(value) { this.innerHTML = value; }, innerHTML: "" }; }
   },
-  navigator: { geolocation: { getCurrentPosition(success) { gpsRequests++; gpsSuccess = success; } } },
+  navigator: { geolocation: { getCurrentPosition(success, failure) { gpsRequests++; gpsSuccess = success; gpsFailure = failure; } } },
   localStorage: { getItem(key) { return storage.get(key) || null; }, setItem(key, value) { storage.set(key, value); } },
   MaynardPollingCoordinator: coordinator,
   MaynardNearbyPicker: { register(_marker, category, label) { pickerEntries.push({ category, label }); } },
@@ -67,13 +69,13 @@ const context = {
     }
     return { ok: true, json: async () => ({ positions }) };
   },
-  setTimeout: () => 1,
+  setTimeout: (callback) => { autoStop = callback; return 1; },
   clearTimeout() {},
   console
 };
 vm.runInNewContext(fs.readFileSync("js/utils.js", "utf8"), context);
 context.MaynardUtils = context.window.MaynardUtils;
-context.MaynardUtils.createGpsBackoffTracker = () => ({ getNextRetryDelayMs: () => 300000, recordSuccess() {} });
+context.MaynardUtils.createGpsBackoffTracker = () => ({ getNextRetryDelayMs: () => 300000, recordSuccess() {}, recordFailure() {} });
 vm.runInNewContext(fs.readFileSync("js/kml-markers.js", "utf8"), context);
 context.MaynardKmlMarkers = context.window.MaynardKmlMarkers;
 context.MaynardKmlMarkers.gridRef = (lat) => lat === 50 ? "SX 123 456" : null;
@@ -142,6 +144,22 @@ const settle = () => new Promise((resolve) => setImmediate(resolve));
   assert.equal(replacementMap.hasLayer(group), true, "positions reattach after a map change");
   let status;
   share.setStatusCallback((next) => { status = next; });
+  assert.equal(share.enable("ME"), true);
+  assert.equal(share.getLastShareStatus().status, "pending", "a restarted session does not display an old success");
+  const originalWarn = console.warn;
+  console.warn = () => {};
+  try {
+    gpsFailure({ message: "Permission denied" });
+    assert.equal(status.status, "error");
+    assert.match(status.message, /Permission denied/);
+    autoStop();
+  } finally {
+    console.warn = originalWarn;
+  }
+  assert.equal(share.isEnabled(), false);
+  assert.equal(status.status, "disabled");
+  assert.match(status.message, /stopped automatically/);
+  assert.match(status.message, /until it expires/);
   context.localStorage.getItem = () => { throw new Error("storage unavailable"); };
   const originalError = console.error;
   console.error = () => {};
