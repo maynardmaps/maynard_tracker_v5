@@ -20,8 +20,22 @@
   let pollingSubscriptionId = null;
   let markerRefreshSubscriptionId = null;
   let statusCallback = null; // For UI feedback
+  let sharingGeneration = 0;
+  let positionRequestInFlight = false;
+  let positionRequestQueued = false;
 
   const POSITION_SHARE_NAME_KEY = "maynard_position_share_name";
+  const POSITION_SHARE_ID_KEY = "maynard_position_share_id";
+
+  function loadOrCreateSessionId() {
+    let id = localStorage.getItem(POSITION_SHARE_ID_KEY);
+    if (id && /^[a-f0-9]{32}$/.test(id)) return id;
+    const bytes = new Uint8Array(16);
+    global.crypto.getRandomValues(bytes);
+    id = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+    localStorage.setItem(POSITION_SHARE_ID_KEY, id);
+    return id;
+  }
 
   function init(newMap, newSettings) {
     map = newMap;
@@ -117,8 +131,16 @@
     }
     saveDisplayName(userDisplayName);
 
+    try {
+      sessionId = loadOrCreateSessionId();
+    } catch (err) {
+      console.error("Could not initialize position sharing identity:", err);
+      if (statusCallback) statusCallback({ status: "error", message: "Position sharing requires browser storage and secure random numbers." });
+      return false;
+    }
+
     isEnabled = true;
-    sessionId = null; // Will be set on first successful share
+    sharingGeneration++;
     pageVisible = !document.hidden;
 
     // Initialize GPS backoff tracker (5 minute default, 60 minute max)
@@ -135,9 +157,6 @@
       }
     }, gpsBackoff.getNextRetryDelayMs());
 
-    // Request position immediately
-    requestPositionOnce();
-
     // Auto-stop timer
     const autoStopHours = settings.positionShare?.autoStopHours || 8;
     if (autoStopTimer) clearTimeout(autoStopTimer);
@@ -151,6 +170,8 @@
 
   function disable() {
     isEnabled = false;
+    sharingGeneration++;
+    positionRequestQueued = false;
     userDisplayName = "";
     sessionId = null;
 
@@ -170,40 +191,70 @@
   // Request GPS position once with timeout and backoff tracking
   function requestPositionOnce(callback) {
     if (!isEnabled) return;
+    if (positionRequestInFlight) {
+      positionRequestQueued = true;
+      return;
+    }
+    positionRequestInFlight = true;
+    const generation = sharingGeneration;
+    const finish = () => {
+      positionRequestInFlight = false;
+      if (positionRequestQueued && isEnabled && pageVisible) {
+        positionRequestQueued = false;
+        requestPositionOnce();
+      } else {
+        positionRequestQueued = false;
+      }
+    };
 
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        const timestamp = Date.now();
-        
-        lastUpdateMs = timestamp;
-        sendPositionToWorker(lat, lng, timestamp);
-        
-        // Record success for backoff strategy
-        if (gpsBackoff) {
-          gpsBackoff.recordSuccess();
-          updatePollingInterval(); // Adjust interval based on backoff state
+      async (pos) => {
+        if (!isEnabled || generation !== sharingGeneration) {
+          finish();
+          return;
         }
-        
-        // Record success with connection monitor
-        MaynardConnectionMonitor.recordAttempt(true);
-        
-        if (callback) callback();
+        try {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          const timestamp = Date.now();
+
+          lastUpdateMs = timestamp;
+          // Record success for backoff strategy
+          if (gpsBackoff) {
+            gpsBackoff.recordSuccess();
+            updatePollingInterval(); // Adjust interval based on backoff state
+          }
+
+          // Record success with connection monitor
+          MaynardConnectionMonitor.recordAttempt(true);
+
+          if (callback) callback();
+          await sendPositionToWorker(lat, lng, timestamp, pos.coords.accuracy, generation);
+        } finally {
+          finish();
+        }
       },
       (err) => {
-        console.warn("Geolocation error:", err.message);
-        
-        // Record failure for backoff strategy
-        if (gpsBackoff) {
-          gpsBackoff.recordFailure();
-          updatePollingInterval(); // Adjust interval based on backoff state
+        if (!isEnabled || generation !== sharingGeneration) {
+          finish();
+          return;
         }
-        
-        // Record failure with connection monitor
-        MaynardConnectionMonitor.recordAttempt(false);
-        
-        if (callback) callback();
+        try {
+          console.warn("Geolocation error:", err.message);
+
+          // Record failure for backoff strategy
+          if (gpsBackoff) {
+            gpsBackoff.recordFailure();
+            updatePollingInterval(); // Adjust interval based on backoff state
+          }
+
+          // Record failure with connection monitor
+          MaynardConnectionMonitor.recordAttempt(false);
+
+          if (callback) callback();
+        } finally {
+          finish();
+        }
       },
       {
         enableHighAccuracy: true,
@@ -218,7 +269,7 @@
     requestPositionOnce();
   }
 
-  async function sendPositionToWorker(lat, lng, timestamp) {
+  async function sendPositionToWorker(lat, lng, timestamp, accuracy, generation) {
     if (!userDisplayName) return;
 
     try {
@@ -230,7 +281,9 @@
           latitude: lat,
           longitude: lng,
           name: userDisplayName,
-          timestamp
+          timestamp,
+          accuracy,
+          sessionId
         })
       });
 
@@ -239,11 +292,7 @@
         throw new Error(err.error || `HTTP ${response.status}`);
       }
 
-      const result = await response.json();
-      if (result.sessionId) {
-        sessionId = result.sessionId;
-      }
-      
+      if (!isEnabled || generation !== sharingGeneration) return;
       // Track successful share
       lastShareSuccessMs = timestamp;
       if (statusCallback) {
@@ -251,10 +300,40 @@
       }
     } catch (err) {
       console.error("Failed to share position:", err.message);
-      if (statusCallback) {
+      if (statusCallback && isEnabled && generation === sharingGeneration) {
         statusCallback({ status: "error", message: `Share failed: ${err.message}` });
       }
     }
+  }
+
+  function positionPopupHtml(pos, age) {
+    const elapsedSec = Math.floor(age / 1000);
+    const elapsedMin = Math.floor(elapsedSec / 60);
+    const elapsedHour = Math.floor(elapsedMin / 60);
+    let timeStr;
+    if (elapsedHour > 0) {
+      timeStr = `${elapsedHour}h ${elapsedMin % 60}m ago`;
+    } else if (elapsedMin > 0) {
+      timeStr = `${elapsedMin}m ago`;
+    } else {
+      timeStr = `${elapsedSec}s ago`;
+    }
+
+    const gridRef = MaynardKmlMarkers.gridRef(pos.latitude, pos.longitude);
+    const location = gridRef
+      ? `Grid ref: ${escapeHtml(gridRef)}`
+      : `Location: ${pos.latitude.toFixed(5)}, ${pos.longitude.toFixed(5)}`;
+    const accuracy = Number.isFinite(pos.accuracy) && pos.accuracy >= 0
+      ? `${Math.ceil(pos.accuracy)} m`
+      : "unavailable";
+    return `
+      <div class="position-share-popup">
+        <strong>${escapeHtml(pos.name)}</strong>
+        <div class="popup-row">Time: ${escapeHtml(timeStr)}</div>
+        <div class="popup-row">${location}</div>
+        <div class="popup-row">Accuracy: ${accuracy}</div>
+      </div>
+    `;
   }
 
   // Fetch positions from the Worker and update markers
@@ -284,6 +363,11 @@
         }
         seenSessions.add(pos.sessionId);
 
+        const existing = markerCache.get(pos.sessionId);
+        if (existing && existing._positionShareName !== pos.name) {
+          layerGroup.removeLayer(existing);
+          markerCache.delete(pos.sessionId);
+        }
         // Update or create marker
         if (!markerCache.has(pos.sessionId)) {
           const marker = L.marker([pos.latitude, pos.longitude], {
@@ -296,29 +380,9 @@
             }),
             title: pos.name
           });
+          marker._positionShareName = pos.name;
 
-          // Build popup content
-          const elapsedSec = Math.floor(age / 1000);
-          const elapsedMin = Math.floor(elapsedSec / 60);
-          const elapsedHour = Math.floor(elapsedMin / 60);
-          let timeStr;
-          if (elapsedHour > 0) {
-            timeStr = `${elapsedHour}h ${elapsedMin % 60}m ago`;
-          } else if (elapsedMin > 0) {
-            timeStr = `${elapsedMin}m ago`;
-          } else {
-            timeStr = `${elapsedSec}s ago`;
-          }
-
-          const popupHtml = `
-            <div class="position-share-popup">
-              <strong>${escapeHtml(pos.name)}</strong>
-              <div class="popup-row">Time: ${escapeHtml(timeStr)}</div>
-              <div class="popup-row">Lat: ${pos.latitude.toFixed(5)}</div>
-              <div class="popup-row">Lng: ${pos.longitude.toFixed(5)}</div>
-            </div>
-          `;
-          marker.bindPopup(popupHtml);
+          marker.bindPopup(positionPopupHtml(pos, age));
           MaynardNearbyPicker.register(marker, "Shared position", pos.name);
           marker.addTo(layerGroup);
           markerCache.set(pos.sessionId, marker);
@@ -326,6 +390,7 @@
           // Update existing marker
           const marker = markerCache.get(pos.sessionId);
           marker.setLatLng([pos.latitude, pos.longitude]);
+          marker.setPopupContent(positionPopupHtml(pos, age));
         }
       });
 

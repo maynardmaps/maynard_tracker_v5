@@ -189,12 +189,18 @@ if you re-enable sharing later. When enabled, your position is sent to the Worke
 interval (default 5 minutes; range 1–60 minutes). Between updates, if "Show my location" is disabled, GPS is not actively
 polled to preserve battery. Position sharing automatically stops after a configurable session duration (default 8 hours; range 1–24 hours).
 You can manually disable sharing at any time; no further positions are sent, and your last shared position remains visible until it expires.
+The browser stores a random sharing ID and reuses it across reports, reloads and restarts, so new reports replace the
+previous position. Names are labels, not identifiers: matching names from different browsers are not merged. Browser
+storage and secure random numbers are required; clearing site storage creates a new ID, and older pins remain until
+they expire. Reports are serialized within a page; avoid sharing simultaneously from multiple tabs in the same browser.
 
 **Map display:** Shared positions appear for every map visitor, whether or not they share their own position, as compact
 circular markers centred on the reported coordinates, with the 4-letter name label and a popup above the marker. Garmin
 team positions use more prominent diamonds. If markers are close together, tapping a shared position or another nearby
 marker opens the nearby-item chooser; selecting an item opens its popup. The map fetches positions every 10 seconds
 (same as Garmin positions) and updates their markers. Up to 24 concurrent sharers are supported.
+The popup shows an OS grid reference where available, or latitude and longitude otherwise, and the device-reported
+horizontal accuracy in metres (rounded up). Older positions without accuracy show it as unavailable.
 
 **Configuration:** The **Position Share** section (config page, collapsed by default) has three settings:
 - **Persistence**: How long shared positions remain on the server after upload (default 20 minutes; range 10–120 minutes).
@@ -203,7 +209,7 @@ marker opens the nearby-item chooser; selecting an item opens its popup. The map
 - **Auto-stop**: How long a sharing session lasts before automatic stop (default 8 hours; range 1–24 hours).
 
 **Backend:** Position sharing uses two Worker endpoints (no authentication required for public sharing):
-- `POST /positions/share`: Accept a position update (latitude, longitude, timestamp, optional elevation, display name).
+- `POST /positions/share`: Accept a position update (latitude, longitude, timestamp, display name, optional session ID, horizontal accuracy in metres and elevation). Reports with the same session ID replace the stored position.
 - `GET /positions`: Retrieve all active positions from KV.
 
 Positions are stored in the Worker's KV with a TTL matching the persistence timeout, so they automatically expire.

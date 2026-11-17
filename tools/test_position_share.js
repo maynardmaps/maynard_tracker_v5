@@ -28,31 +28,44 @@ const leaflet = {
   marker(coords, options) {
     return {
       coords, options,
-      bindPopup() { return this; },
+      bindPopup(content) { this.popup = content; return this; },
+      setPopupContent(content) { this.popup = content; return this; },
       addTo() { layers.add(this); return this; },
       setLatLng(next) { this.coords = next; }
     };
   }
 };
-let positions = [{ sessionId: "other", name: "TT1", latitude: 50, longitude: -4, timestamp: Date.now() }];
+let positions = [{ sessionId: "other", name: "TT1", latitude: 50, longitude: -4, accuracy: 12.3, timestamp: Date.now() }];
 let gpsRequests = 0;
 let posts = 0;
+let gpsSuccess;
+let lastPost;
 const pickerEntries = [];
+const storage = new Map();
 const context = {
-  window: { MAYNARD_CONFIG: { garminRelayUrl: "https://relay.example" } },
+  window: {
+    MAYNARD_CONFIG: { garminRelayUrl: "https://relay.example" },
+    crypto: { getRandomValues(bytes) { bytes.fill(42); return bytes; } }
+  },
   document: {
     hidden: false,
     addEventListener() {},
     createElement() { return { set textContent(value) { this.innerHTML = value; }, innerHTML: "" }; }
   },
-  navigator: { geolocation: { getCurrentPosition() { gpsRequests++; } } },
-  localStorage: { setItem() {} },
+  navigator: { geolocation: { getCurrentPosition(success) { gpsRequests++; gpsSuccess = success; } } },
+  localStorage: { getItem(key) { return storage.get(key) || null; }, setItem(key, value) { storage.set(key, value); } },
   MaynardPollingCoordinator: coordinator,
   MaynardNearbyPicker: { register(_marker, category, label) { pickerEntries.push({ category, label }); } },
-  MaynardUtils: { createGpsBackoffTracker: () => ({ getNextRetryDelayMs: () => 300000 }) },
+  MaynardUtils: { createGpsBackoffTracker: () => ({ getNextRetryDelayMs: () => 300000, recordSuccess() {} }) },
+  MaynardConnectionMonitor: { recordAttempt() {} },
+  MaynardKmlMarkers: { gridRef(lat) { return lat === 50 ? "SX 123 456" : null; } },
   L: leaflet,
   fetch: async (_url, options) => {
-    if (options && options.method === "POST") posts++;
+    if (options && options.method === "POST") {
+      posts++;
+      lastPost = JSON.parse(options.body);
+      return { ok: true, json: async () => ({ sessionId: "ours" }) };
+    }
     return { ok: true, json: async () => ({ positions }) };
   },
   setTimeout: () => 1,
@@ -71,6 +84,9 @@ const settle = () => new Promise((resolve) => setImmediate(resolve));
   assert.deepEqual(Array.from(marker.options.icon.iconAnchor), [15, 15]);
   assert.deepEqual(Array.from(marker.options.icon.popupAnchor), [0, -15]);
   assert.deepEqual(pickerEntries[0], { category: "Shared position", label: "TT1" });
+  assert.match(marker.popup, /Grid ref: SX 123 456/);
+  assert.match(marker.popup, /Accuracy: 13 m/);
+  assert.doesNotMatch(marker.popup, /Location:/);
   assert.equal(gpsRequests, 0, "viewing positions does not start GPS");
   assert.equal(posts, 0, "viewing positions does not send our position");
   assert.equal(subscriptions.size, 1);
@@ -79,9 +95,25 @@ const settle = () => new Promise((resolve) => setImmediate(resolve));
 
   assert.equal(share.enable("ME"), true);
   assert.equal(subscriptions.size, 2);
+  assert.equal(gpsRequests, 1, "sharing starts one GPS request");
+  gpsSuccess({ coords: { latitude: 50, longitude: -4, accuracy: 7.8 } });
+  await settle();
+  assert.equal(lastPost.accuracy, 7.8, "GPS accuracy is sent without rounding");
+  assert.equal(lastPost.sessionId, "2a".repeat(16));
   share.disable();
   assert.equal(subscriptions.size, 1, "stopping sharing keeps marker polling active");
   assert.equal(layers.size, 1, "stopping sharing does not hide other markers");
+  positions = [{ ...positions[0], latitude: 40, longitude: -73, accuracy: 0 }];
+  [...subscriptions.values()][0].callback();
+  await settle();
+  assert.equal([...layers][0], marker);
+  assert.match(marker.popup, /Location: 40\.00000, -73\.00000/);
+  assert.match(marker.popup, /Accuracy: 0 m/);
+  assert.doesNotMatch(marker.popup, /Grid ref:/);
+  delete positions[0].accuracy;
+  [...subscriptions.values()][0].callback();
+  await settle();
+  assert.match(marker.popup, /Accuracy: unavailable/);
   positions = [{ ...positions[0], timestamp: Date.now() - 21 * 60000 }];
   [...subscriptions.values()][0].callback();
   await settle();
@@ -93,5 +125,18 @@ const settle = () => new Promise((resolve) => setImmediate(resolve));
   const replacementMap = { layers: new Set(), hasLayer(layer) { return this.layers.has(layer); } };
   share.reattach(replacementMap);
   assert.equal(replacementMap.hasLayer(group), true, "positions reattach after a map change");
+  let status;
+  share.setStatusCallback((next) => { status = next; });
+  context.localStorage.getItem = () => { throw new Error("storage unavailable"); };
+  const originalError = console.error;
+  console.error = () => {};
+  try {
+    assert.equal(share.enable("ME"), false);
+  } finally {
+    console.error = originalError;
+  }
+  assert.equal(status.status, "error");
+  assert.match(status.message, /browser storage/);
+  assert.equal(share.isEnabled(), false);
   console.log("Position-share viewing tests passed.");
 })().catch((error) => { console.error(error); process.exitCode = 1; });

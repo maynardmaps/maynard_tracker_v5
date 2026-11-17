@@ -296,15 +296,17 @@
         return;
       }
 
+      statusEl.textContent = "";
+      statusEl.className = "status-msg";
       const success = MaynardPositionShare.enable(name);
       if (success) {
         statusEl.textContent = "Requesting GPS location...";
         statusEl.className = "status-msg pending";
       } else {
-        statusEl.textContent = "Geolocation not available or name invalid";
-        statusEl.className = "status-msg error";
-        toggle.checked = false;
-        nameBox.hidden = true;
+        if (!statusEl.textContent) {
+          statusEl.textContent = "Position sharing is already enabled, or geolocation is unavailable";
+          statusEl.className = "status-msg error";
+        }
       }
     });
 

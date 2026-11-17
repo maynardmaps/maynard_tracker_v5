@@ -1401,6 +1401,14 @@ async function sharePosition(request, env) {
   if (typeof req.timestamp !== "number" || !Number.isFinite(req.timestamp) || req.timestamp <= 0) {
     return json({ error: "Invalid timestamp" }, 400);
   }
+  if (req.accuracy !== undefined &&
+      (typeof req.accuracy !== "number" || !Number.isFinite(req.accuracy) || req.accuracy < 0)) {
+    return json({ error: "Invalid accuracy" }, 400);
+  }
+  if (req.sessionId !== undefined &&
+      (typeof req.sessionId !== "string" || !/^[A-Za-z0-9_-]{1,128}$/.test(req.sessionId))) {
+    return json({ error: "Invalid session ID" }, 400);
+  }
 
   // Get persistence timeout from settings (default 20 minutes)
   const config = await ipcConfig(env);
@@ -1426,7 +1434,8 @@ async function sharePosition(request, env) {
       latitude: req.latitude,
       longitude: req.longitude,
       timestamp: req.timestamp,
-      elevation: req.elevation || null
+      elevation: req.elevation || null,
+      accuracy: req.accuracy
     };
 
     // Store position with TTL in minutes
