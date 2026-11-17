@@ -333,7 +333,7 @@
     const gridRef = MaynardKmlMarkers.gridRef(pos.latitude, pos.longitude);
     const location = gridRef
       ? `Grid ref: ${escapeHtml(gridRef)}`
-      : `Location: ${pos.latitude.toFixed(5)}, ${pos.longitude.toFixed(5)}`;
+      : `Location: ${MaynardUtils.formatCoordinate(pos.latitude)}, ${MaynardUtils.formatCoordinate(pos.longitude)}`;
     const accuracy = Number.isFinite(pos.accuracy) && pos.accuracy >= 0
       ? `${Math.ceil(pos.accuracy)} m`
       : "unavailable";

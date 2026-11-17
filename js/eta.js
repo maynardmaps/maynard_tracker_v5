@@ -106,7 +106,8 @@
     }
     const route = { ...definition, coordinates, cumulative, total: cumulative[cumulative.length - 1] };
     const terrain = global.MaynardEtaTerrain;
-    if (!terrain || !terrain.isReady()) return route;
+    route.terrainReady = Boolean(terrain && terrain.isReady());
+    if (!route.terrainReady) return route;
     const firstHeight = terrain.sample(coordinates[0][0], coordinates[0][1]);
     if (!Number.isFinite(firstHeight)) return route;
     const profile = [{ progress: 0, ascent: 0, descent: 0 }];
@@ -308,7 +309,11 @@
     }
     const direction = device.etaDirection === "reverse" ? "reverse" : "forward";
     const routeKey = `${definition.id}:${direction}`;
-    if (!preparedRoutes.has(routeKey)) preparedRoutes.set(routeKey, prepareRoute(definition, direction));
+    const terrain = global.MaynardEtaTerrain;
+    const cachedRoute = preparedRoutes.get(routeKey);
+    if (!cachedRoute || (!cachedRoute.terrainReady && terrain && terrain.isReady())) {
+      preparedRoutes.set(routeKey, prepareRoute(definition, direction));
+    }
     const route = preparedRoutes.get(routeKey);
     if (!Number.isFinite(route.total) || route.total <= 0) {
       return { status: "unavailable", reason: "route" };

@@ -19,7 +19,10 @@ Pages with **no backend**. It shows:
 - Environment Agency river level markers (arrows showing rising, falling or
   steady) for a configurable area of England, with the Dartmoor area as the default.
 - A right-click / long-press menu giving the clicked coordinates, an OS grid
-  reference (inside Great Britain) and a link to open the spot in a maps app.
+  reference (inside Great Britain), terrain elevation where available, and a link
+  to open the spot in a maps app. Elevation works independently of ETA.
+- Latitude/longitude readouts use five decimal places (about 1.1 m latitude
+  spacing); navigation, stored positions and raw diagnostic events retain their original precision.
 - A nearby-item chooser for crowded taps: when multiple team, message, shared-position, river,
   or birds-and-rivers markers are close together, choose the intended feature
   from a list; team, message, shared-position, and river icons have larger invisible tap
@@ -199,7 +202,7 @@ route sampling and GPS matching are estimates, not a guarantee of actual ascent 
 The source was accessed on 17 November 2026 via its [WCS](https://environment.data.gov.uk/spatialdata/lidar-composite-digital-terrain-model-dtm-1m/wcs?service=WCS&request=GetCapabilities&version=2.0.1);
 the grid was retrieved as 36 adjacent 11.7 km squares at 390 × 390 pixels with linear interpolation.
 
-To remove ETA if it proves unsuitable, remove the `js/eta.js` script includes from `index.html` and `config.html`, the `js/eta-terrain.js` include and bundled terrain image, remove its map hooks from `js/map-page.js` and `js/kml-markers.js`, remove ETA controls/fields from `config.html` and `js/config-page.js`, and remove the `eta` and per-device ETA fields from `settings.json` and the Worker settings allowlist/validation in `worker/relay.js`. Remove `tools/test_eta.js`, `tools/test_eta_terrain.js`, and the ETA-specific test controls from `test.html` and `js/test-page.js`. Garmin data ingestion, route rendering and messaging do not depend on the ETA module.
+To remove ETA if it proves unsuitable, remove the `js/eta.js` script includes from `index.html` and `config.html`, remove its map hooks from `js/map-page.js` and `js/kml-markers.js`, remove ETA controls/fields from `config.html` and `js/config-page.js`, and remove the `eta` and per-device ETA fields from `settings.json` and the Worker settings allowlist/validation in `worker/relay.js`. Remove `tools/test_eta.js` and the ETA-specific test controls from `test.html` and `js/test-page.js`. Keep `js/eta-terrain.js`, the terrain image and `tools/test_eta_terrain.js` for dropped-pin elevation. Garmin data ingestion, route rendering and messaging do not depend on the ETA module.
 
 ## Position Share
 
@@ -399,7 +402,7 @@ js/
   app-config.js          Non-secret config (relay URL, poll intervals, GitHub defaults)
   utils.js               Shared helpers (fetch w/ timeout, colours)
   eta.js                 Optional route matching and tracker ETA calculations
-  eta-terrain.js         Optional Dartmoor terrain lookup for ETA
+  eta-terrain.js         Dartmoor terrain lookup for ETA and dropped pins
   settings-store.js       Loads/merges/saves settings.json + localStorage override
   github-save.js          Commits settings.json via GitHub Contents API
   map-core.js             Leaflet map lifecycle + CRS switching
@@ -434,6 +437,8 @@ tools/
   gmail-oauth-setup.mjs   Local read-only Gmail OAuth setup helper
   test_eta.js             ETA regression tests
   test_eta_terrain.js     Terrain decoding and interpolation tests
+  test_map_location.js    Dropped-pin elevation tests
+  test_coordinates.js     Coordinate display and precision tests
 settings.json            Committed shared defaults (editable via config.html)
 ```
 

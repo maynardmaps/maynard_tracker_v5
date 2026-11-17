@@ -236,10 +236,7 @@
     return html + "</div>";
   }
 
-  function formatCoordinate(value) {
-    const number = Number(value);
-    return Number.isFinite(number) ? number.toFixed(5) : "";
-  }
+  const formatCoordinate = MaynardUtils.formatCoordinate;
 
   // Standard KML/GeoJSON properties that aren't Garmin ExtendedData fields.
   const EXCLUDED_PROPS = new Set([

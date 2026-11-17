@@ -105,7 +105,9 @@
         const unknown = locs.filter((l) => !registeredImeis.has(String(l.imei)));
         q(".msg-unregistered").innerHTML = unknown.length
             ? unknown.map((l) => {
-              const point = l.coordinate ? `${l.coordinate.latitude}, ${l.coordinate.longitude}` : "No position";
+              const point = l.coordinate && Number.isFinite(l.coordinate.latitude) && Number.isFinite(l.coordinate.longitude)
+                ? `${MaynardUtils.formatCoordinate(l.coordinate.latitude)}, ${MaynardUtils.formatCoordinate(l.coordinate.longitude)}`
+                : "No position";
               const hist = (l.history || []).map((h) => `${esc(TYPE_LABEL[h.type] || h.type)}: ${esc(h.text || "(no text)")} - ${esc(fmtTime(h.time))}${since(h.time) ? ` (${esc(since(h.time))})` : ""}`).join("<br>");
               const positionAge = l.timestamp ? since(Date.parse(l.timestamp)) : "";
               return `<div class="msg-team-card"><div class="msg-team-head"><strong>Unregistered IMEI ${esc(l.imei)}${positionAge ? ` — ${esc(positionAge)}` : ""}</strong></div>

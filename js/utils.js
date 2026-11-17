@@ -61,6 +61,11 @@
   const HTML_ESC = { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" };
   const escapeHtml = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => HTML_ESC[c]);
 
+  function formatCoordinate(value) {
+    const number = Number(value);
+    return Number.isFinite(number) ? number.toFixed(5) : "";
+  }
+
   const folderCollator = new Intl.Collator("en-GB", { numeric: true, sensitivity: "base" });
   function compareRouteFolders(a, b) {
     return folderCollator.compare(a, b) || (a < b ? -1 : a > b ? 1 : 0);
@@ -231,6 +236,7 @@
     fetchJson,
     fetchText,
     escapeHtml,
+    formatCoordinate,
     compareRouteFolders,
     isRouteDate,
     londonDate,

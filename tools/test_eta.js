@@ -227,6 +227,7 @@ window.MaynardEtaTerrain.isReady = () => false;
 eta.init([route], null, terrainConfig);
 assert.equal(eta.getInfo("Team A", 50, -3, now).reason, "elevation", "an unloaded terrain dataset makes the ETA unavailable");
 window.MaynardEtaTerrain.isReady = () => true;
+assert.equal(eta.getInfo("Team A", 50, -3, now).status, "available", "ETA recovers when a later terrain load succeeds");
 window.MaynardEtaTerrain.sample = () => 0;
 
 window.MaynardUtils.fetchText = async () =>

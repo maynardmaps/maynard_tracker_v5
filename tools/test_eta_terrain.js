@@ -42,14 +42,24 @@ vm.runInNewContext(terrainSource, { window, document, Image: FakeImage, setTimeo
   assert.equal(terrain.sample(225000, 105200), null, "outside the sample centres is unavailable");
   assert.equal(terrain.sample(225000 + 12 * 30, 105200 - 21 * 30), null, "missing cells are not treated as zero");
   let timeout;
-  class SlowImage { set src(_url) {} removeAttribute() {} }
+  let requests = 0;
+  class SlowImage { set src(_url) { requests++; } removeAttribute() {} }
   const slowWindow = {};
   vm.runInNewContext(terrainSource, {
     window: slowWindow, document, Image: SlowImage,
     setTimeout: (callback) => { timeout = callback; return 1; }, clearTimeout() {}
   });
   const slowLoad = slowWindow.MaynardEtaTerrain.load();
+  const secondLoad = slowWindow.MaynardEtaTerrain.load();
+  assert.equal(requests, 1, "concurrent terrain requests share one load");
   timeout();
-  await assert.rejects(slowLoad, /Timed out loading Dartmoor terrain data/);
+  await Promise.all([
+    assert.rejects(slowLoad, /Timed out loading Dartmoor terrain data/),
+    assert.rejects(secondLoad, /Timed out loading Dartmoor terrain data/)
+  ]);
+  const retry = slowWindow.MaynardEtaTerrain.load();
+  assert.equal(requests, 2, "a failed terrain load can be retried");
+  timeout();
+  await assert.rejects(retry, /Timed out loading Dartmoor terrain data/);
   console.log("ETA terrain interpolation tests passed.");
 })().catch((error) => { console.error(error); process.exitCode = 1; });

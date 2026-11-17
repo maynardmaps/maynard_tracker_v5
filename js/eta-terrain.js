@@ -1,4 +1,4 @@
-// Dartmoor terrain data is only loaded when ETA is enabled.
+// Shared Dartmoor terrain lookup for ETA and dropped-pin popups.
 (function (global) {
   "use strict";
 
@@ -8,9 +8,15 @@
   const NORTH = 105200;
   const CELL_M = 30;
   let pixels = null;
+  let loading = null;
 
-  async function load() {
-    if (pixels) return;
+  function load() {
+    if (pixels) return Promise.resolve();
+    if (!loading) loading = loadImage().finally(() => { loading = null; });
+    return loading;
+  }
+
+  async function loadImage() {
     const image = new Image();
     await new Promise((resolve, reject) => {
       const timer = setTimeout(() => {

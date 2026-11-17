@@ -114,7 +114,7 @@
         row.className = "location-history-entry";
         const summary = document.createElement("p");
         const location = Number.isFinite(entry.latitude) && Number.isFinite(entry.longitude)
-          ? `${entry.latitude}, ${entry.longitude}`
+          ? `${MaynardUtils.formatCoordinate(entry.latitude)}, ${MaynardUtils.formatCoordinate(entry.longitude)}`
           : "No coordinates in event";
         const timeSince = MaynardUtils.timeSince(entry.time);
         summary.textContent = `${new Date(entry.time).toLocaleString()}${timeSince ? ` (${timeSince})` : ""} — ${entry.kind} — ${entry.source || "Garmin push"} — ${location}`;
@@ -368,8 +368,8 @@
       : "No route geometries loaded; check route files and reload this page.";
 
     // Start point
-    document.getElementById("start-lat").value = settings.startPoint.lat;
-    document.getElementById("start-lng").value = settings.startPoint.lng;
+    document.getElementById("start-lat").value = MaynardUtils.formatCoordinate(settings.startPoint.lat);
+    document.getElementById("start-lng").value = MaynardUtils.formatCoordinate(settings.startPoint.lng);
     document.getElementById("start-zoom").value = settings.startZoom;
     initPickerMap();
 
@@ -606,16 +606,26 @@
 
   function syncLatLngInputsFromMarker() {
     const ll = pickerMarker.getLatLng();
-    document.getElementById("start-lat").value = ll.lat.toFixed(6);
-    document.getElementById("start-lng").value = ll.lng.toFixed(6);
+    document.getElementById("start-lat").value = MaynardUtils.formatCoordinate(ll.lat);
+    document.getElementById("start-lng").value = MaynardUtils.formatCoordinate(ll.lng);
+  }
+
+  function readStartPoint() {
+    const marker = pickerMarker.getLatLng();
+    const read = (id, value) => {
+      const input = document.getElementById(id).value;
+      // Keep the marker's original precision when its rounded display is unchanged.
+      return input === MaynardUtils.formatCoordinate(value) ? value : parseFloat(input);
+    };
+    return { lat: read("start-lat", marker.lat), lng: read("start-lng", marker.lng) };
   }
 
   function syncMarkerFromInputs() {
-    const lat = parseFloat(document.getElementById("start-lat").value);
-    const lng = parseFloat(document.getElementById("start-lng").value);
+    const { lat, lng } = readStartPoint();
     if (Number.isFinite(lat) && Number.isFinite(lng)) {
       pickerMarker.setLatLng([lat, lng]);
       pickerMap.panTo([lat, lng]);
+      syncLatLngInputsFromMarker();
     }
   }
 
@@ -816,10 +826,7 @@
       defaultRouteFolder: manualDefaultFolder,
       autoRouteFolder,
       routeFolderDates: { ...routeFolderDates },
-      startPoint: {
-        lat: parseFloat(document.getElementById("start-lat").value),
-        lng: parseFloat(document.getElementById("start-lng").value)
-      },
+      startPoint: readStartPoint(),
       startZoom: parseInt(document.getElementById("start-zoom").value, 10) || settings.startZoom,
       github: {
         owner: document.getElementById("gh-owner").value.trim(),
