@@ -100,7 +100,7 @@ test("browser reports reuse a persistent identity and update one Worker-backed m
       MaynardUtils: { createGpsBackoffTracker: () => ({ getNextRetryDelayMs: () => 300000, recordSuccess() {} }) },
       MaynardConnectionMonitor: { recordAttempt() {} },
       MaynardNearbyPicker: { register() {} },
-      MaynardKmlMarkers: { gridRef() { return null; } },
+      MaynardKmlMarkers: { gridRef() { return null; }, navigationHtml() { return ""; } },
       L: {
         featureGroup: () => group,
         divIcon: (options) => options,

@@ -200,7 +200,8 @@ team positions use more prominent diamonds. If markers are close together, tappi
 marker opens the nearby-item chooser; selecting an item opens its popup. The map fetches positions every 10 seconds
 (same as Garmin positions) and updates their markers. Up to 24 concurrent sharers are supported.
 The popup shows an OS grid reference where available, or latitude and longitude otherwise, and the device-reported
-horizontal accuracy in metres (rounded up). Older positions without accuracy show it as unavailable.
+horizontal accuracy in metres (rounded up). Older positions without accuracy show it as unavailable. A **Nav to** button
+opens the reported location in a maps app, as for Garmin markers.
 
 **Configuration:** The **Position Share** section (config page, collapsed by default) has three settings:
 - **Persistence**: How long shared positions remain on the server after upload (default 20 minutes; range 10–120 minutes).

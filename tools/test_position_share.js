@@ -45,7 +45,8 @@ const storage = new Map();
 const context = {
   window: {
     MAYNARD_CONFIG: { garminRelayUrl: "https://relay.example" },
-    crypto: { getRandomValues(bytes) { bytes.fill(42); return bytes; } }
+    crypto: { getRandomValues(bytes) { bytes.fill(42); return bytes; } },
+    addEventListener() {}
   },
   document: {
     hidden: false,
@@ -56,9 +57,7 @@ const context = {
   localStorage: { getItem(key) { return storage.get(key) || null; }, setItem(key, value) { storage.set(key, value); } },
   MaynardPollingCoordinator: coordinator,
   MaynardNearbyPicker: { register(_marker, category, label) { pickerEntries.push({ category, label }); } },
-  MaynardUtils: { createGpsBackoffTracker: () => ({ getNextRetryDelayMs: () => 300000, recordSuccess() {} }) },
   MaynardConnectionMonitor: { recordAttempt() {} },
-  MaynardKmlMarkers: { gridRef(lat) { return lat === 50 ? "SX 123 456" : null; } },
   L: leaflet,
   fetch: async (_url, options) => {
     if (options && options.method === "POST") {
@@ -72,6 +71,12 @@ const context = {
   clearTimeout() {},
   console
 };
+vm.runInNewContext(fs.readFileSync("js/utils.js", "utf8"), context);
+context.MaynardUtils = context.window.MaynardUtils;
+context.MaynardUtils.createGpsBackoffTracker = () => ({ getNextRetryDelayMs: () => 300000, recordSuccess() {} });
+vm.runInNewContext(fs.readFileSync("js/kml-markers.js", "utf8"), context);
+context.MaynardKmlMarkers = context.window.MaynardKmlMarkers;
+context.MaynardKmlMarkers.gridRef = (lat) => lat === 50 ? "SX 123 456" : null;
 vm.runInNewContext(fs.readFileSync("js/position-share.js", "utf8"), context);
 const share = context.window.MaynardPositionShare;
 const settle = () => new Promise((resolve) => setImmediate(resolve));
@@ -87,6 +92,10 @@ const settle = () => new Promise((resolve) => setImmediate(resolve));
   assert.match(marker.popup, /Grid ref: SX 123 456/);
   assert.match(marker.popup, /Accuracy: 13 m/);
   assert.doesNotMatch(marker.popup, /Location:/);
+  assert.match(marker.popup, /href="https:\/\/www\.google\.com\/maps\/search\/\?api=1&amp;query=50,-4"/);
+  assert.match(marker.popup, /aria-label="Nav to TT1 in maps"/);
+  assert.match(marker.popup, /<svg aria-hidden="true"/);
+  assert.match(marker.popup, /target="_blank" rel="noopener"/);
   assert.equal(gpsRequests, 0, "viewing positions does not start GPS");
   assert.equal(posts, 0, "viewing positions does not send our position");
   assert.equal(subscriptions.size, 1);
@@ -104,12 +113,18 @@ const settle = () => new Promise((resolve) => setImmediate(resolve));
   assert.equal(subscriptions.size, 1, "stopping sharing keeps marker polling active");
   assert.equal(layers.size, 1, "stopping sharing does not hide other markers");
   positions = [{ ...positions[0], latitude: 40, longitude: -73, accuracy: 0 }];
+  context.navigator.userAgent = "Android";
   [...subscriptions.values()][0].callback();
   await settle();
   assert.equal([...layers][0], marker);
   assert.match(marker.popup, /Location: 40\.00000, -73\.00000/);
   assert.match(marker.popup, /Accuracy: 0 m/);
+  assert.match(marker.popup, /href="geo:40,-73\?q=40,-73\(TT1\)"/);
   assert.doesNotMatch(marker.popup, /Grid ref:/);
+  context.navigator.userAgent = "iPhone";
+  [...subscriptions.values()][0].callback();
+  await settle();
+  assert.match(marker.popup, /href="https:\/\/maps\.apple\.com\/\?ll=40,-73&amp;q=TT1"/);
   delete positions[0].accuracy;
   [...subscriptions.values()][0].callback();
   await settle();

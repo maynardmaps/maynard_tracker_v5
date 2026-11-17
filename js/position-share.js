@@ -332,6 +332,7 @@
         <div class="popup-row">Time: ${escapeHtml(timeStr)}</div>
         <div class="popup-row">${location}</div>
         <div class="popup-row">Accuracy: ${accuracy}</div>
+        ${MaynardKmlMarkers.navigationHtml(pos.latitude, pos.longitude, pos.name)}
       </div>
     `;
   }

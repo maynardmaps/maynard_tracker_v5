@@ -110,7 +110,7 @@
         (messageAge ? `<div class="kml-popup-age">${escapeHtml(messageAge)}</div>` : "") +
         location +
         `<div class="kml-popup-emergency${sos ? "" : " kml-popup-emergency-clear"}">${sos ? "EMERGENCY: SOS" : "No emergency"}</div>` +
-        `<div class="kml-popup-nav"><a href="${escapeHtml(mapAppUrl(lat, lng, name + " message"))}" title="Open location in maps" aria-label="Nav to ${escapeHtml(name)} in maps" target="_blank" rel="noopener">${NAV_ICON} Nav to</a></div>` +
+        navigationHtml(lat, lng, name, name + " message") +
         '<details class="kml-popup-details"><summary>More details</summary>' +
         '<table class="kml-popup-table">' + rows.map(([l, v]) => `<tr><th>${escapeHtml(l)}</th><td>${l === "Message" ? `<strong>${escapeHtml(String(v))}</strong>` : escapeHtml(String(v))}</td></tr>`).join("") + "</table>" +
         "</details></div>";
@@ -163,6 +163,11 @@
     return `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
   }
 
+  function navigationHtml(lat, lng, label, mapLabel = label) {
+    const href = mapAppUrl(lat, lng, mapLabel);
+    return `<div class="kml-popup-nav"><a href="${escapeHtml(href)}" title="Open location in maps" aria-label="Nav to ${escapeHtml(label)} in maps" target="_blank" rel="noopener">${NAV_ICON} Nav to</a></div>`;
+  }
+
   // OS grid reference (2 letters + 6 figures, 100 m) or null outside Great Britain.
   function gridRef(lat, lng) {
     if (!global.proj4 || !isFinite(lat) || !isFinite(lng)) return null;
@@ -212,8 +217,7 @@
     else if (hasCoordinates) html += `<div class="kml-popup-grid">Location: ${formatCoordinate(lat)}, ${formatCoordinate(lng)}</div>`;
     html += `<div class="kml-popup-emergency${emergency ? "" : " kml-popup-emergency-clear"}">${emergency ? "EMERGENCY" : "No emergency"}</div>`;
     if (hasCoordinates) {
-      const href = mapAppUrl(lat, lng, title);
-      html += `<div class="kml-popup-nav"><a href="${escapeHtml(href)}" title="Open location in maps" aria-label="Nav to ${escapeHtml(title)} in maps" target="_blank" rel="noopener">${NAV_ICON} Nav to</a></div>`;
+      html += navigationHtml(lat, lng, title);
     }
     let details = "";
     if (has("description") && !has("Time")) {
@@ -544,5 +548,5 @@
     if (layerGroup && visible) layerGroup.addTo(map);
   }
 
-  global.MaynardKmlMarkers = { start, stop, setVisible, getBounds, reattach, mapAppUrl, gridRef };
+  global.MaynardKmlMarkers = { start, stop, setVisible, getBounds, reattach, mapAppUrl, navigationHtml, gridRef };
 })(window);
