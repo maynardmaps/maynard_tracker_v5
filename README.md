@@ -24,7 +24,12 @@ Pages with **no backend**. It shows:
   or birds-and-rivers markers are close together, choose the intended feature
   from a list; team, message, shared-position, and river icons have larger invisible tap
   targets for mobile.
-- On mobile, the map menu and zoom controls occupy separate spaces; zoom controls
+- When **Show my location** is enabled, the button below the zoom controls centres the map on
+  the latest GPS fix without changing zoom; it is disabled until a location is available.
+- The location dot has a direction arrow when an absolute device compass is available, adjusted
+  for screen rotation. If no compass reading is available, a GPS course is used when provided;
+  otherwise the arrow is hidden. Compass access may require permission and can be approximate.
+- On mobile, the map menu and map controls occupy separate spaces; map controls
   are hidden while the menu is open.
 - Optional scheduled Gmail route-card import: authorized sender emails with
   Word attachments are validated, converted to KML, and added to a dated route

@@ -10,7 +10,9 @@ Map requirements:
 2) The map should display markers for relevant locations.
 3) The map should update in real-time as new data (see data source requirements) becomes available.
 4) The map should be responsive and work well on both desktop and mobile devices.
-4a) On mobile, the menu button and zoom controls must not overlap. The zoom controls are hidden while the menu is open and restored below the menu button when it closes.
+4a) On mobile, the menu button and map controls must not overlap. The controls are hidden while the menu is open and restored below the menu button when it closes.
+4b) When "show my location" is active, a control below the zoom buttons should centre the map on the latest location without changing zoom. It must remain unavailable until a location is known and follow map recreation and resizing.
+4c) When "show my location" is active, show an arrow on the location dot for an available absolute compass heading, updating as the device or screen orientation changes. Request sensor permission where required, do not treat relative orientation as a compass, and stop listening when location display is disabled. Use GPS course when no compass heading is available and hide the arrow when neither is available.
 5) The map should have selectable layers for different map types (see data source requirements).
 6) The map should be able to display the position of the user. This should be togglable from the map page.
 7) There should be a scale bar.

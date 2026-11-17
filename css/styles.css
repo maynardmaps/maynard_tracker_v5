@@ -179,6 +179,32 @@ select#route-folder-select {
   box-shadow: 0 0 0 2px rgba(21, 101, 192, 0.5);
 }
 
+.user-location-heading {
+  position: absolute;
+  left: 0;
+  top: -16px;
+  width: 16px;
+  height: 24px;
+  transform-origin: 8px 24px;
+  pointer-events: none;
+}
+.user-location-heading svg { display: block; width: 16px; height: 16px; fill: #1565c0; stroke: #fff; stroke-width: 1; }
+
+.leaflet-control-location button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  background: #fff;
+  color: #333;
+}
+.leaflet-control-location button:not(:disabled):hover { background: #f4f4f4; }
+.leaflet-control-location svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; }
+
 @media (max-width: 720px) {
   .app-shell {
     position: relative;
