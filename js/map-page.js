@@ -44,7 +44,12 @@
       }
     });
     if (settings.eta && settings.eta.enabled) {
+      const terrainLoad = MaynardEtaTerrain.load().catch((error) => {
+        console.error("ETA terrain data unavailable", error);
+        MaynardUtils.diag("ETA terrain", false, error.message);
+      });
       const etaRoutes = await MaynardEta.discoverRoutes(manifest);
+      await terrainLoad;
       MaynardEta.init(etaRoutes, map, settings);
       MaynardUtils.diag("ETA", etaRoutes.length > 0,
         etaRoutes.length ? `${etaRoutes.length} routes available` : "no route geometries available");

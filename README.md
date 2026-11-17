@@ -179,9 +179,27 @@ is available).
 
 ## Optional tracker ETA
 
-Tracker ETA is disabled by default and isolated in `js/eta.js`. When enabled, assign a route, direction, and fallback speed to each tracker in **Expedition setup**. Imported route-card speeds appear as route defaults and prefill the fallback-speed field; existing assignments are updated when a card is imported. The **ETA management** section contains the feature toggle, stale-position threshold, and planned lunch time and duration. The compact team-position popup shows the destination-local time of day and time remaining, without a date; expanded details include the full arrival date and time. ETA uses cumulative route distance and time-stamped positions, smoothing the latest three valid speed intervals; a single off-route/ambiguous fix preserves the last estimate with a low-confidence warning, while repeated unusable matches or stale data make ETA unavailable. The test tool offers 10-minute sparse-ping simulation with an accelerated clock, as well as a faster 10-second demonstration. Simulated observation timestamps are separate from current receipt timestamps so test reports remain fresh while ETA speed calculations use the simulated travel interval. Destination-local arrival formatting is available for UK routes; outside the supported area the duration remains available and local time is reported unavailable.
+Tracker ETA is disabled by default and isolated in `js/eta.js`. When enabled, assign a route, direction, and fallback speed to each tracker in **Expedition setup**. Imported route-card speeds appear as route defaults and prefill the fallback-speed field; existing assignments are updated when a card is imported. The **ETA management** section contains the feature toggle, stale-position threshold, and planned lunch time and duration. The compact team-position popup shows the destination-local time of day and time remaining, without a date; expanded details include the full arrival date and time. ETA uses cumulative route distance and time-stamped positions, smoothing the latest three valid speed intervals; a single off-route/ambiguous fix preserves the last estimate with a low-confidence warning, while repeated unusable matches or stale data make ETA unavailable. The test tool offers 10-minute sparse-ping simulation with an accelerated clock, as well as a faster 10-second demonstration. Simulated observation timestamps are separate from current receipt timestamps so test reports remain fresh while ETA speed calculations use the simulated travel interval. Destination-local arrival formatting is available for UK routes; a duration can only be calculated where route terrain data is available.
 
-To remove ETA if it proves unsuitable, remove the `js/eta.js` script includes from `index.html` and `config.html`, remove its map hooks from `js/map-page.js` and `js/kml-markers.js`, remove ETA controls/fields from `config.html` and `js/config-page.js`, and remove the `eta` and per-device ETA fields from `settings.json` and the Worker settings allowlist/validation in `worker/relay.js`. Remove `tools/test_eta.js` and the ETA-specific test controls from `test.html` and `js/test-page.js`. Garmin data ingestion, route rendering and messaging do not depend on the ETA module.
+ETA samples terrain along the actual route at intervals no greater than 30 m. It subtracts one
+minute per 10 m of ascent from each observed interval before estimating level-ground speed,
+then adds one minute per 10 m of remaining ascent to the predicted travel time. Descents do not
+add time. A non-positive or implausible adjusted interval is discarded with a low-confidence
+warning; other usable intervals or the configured fallback speed are used. The expanded popup
+shows remaining ascent. Missing terrain anywhere on the assigned route makes ETA unavailable
+rather than silently omitting the climb allowance.
+
+The bundled `data/dartmoor-terrain-30m.png` is derived from the [Environment Agency 2022
+LiDAR Composite Digital Terrain Model](https://www.data.gov.uk/dataset/01b3ee39-da3f-47b6-83da-dc98e73a461f/lidar-composite-digital-terrain-model-dtm-1m)
+(© Environment Agency copyright and/or database right 2022, [Open Government Licence](https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/)). Its 1 m
+terrain heights were resampled to a 30 m British National Grid, covering eastings 225000–295200 m
+and northings 35000–105200 m. The PNG stores height to 0.1 m in its red/green bytes (unsigned
+big-endian value, minus 10000 and divided by 10); 65535 denotes missing data. Terrain heights,
+route sampling and GPS matching are estimates, not a guarantee of actual ascent or arrival time.
+The source was accessed on 17 November 2026 via its [WCS](https://environment.data.gov.uk/spatialdata/lidar-composite-digital-terrain-model-dtm-1m/wcs?service=WCS&request=GetCapabilities&version=2.0.1);
+the grid was retrieved as 36 adjacent 11.7 km squares at 390 × 390 pixels with linear interpolation.
+
+To remove ETA if it proves unsuitable, remove the `js/eta.js` script includes from `index.html` and `config.html`, the `js/eta-terrain.js` include and bundled terrain image, remove its map hooks from `js/map-page.js` and `js/kml-markers.js`, remove ETA controls/fields from `config.html` and `js/config-page.js`, and remove the `eta` and per-device ETA fields from `settings.json` and the Worker settings allowlist/validation in `worker/relay.js`. Remove `tools/test_eta.js`, `tools/test_eta_terrain.js`, and the ETA-specific test controls from `test.html` and `js/test-page.js`. Garmin data ingestion, route rendering and messaging do not depend on the ETA module.
 
 ## Position Share
 
@@ -381,6 +399,7 @@ js/
   app-config.js          Non-secret config (relay URL, poll intervals, GitHub defaults)
   utils.js               Shared helpers (fetch w/ timeout, colours)
   eta.js                 Optional route matching and tracker ETA calculations
+  eta-terrain.js         Optional Dartmoor terrain lookup for ETA
   settings-store.js       Loads/merges/saves settings.json + localStorage override
   github-save.js          Commits settings.json via GitHub Contents API
   map-core.js             Leaflet map lifecycle + CRS switching
@@ -404,6 +423,7 @@ maps/
   20261014-north-moor-map-tt27-o.pdf
 data/
   birdsrivers.kml    Static points+polygons overlay (sample placeholder - replace with real data)
+  dartmoor-terrain-30m.png  Elevation data for ETA
 worker/
   relay.js                Cloudflare Worker (Garmin, Gmail route imports, Met Office, OS tiles, settings/routes writer)
   gmail-route-card.js     DOCX route-card parser, validation, OS grid conversion and KML generator
@@ -413,6 +433,7 @@ worker/
 tools/
   gmail-oauth-setup.mjs   Local read-only Gmail OAuth setup helper
   test_eta.js             ETA regression tests
+  test_eta_terrain.js     Terrain decoding and interpolation tests
 settings.json            Committed shared defaults (editable via config.html)
 ```
 

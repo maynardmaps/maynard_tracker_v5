@@ -7,7 +7,9 @@
   const DEFAULT_SPEED_KMH = 5;
   const MAX_MATCH_DISTANCE_M = 500;
   const MAX_SPEED_KMH = 160;
+  const TERRAIN_SAMPLE_M = 30;
   const routes = new Map();
+  const preparedRoutes = new Map();
   const histories = new Map();
   let settings = null;
   let map = null;
@@ -102,7 +104,51 @@
     for (let i = 1; i < coordinates.length; i++) {
       cumulative.push(cumulative[i - 1] + distance(coordinates[i - 1], coordinates[i]));
     }
-    return { ...definition, coordinates, cumulative, total: cumulative[cumulative.length - 1] };
+    const route = { ...definition, coordinates, cumulative, total: cumulative[cumulative.length - 1] };
+    const terrain = global.MaynardEtaTerrain;
+    if (!terrain || !terrain.isReady()) return route;
+    const firstHeight = terrain.sample(coordinates[0][0], coordinates[0][1]);
+    if (!Number.isFinite(firstHeight)) return route;
+    const profile = [{ progress: 0, ascent: 0, descent: 0 }];
+    let previousHeight = firstHeight, ascent = 0, descent = 0;
+    for (let i = 1; i < coordinates.length; i++) {
+      const start = coordinates[i - 1], end = coordinates[i];
+      const length = cumulative[i] - cumulative[i - 1];
+      if (!length) continue;
+      const steps = Math.ceil(length / TERRAIN_SAMPLE_M);
+      for (let step = 1; step <= steps; step++) {
+        const fraction = step / steps;
+        const height = terrain.sample(start[0] + (end[0] - start[0]) * fraction,
+          start[1] + (end[1] - start[1]) * fraction);
+        if (!Number.isFinite(height)) return route;
+        const difference = height - previousHeight;
+        ascent += Math.max(0, difference);
+        descent += Math.max(0, -difference);
+        profile.push({ progress: cumulative[i - 1] + length * fraction, ascent, descent });
+        previousHeight = height;
+      }
+    }
+    route.terrainProfile = profile;
+    return route;
+  }
+
+  function profileAt(profile, progress, key) {
+    let low = 0, high = profile.length - 1;
+    while (high - low > 1) {
+      const middle = Math.floor((low + high) / 2);
+      if (profile[middle].progress < progress) low = middle;
+      else high = middle;
+    }
+    if (progress <= profile[low].progress) return profile[low][key];
+    if (progress >= profile[high].progress) return profile[high][key];
+    const fraction = (progress - profile[low].progress) / (profile[high].progress - profile[low].progress);
+    return profile[low][key] + fraction * (profile[high][key] - profile[low][key]);
+  }
+
+  function ascentBetween(route, start, end) {
+    const profile = route.terrainProfile;
+    if (end >= start) return profileAt(profile, end, "ascent") - profileAt(profile, start, "ascent");
+    return profileAt(profile, start, "descent") - profileAt(profile, end, "descent");
   }
 
   function project(point, start, end) {
@@ -235,6 +281,7 @@
 
   function init(routeDefinitions, mapInstance, appSettings) {
     routes.clear();
+    preparedRoutes.clear();
     (routeDefinitions || []).forEach((definition) => routes.set(definition.id, definition));
     settings = appSettings;
     map = mapInstance;
@@ -259,10 +306,14 @@
         !Number.isFinite(freshnessTime) || Date.now() - freshnessTime > (etaSettings.staleMinutes || 30) * 60000) {
       return { status: "unavailable", reason: "stale" };
     }
-    const route = prepareRoute(definition, device.etaDirection === "reverse" ? "reverse" : "forward");
+    const direction = device.etaDirection === "reverse" ? "reverse" : "forward";
+    const routeKey = `${definition.id}:${direction}`;
+    if (!preparedRoutes.has(routeKey)) preparedRoutes.set(routeKey, prepareRoute(definition, direction));
+    const route = preparedRoutes.get(routeKey);
     if (!Number.isFinite(route.total) || route.total <= 0) {
       return { status: "unavailable", reason: "route" };
     }
+    if (!route.terrainProfile) return { status: "unavailable", reason: "elevation", route, direction };
     const historyKey = `${team}:${definition.id}:${device.etaDirection || "forward"}`;
     const history = histories.get(historyKey) || { samples: [], waypointIndex: null };
     const latest = history.samples[history.samples.length - 1];
@@ -289,13 +340,20 @@
     const current = history.samples[history.samples.length - 1];
     const ageMinutes = Math.max(0, (Date.now() - freshnessTime) / 60000);
     const remainingM = Math.max(0, route.total - current.progress);
+    const remainingAscentM = ascentBetween(route, current.progress, route.total);
     const intervalSpeeds = [];
+    let invalidClimbInterval = false;
     for (let i = 1; i < history.samples.length; i++) {
       const before = history.samples[i - 1], after = history.samples[i];
-      const elapsedHours = (after.time - before.time) / 3600000;
-      if (elapsedHours <= 0) continue;
+      const climbM = ascentBetween(route, before.progress, after.progress);
+      const elapsedHours = (after.time - before.time - climbM / 10 * 60000) / 3600000;
+      if (elapsedHours <= 0) {
+        if (climbM > 0) invalidClimbInterval = true;
+        continue;
+      }
       const speed = Math.abs(after.progress - before.progress) / 1000 / elapsedHours;
       if (speed > 0 && speed <= MAX_SPEED_KMH) intervalSpeeds.push(speed);
+      else if (climbM > 0 && speed > MAX_SPEED_KMH) invalidClimbInterval = true;
     }
     const recentSpeeds = intervalSpeeds.slice(-3).sort((a, b) => a - b);
     const middle = Math.floor(recentSpeeds.length / 2);
@@ -310,7 +368,7 @@
       return { status: "unavailable", reason: "stale", route, direction: device.etaDirection || "forward" };
     }
     const now = new Date();
-    const etaMinutes = remainingM / 1000 / speedKmh * 60;
+    const etaMinutes = remainingM / 1000 / speedKmh * 60 + remainingAscentM / 10;
     const timezone = destinationTimeZone(route.coordinates[route.coordinates.length - 1][1], route.coordinates[route.coordinates.length - 1][0]);
     const baseArrival = Date.now() + etaMinutes * 60000;
     const lunchMinutes = lunchAdjustment(now, new Date(baseArrival), timezone, etaSettings);
@@ -319,8 +377,12 @@
     const info = {
       status: "available", route, direction: device.etaDirection || "forward",
       legIndex: current.legIndex, nextWaypointIndex, remainingKm: remainingM / 1000,
-      speedKmh, speedSource: measuredSpeed > 0 ? "measured" : "fallback",
-      ageMinutes, lowConfidence, confidenceReason: lowConfidence ? "Recent position did not match the route" : "",
+      speedKmh, speedSource: measuredSpeed > 0 ? "measured" : "fallback", remainingAscentM,
+      ageMinutes, lowConfidence: lowConfidence || invalidClimbInterval,
+      confidenceReason: [
+        lowConfidence ? "Recent position did not match the route" : "",
+        invalidClimbInterval ? "A climb-adjusted speed interval was unusable" : ""
+      ].filter(Boolean).join("; "),
       duration: formatDuration(etaMinutes + lunchMinutes),
       arrival: timezone ? new Intl.DateTimeFormat("en-GB", {
         timeZone: timezone, dateStyle: "medium", timeStyle: "short"
@@ -342,12 +404,13 @@
   function popupHtml(info) {
     if (!info || info.status === "disabled") return "";
     if (info.status === "unassigned") return '<section class="eta-popup"><strong>ETA</strong><div>No route assigned</div></section>';
-    if (info.status !== "available") return '<section class="eta-popup"><strong>ETA</strong><div>ETA unavailable</div></section>';
+    if (info.status !== "available") return `<section class="eta-popup"><strong>ETA</strong><div>ETA unavailable${info.reason === "elevation" ? ": route elevation data unavailable" : ""}</div></section>`;
     return `<section class="eta-popup"><strong>ETA</strong>` +
       `<div>${info.duration} · ${info.arrival}</div>` +
       `<div>Route: ${MaynardUtils.escapeHtml(info.route.label)} (${info.direction === "reverse" ? "back to front" : "front to back"})</div>` +
       `<div>Leg ${info.legIndex + 1} of ${info.route.coordinates.length - 1}</div>` +
       `<div>Distance remaining: ${info.remainingKm.toFixed(1)} km</div>` +
+      `<div>Remaining ascent: ${Math.round(info.remainingAscentM)} m</div>` +
       `<div>Estimated speed: ${info.speedKmh.toFixed(1)} km/h (${info.speedSource})</div>` +
       `<div>Position age: ${Math.round(info.ageMinutes)} min${info.lunchIncluded ? " · planned lunch included" : " · planned lunch not included"}</div>` +
       (info.lowConfidence ? `<div class="eta-low-confidence">${MaynardUtils.escapeHtml(info.confidenceReason)}</div>` : "") +
