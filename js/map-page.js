@@ -132,10 +132,10 @@
       const href = MaynardKmlMarkers.mapAppUrl(e.latlng.lat, e.latlng.lng, "Dropped pin");
       const gr = MaynardKmlMarkers.gridRef(e.latlng.lat, e.latlng.lng);
       const navIcon = '<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 2 4.5 21 12 17l7.5 4L12 2Zm0 5.2 4.2 10.1-4.2-2.2-4.2 2.2L12 7.2Z"/></svg>';
-      const start = `<div class="kml-popup"><strong>${lat}, ${lng}</strong>` +
+      const content = (elevation) => `<div class="kml-popup"><strong>${lat}, ${lng}</strong>` +
         (gr ? `<div class="kml-popup-grid">Grid ref: ${gr}</div>` : "") +
-        `<div class="kml-popup-nav"><a href="${MaynardUtils.escapeHtml(href)}" title="Open location in maps" aria-label="Nav to dropped pin in maps" target="_blank" rel="noopener">${navIcon} Nav to</a></div>`;
-      const content = (elevation) => start + (elevation ? `<div>${elevation}</div>` : "") + "</div>";
+        (elevation ? `<div>${elevation}</div>` : "") +
+        `<div class="kml-popup-nav"><a href="${MaynardUtils.escapeHtml(href)}" title="Open location in maps" aria-label="Nav to dropped pin in maps" target="_blank" rel="noopener">${navIcon} Nav to</a></div></div>`;
       const popup = L.popup().setLatLng(e.latlng).setContent(content("Elevation: loading...")).openOn(map);
       MaynardEtaTerrain.load().then(() => {
         if (!popup.isOpen()) return;

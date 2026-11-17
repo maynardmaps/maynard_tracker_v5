@@ -86,9 +86,11 @@ const select = (lat, lng) => map.contextmenu({ latlng: { lat, lng } });
   assert.match(popups[0].content, /SX 123 456/);
   assert.match(popups[0].content, /Nav to/);
   assert.match(popups[0].content, /Elevation: loading/);
+  assert.match(popups[0].content, /Grid ref: SX 123 456<\/div><div>Elevation: loading\.\.\.<\/div><div class="kml-popup-nav">/);
   requests[0].resolve();
   await tick();
   assert.match(popups[0].content, /Elevation: 124 m/, "terrain is shown with ETA disabled");
+  assert.match(popups[0].content, /Grid ref: SX 123 456<\/div><div>Elevation: 124 m<\/div><div class="kml-popup-nav">/);
 
   select(50.6, -4);
   select(50.7, -4);
@@ -105,5 +107,6 @@ const select = (lat, lng) => map.contextmenu({ latlng: { lat, lng } });
   requests[3].reject(new Error("network error"));
   await tick();
   assert.match(popups[3].content, /Elevation unavailable/);
+  assert.match(popups[3].content, /Grid ref: SX 123 456<\/div><div>Elevation unavailable<\/div><div class="kml-popup-nav">/);
   console.log("Dropped-pin elevation tests passed.");
 })().catch((error) => { console.error(error); process.exitCode = 1; });

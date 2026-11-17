@@ -7,7 +7,7 @@
 (function (global) {
   "use strict";
 
-  const VERSION = "5.7.0";
+  const VERSION = "5.7.1";
 
   global.MaynardVersion = {
     version: VERSION,
