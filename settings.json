@@ -6,7 +6,7 @@
     "branch": "main"
   },
   "defaultRouteFolder": "TT1",
-  "autoRouteFolder": false,
+  "autoRouteFolder": true,
   "routeFolderDates": {
     "TT1": "2027-11-06",
     "TT2 day 1": "2026-12-05"
