@@ -1,0 +1,713 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<gpx version="1.1" 
+creator="Memory-Map 6.4.3.1278 https://memory-map.com"
+ xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+ xmlns="http://www.topografix.com/GPX/1/1"
+ xmlns:xstyle="http://www.topografix.com/GPX/gpx_style/0/2"
+ xmlns:xgarmin="http://www.garmin.com/xmlschemas/GpxExtensions/v3"
+ xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd http://www.topografix.com/GPX/gpx_style/0/2 http://www.topografix.com/GPX/gpx_style/0/2/gpx_style.xsd http://www.garmin.com/xmlschemas/GpxExtensions/v3 https://www8.garmin.com/xmlschemas/GpxExtensionsv3.xsd">
+<rte>
+<name>TT2 35 Day 2 Red</name>
+<src>mmid:224AD4EA346AEC2E</src>
+<type>Route</type>
+<extensions> <xstyle:line>
+<xstyle:color>ff0000</xstyle:color>
+<xstyle:opacity>1.0</xstyle:opacity>
+<xstyle:width>2.0</xstyle:width>
+<xstyle:pattern>Solid</xstyle:pattern>
+</xstyle:line></extensions>
+<rtept lat="50.6122539859" lon="-3.8003417149">
+<time>2026-11-19T12:26:19Z</time>
+<name>Heatree</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.6113909239" lon="-3.8009094721">
+<time>2026-11-19T11:56:28Z</time>
+<name>WP0002</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.6104018625" lon="-3.7994580649">
+<time>2026-11-19T11:56:30Z</time>
+<name>WP0003</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.6098116950" lon="-3.7969264651">
+<time>2026-11-19T11:56:31Z</time>
+<name>WP0004</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.6086773854" lon="-3.7961410662">
+<time>2026-11-19T11:56:33Z</time>
+<name>WP0005</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.6087918687" lon="-3.7945552370">
+<time>2026-11-19T11:56:34Z</time>
+<name>WP0006</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.6082449580" lon="-3.7935802761">
+<time>2026-11-19T11:56:36Z</time>
+<name>WP0007</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.6094791210" lon="-3.7791386322">
+<time>2026-11-19T12:27:01Z</time>
+<name>Bowermans Nose</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.6085179197" lon="-3.7787842604">
+<time>2026-11-19T11:57:08Z</time>
+<name>WP0009</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.6061283910" lon="-3.7836056212">
+<time>2026-11-19T11:57:10Z</time>
+<name>WP0010</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.6039041654" lon="-3.7835213443">
+<time>2026-11-19T11:57:30Z</time>
+<name>WP0011</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.5983821874" lon="-3.7829941909">
+<time>2026-11-19T11:57:25Z</time>
+<name>WP0012</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.5975033762" lon="-3.7802052329">
+<time>2026-11-19T11:58:05Z</time>
+<name>WP0013</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.5968388770" lon="-3.7780957155">
+<time>2026-11-19T12:27:25Z</time>
+<name>Hound Tor</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.5947491752" lon="-3.7765683939">
+<time>2026-11-19T11:59:27Z</time>
+<name>WP0015</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.5936645205" lon="-3.7754676840">
+<time>2026-11-19T11:59:24Z</time>
+<name>WP0016</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.5917379940" lon="-3.7735581592">
+<time>2026-11-19T12:27:47Z</time>
+<name>Path crossing wall</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.5914261559" lon="-3.7733697924">
+<time>2026-11-19T11:58:45Z</time>
+<name>WP0018</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.5890046435" lon="-3.7758925034">
+<time>2026-11-19T11:59:00Z</time>
+<name>WP0019</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.5879843222" lon="-3.7823179675">
+<time>2026-11-19T11:58:55Z</time>
+<name>WP0020</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.5875125153" lon="-3.7823001139">
+<time>2026-11-19T11:59:51Z</time>
+<name>WP0021</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.5871356652" lon="-3.7834161394">
+<time>2026-11-19T11:59:52Z</time>
+<name>WP0022</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.5864960580" lon="-3.7869946584">
+<time>2026-11-19T11:59:54Z</time>
+<name>WP0023</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.5849572146" lon="-3.7920223296">
+<time>2026-11-19T11:59:55Z</time>
+<name>WP0024</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.5843151056" lon="-3.7942936576">
+<time>2026-11-19T11:59:57Z</time>
+<name>WP0025</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.5839096088" lon="-3.7943488499">
+<time>2026-11-19T12:00:34Z</time>
+<name>WP0026</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.5837982996" lon="-3.7928258957">
+<time>2026-11-19T12:00:35Z</time>
+<name>WP0027</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.5834316488" lon="-3.7918230189">
+<time>2026-11-19T12:28:26Z</time>
+<name>Bonehill Rocks</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.5822693724" lon="-3.7913903145">
+<time>2026-11-19T12:00:38Z</time>
+<name>WP0029</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.5812901023" lon="-3.7907526872">
+<time>2026-11-19T12:00:39Z</time>
+<name>WP0030</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.5799890868" lon="-3.7891140119">
+<time>2026-11-19T12:00:40Z</time>
+<name>WP0031</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.5773258705" lon="-3.7883419155">
+<time>2026-11-19T12:00:41Z</time>
+<name>WP0032</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.5766989741" lon="-3.7881768675">
+<time>2026-11-19T12:00:43Z</time>
+<name>WP0033</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.5724601827" lon="-3.7860739477">
+<time>2026-11-19T12:00:49Z</time>
+<name>WP0034</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.5716376051" lon="-3.7854778157">
+<time>2026-11-19T12:00:56Z</time>
+<name>WP0035</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.5696503307" lon="-3.7875210254">
+<time>2026-11-19T12:28:46Z</time>
+<name>Pil Tor</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.5634470992" lon="-3.7859795570">
+<time>2026-11-19T12:01:16Z</time>
+<name>WP0037</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.5610987462" lon="-3.7837371775">
+<time>2026-11-19T12:01:19Z</time>
+<name>WP0038</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.5594200198" lon="-3.7818027325">
+<time>2026-11-19T12:01:21Z</time>
+<name>WP0039</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.5540433929" lon="-3.7791288070">
+<time>2026-11-19T12:29:09Z</time>
+<name>Cold East Cross</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.5604855109" lon="-3.7768302038">
+<time>2026-11-19T12:02:32Z</time>
+<name>WP0041</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.5624076608" lon="-3.7760906852">
+<time>2026-11-19T12:02:33Z</time>
+<name>WP0042</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.5642233071" lon="-3.7720285036">
+<time>2026-11-19T12:02:37Z</time>
+<name>WP0043</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.5663476321" lon="-3.7712963312">
+<time>2026-11-19T12:29:24Z</time>
+<name>Rippon Tor</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.5675915901" lon="-3.7693305963">
+<time>2026-11-19T12:03:06Z</time>
+<name>WP0045</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.5716148367" lon="-3.7693757094">
+<time>2026-11-19T12:03:24Z</time>
+<name>WP0046</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.5737239399" lon="-3.7652175421">
+<time>2026-11-19T12:29:40Z</time>
+<name>Saddle Tor</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.5750529137" lon="-3.7620892187">
+<time>2026-11-19T12:03:37Z</time>
+<name>WP0048</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.5792067411" lon="-3.7609378940">
+<time>2026-11-19T12:03:48Z</time>
+<name>WP0049</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.5818123377" lon="-3.7625539317">
+<time>2026-11-19T12:03:54Z</time>
+<name>WP0050</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.5843852305" lon="-3.7648399944">
+<time>2026-11-19T12:30:00Z</time>
+<name>Holwell Tor</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.5837386904" lon="-3.7615311219">
+<time>2026-11-19T12:04:08Z</time>
+<name>WP0052</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.5852981008" lon="-3.7595055565">
+<time>2026-11-19T12:04:14Z</time>
+<name>WP0053</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.5860090719" lon="-3.7570949974">
+<time>2026-11-19T12:04:15Z</time>
+<name>WP0054</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.5869200331" lon="-3.7533496105">
+<time>2026-11-19T12:04:16Z</time>
+<name>WP0055</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.5861597609" lon="-3.7501071349">
+<time>2026-11-19T12:04:28Z</time>
+<name>WP0056</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.5860988300" lon="-3.7511644883">
+<time>2026-11-19T12:04:31Z</time>
+<name>WP0057</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.5854130728" lon="-3.7519160365">
+<time>2026-11-19T12:04:31Z</time>
+<name>WP0058</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.5844362453" lon="-3.7511026834">
+<time>2026-11-19T12:04:33Z</time>
+<name>WP0059</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.5841013681" lon="-3.7509489591">
+<time>2026-11-19T12:04:34Z</time>
+<name>WP0060</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.5833696106" lon="-3.7517694058">
+<time>2026-11-19T12:30:18Z</time>
+<name>Haytor Quarries</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.5813608008" lon="-3.7493284727">
+<time>2026-11-19T12:04:38Z</time>
+<name>WP0062</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+<rtept lat="50.5810871132" lon="-3.7451156117">
+<time>2026-11-19T12:30:36Z</time>
+<name>Haytor Parking</name>
+<sym>Dot</sym>
+<type>Waypoints</type>
+<extensions>
+<xstyle:fill>
+<xstyle:color>0000ff</xstyle:color>
+</xstyle:fill>
+</extensions>
+</rtept>
+</rte>
+</gpx>
