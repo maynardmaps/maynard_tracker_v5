@@ -86,28 +86,28 @@
     {
       "imei": "300434031477230",
       "name": "TT1",
-      "etaRouteId": "TT1/TT1.kml#0",
+      "etaRouteId": "TT2 day 1/TT2_day_1_35.gpx#0",
       "etaDirection": "forward",
-      "etaFallbackSpeedKmh": 5
+      "etaFallbackSpeedKmh": 4
     },
     {
       "imei": "300434031379170",
       "name": "TT2",
-      "etaRouteId": "",
+      "etaRouteId": "TT2 day 1/TT2_day_1_35.gpx#0",
       "etaDirection": "forward",
-      "etaFallbackSpeedKmh": 5
+      "etaFallbackSpeedKmh": 4
     },
     {
       "imei": "300434031470000",
       "name": "TT3",
-      "etaRouteId": "",
+      "etaRouteId": "TT2 day 1/TT2_day_1_35.gpx#0",
       "etaDirection": "forward",
-      "etaFallbackSpeedKmh": 5
+      "etaFallbackSpeedKmh": 4
     },
     {
       "imei": "300434031375980",
       "name": "TT4",
-      "etaRouteId": "",
+      "etaRouteId": "TT2 day 1/TT2_day_1_45.gpx#0",
       "etaDirection": "forward",
       "etaFallbackSpeedKmh": 5
     }
