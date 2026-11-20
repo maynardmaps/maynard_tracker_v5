@@ -9,7 +9,8 @@
   "autoRouteFolder": true,
   "routeFolderDates": {
     "TT1": "2027-11-06",
-    "TT2 day 1": "2026-12-05"
+    "TT2 day 1": "2026-12-05",
+    "TT2 Day 2": "2026-12-06"
   },
   "startPoint": {
     "lat": 50.543071,
